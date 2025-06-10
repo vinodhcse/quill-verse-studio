@@ -1,0 +1,29 @@
+
+/* Track Changes Styling */
+.track-insertion {
+  background-color: rgba(34, 197, 94, 0.2);
+  text-decoration: underline;
+  text-decoration-color: rgb(34, 197, 94);
+}
+
+.track-deletion {
+  background-color: rgba(239, 68, 68, 0.2);
+  text-decoration: line-through;
+  text-decoration-color: rgb(239, 68, 68);
+}
+
+.comment-highlight {
+  background-color: rgba(59, 130, 246, 0.2);
+  border-bottom: 2px solid rgb(59, 130, 246);
+  cursor: pointer;
+}
+
+.comment-highlight:hover {
+  background-color: rgba(59, 130, 246, 0.3);
+}
+
+/* Editor collaborative styling */
+.ProseMirror .has-focus {
+  outline: 2px solid rgb(59, 130, 246);
+  outline-offset: 2px;
+}

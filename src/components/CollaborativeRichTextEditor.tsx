@@ -1,15 +1,18 @@
-
 import React, { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Focus from '@tiptap/extension-focus';
+import TextStyle from '@tiptap/extension-text-style';
+import { CommentExtension } from '@/extensions/CommentExtension';
+import { TrackChangesExtension } from '@/extensions/TrackChangesExtension';
 import { EditorToolbar } from './EditorToolbar';
 import { EditModeSelector } from './EditModeSelector';
 import { ChangesSidebar } from './ChangesSidebar';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { cn } from '@/lib/utils';
+import './collaboration-styles.css';
 
 interface CollaborativeRichTextEditorProps {
   content: string;
@@ -46,6 +49,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
           levels: [1, 2, 3],
         },
       }),
+      TextStyle,
       Placeholder.configure({
         placeholder,
       }),
@@ -54,6 +58,11 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         className: 'has-focus',
         mode: 'all',
       }),
+      CommentExtension,
+      TrackChangesExtension.configure({
+        userId: currentUser.id,
+        userName: currentUser.name,
+      }),
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -61,16 +70,11 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       
       // In suggest mode, we track changes instead of directly updating
       if (editMode === 'suggest') {
-        // This is a simplified version - in a real implementation,
-        // you'd need to diff the content and create proper change logs
         console.log('Change detected in suggest mode:', newContent);
-        // For demo purposes, we'll still update the content
         onChange(newContent);
       } else if (editMode === 'edit') {
-        // Direct editing for authors
         onChange(newContent);
       }
-      // In review mode, changes are read-only
     },
     editable: editMode !== 'review',
     editorProps: {
@@ -91,13 +95,11 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
 
   const handleAcceptChange = (changeId: string) => {
     acceptChange(changeId);
-    // In a real implementation, you'd apply the change to the editor content
     console.log('Accepting change:', changeId);
   };
 
   const handleRejectChange = (changeId: string) => {
     rejectChange(changeId);
-    // In a real implementation, you'd remove the change from the editor content
     console.log('Rejecting change:', changeId);
   };
 
