@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, Book, Grid3X3, List, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Book, Grid3X3, List, PenTool } from 'lucide-react';
 import { BookCard } from '@/components/BookCard';
 import { CreateBookModal } from '@/components/CreateBookModal';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import {
   Pagination,
   PaginationContent,
@@ -131,7 +131,7 @@ const Dashboard = () => {
 
   const BookListItem = ({ book }: { book: Book }) => (
     <Card 
-      className="cursor-pointer hover:shadow-md transition-all duration-200 group"
+      className="cursor-pointer hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 group border-0 bg-card/80 backdrop-blur-sm hover-scale"
       onClick={() => handleBookSelect(book.id)}
     >
       <CardContent className="p-4">
@@ -165,21 +165,45 @@ const Dashboard = () => {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
-      <div className="container mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }} />
+        <div className="absolute top-1/3 left-1/3 w-60 h-60 bg-primary/3 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '6s' }} />
+      </div>
+
+      {/* Header */}
+      <div className="relative z-10 bg-background/80 backdrop-blur-sm border-b border-border/50">
+        <div className="container mx-auto px-6 py-4">
+          <div className="flex items-center justify-between">
+            <Link to="/" className="flex items-center space-x-2 hover-scale">
+              <PenTool className="h-6 w-6 text-primary" />
+              <span className="text-xl font-bold">AuthorStudio</span>
+            </Link>
+            <Button asChild variant="outline" className="hover-scale">
+              <Link to="/login">Sign Out</Link>
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative z-10 container mx-auto px-6 py-8">
+        <div className="flex items-center justify-between mb-8 animate-fade-in">
           <div>
-            <h1 className="text-3xl font-bold mb-2">Your Library</h1>
+            <h1 className="text-3xl font-bold mb-2 gradient-animate bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+              Your Library
+            </h1>
             <p className="text-muted-foreground">Select a book to continue writing or create a new one</p>
           </div>
           
           <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-muted/50 rounded-lg p-1">
+            <div className="flex items-center space-x-2 bg-card/80 backdrop-blur-sm rounded-lg p-1 border border-border/50">
               <Button
                 variant={viewMode === 'grid' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('grid')}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 hover-scale"
               >
                 <Grid3X3 size={16} />
               </Button>
@@ -187,13 +211,13 @@ const Dashboard = () => {
                 variant={viewMode === 'list' ? 'default' : 'ghost'}
                 size="sm"
                 onClick={() => setViewMode('list')}
-                className="h-8 w-8 p-0"
+                className="h-8 w-8 p-0 hover-scale"
               >
                 <List size={16} />
               </Button>
             </div>
             
-            <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Button onClick={() => setIsCreateModalOpen(true)} className="pulse-glow hover-scale">
               <Plus size={16} className="mr-2" />
               Create New Book
             </Button>
@@ -204,11 +228,11 @@ const Dashboard = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {/* Create New Book Card */}
             <Card 
-              className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer group"
+              className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale"
               onClick={() => setIsCreateModalOpen(true)}
             >
               <CardContent className="flex flex-col items-center justify-center h-80 p-6">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors">
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors pulse-glow">
                   <Plus size={24} className="text-primary" />
                 </div>
                 <h3 className="font-medium text-center mb-2">Create New Book</h3>
@@ -218,22 +242,23 @@ const Dashboard = () => {
 
             {/* Existing Books */}
             {currentBooks.map((book) => (
-              <BookCard
-                key={book.id}
-                book={book}
-                onSelect={() => handleBookSelect(book.id)}
-              />
+              <div key={book.id} className="animate-fade-in hover-scale">
+                <BookCard
+                  book={book}
+                  onSelect={() => handleBookSelect(book.id)}
+                />
+              </div>
             ))}
           </div>
         ) : (
           <div className="space-y-4">
             {/* Create New Book List Item */}
             <Card 
-              className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-colors cursor-pointer group"
+              className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale animate-fade-in"
               onClick={() => setIsCreateModalOpen(true)}
             >
               <CardContent className="flex items-center space-x-4 p-4">
-                <div className="w-16 h-20 rounded bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+                <div className="w-16 h-20 rounded bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors pulse-glow">
                   <Plus size={24} className="text-primary" />
                 </div>
                 <div>
@@ -245,20 +270,22 @@ const Dashboard = () => {
 
             {/* Existing Books */}
             {currentBooks.map((book) => (
-              <BookListItem key={book.id} book={book} />
+              <div key={book.id} className="animate-fade-in">
+                <BookListItem book={book} />
+              </div>
             ))}
           </div>
         )}
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <div className="mt-8 flex justify-center">
+          <div className="mt-8 flex justify-center animate-fade-in">
             <Pagination>
               <PaginationContent>
                 <PaginationItem>
                   <PaginationPrevious 
                     onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer hover-scale"}
                   />
                 </PaginationItem>
                 
@@ -267,7 +294,7 @@ const Dashboard = () => {
                     <PaginationLink
                       onClick={() => setCurrentPage(page)}
                       isActive={currentPage === page}
-                      className="cursor-pointer"
+                      className="cursor-pointer hover-scale"
                     >
                       {page}
                     </PaginationLink>
@@ -277,7 +304,7 @@ const Dashboard = () => {
                 <PaginationItem>
                   <PaginationNext 
                     onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer"}
+                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer hover-scale"}
                   />
                 </PaginationItem>
               </PaginationContent>
@@ -286,13 +313,13 @@ const Dashboard = () => {
         )}
 
         {books.length === 0 && (
-          <div className="text-center py-16">
-            <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6">
+          <div className="text-center py-16 animate-fade-in">
+            <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6 pulse-glow">
               <Book size={32} className="text-muted-foreground" />
             </div>
             <h3 className="text-xl font-medium mb-2">No books yet</h3>
             <p className="text-muted-foreground mb-6">Create your first book to get started</p>
-            <Button onClick={() => setIsCreateModalOpen(true)}>
+            <Button onClick={() => setIsCreateModalOpen(true)} className="pulse-glow hover-scale">
               <Plus size={16} className="mr-2" />
               Create Your First Book
             </Button>
