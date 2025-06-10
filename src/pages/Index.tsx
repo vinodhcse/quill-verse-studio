@@ -4,7 +4,6 @@ import { ModeNavigation, Mode } from '@/components/ModeNavigation';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { CenterPanel } from '@/components/CenterPanel';
-import { cn } from '@/lib/utils';
 
 const Index = () => {
   const [currentMode, setCurrentMode] = useState<Mode>('writing');
@@ -16,6 +15,10 @@ const Index = () => {
       <ModeNavigation 
         currentMode={currentMode}
         onModeChange={setCurrentMode}
+        leftSidebarCollapsed={leftSidebarCollapsed}
+        rightSidebarCollapsed={rightSidebarCollapsed}
+        onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
+        onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
       />
       
       <div className="relative h-[calc(100vh-57px)] w-full">
@@ -25,7 +28,6 @@ const Index = () => {
           onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
         />
         
-        {/* Center panel now takes full width since sidebars are floating */}
         <div className="h-full px-4">
           <CenterPanel mode={currentMode} />
         </div>

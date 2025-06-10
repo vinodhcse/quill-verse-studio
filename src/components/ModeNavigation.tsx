@@ -1,66 +1,82 @@
 
 import React from 'react';
+import { Button } from '@/components/ui/button';
+import { PenTool, Layout, Users, Eye, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { BookOpen, Edit3, FileText, Users, Eye } from 'lucide-react';
 
-export type Mode = 'planning' | 'writing' | 'formatting' | 'editing' | 'reviewing';
+export type Mode = 'writing' | 'planning' | 'editing';
 
 interface ModeNavigationProps {
   currentMode: Mode;
   onModeChange: (mode: Mode) => void;
+  leftSidebarCollapsed: boolean;
+  rightSidebarCollapsed: boolean;
+  onToggleLeftSidebar: () => void;
+  onToggleRightSidebar: () => void;
 }
-
-const modes = [
-  { id: 'planning' as Mode, label: 'Planning', icon: BookOpen },
-  { id: 'writing' as Mode, label: 'Writing', icon: Edit3 },
-  { id: 'formatting' as Mode, label: 'Formatting', icon: FileText },
-  { id: 'editing' as Mode, label: 'Editing', icon: Users },
-  { id: 'reviewing' as Mode, label: 'Reviewing', icon: Eye },
-];
 
 export const ModeNavigation: React.FC<ModeNavigationProps> = ({
   currentMode,
   onModeChange,
+  leftSidebarCollapsed,
+  rightSidebarCollapsed,
+  onToggleLeftSidebar,
+  onToggleRightSidebar,
 }) => {
+  const modes = [
+    { id: 'writing' as Mode, label: 'Writing', icon: PenTool },
+    { id: 'planning' as Mode, label: 'Planning', icon: Layout },
+    { id: 'editing' as Mode, label: 'Editing', icon: Users },
+  ];
+
   return (
-    <nav className="sticky top-0 z-50 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 border-b">
+    <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
       <div className="flex items-center justify-between px-6 py-3">
-        <div className="flex items-center space-x-2">
-          <h1 className="text-xl font-bold text-primary">AuthorStudio</h1>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-1 rounded">
-            Beta
-          </span>
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleLeftSidebar}
+            className="h-8 w-8 p-0 rounded-lg hover:bg-accent/50"
+            title={leftSidebarCollapsed ? "Show left sidebar" : "Hide left sidebar"}
+          >
+            {leftSidebarCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
+          </Button>
         </div>
-        
-        <div className="flex items-center space-x-1 bg-muted p-1 rounded-lg">
+
+        <div className="flex items-center space-x-2 bg-muted/50 rounded-xl p-1">
           {modes.map((mode) => {
             const Icon = mode.icon;
             return (
-              <button
+              <Button
                 key={mode.id}
+                variant={currentMode === mode.id ? 'default' : 'ghost'}
+                size="sm"
                 onClick={() => onModeChange(mode.id)}
                 className={cn(
-                  "flex items-center space-x-2 px-4 py-2 rounded-md text-sm font-medium transition-all duration-200",
-                  currentMode === mode.id
-                    ? "bg-background text-primary shadow-sm"
-                    : "text-muted-foreground hover:text-foreground hover:bg-background/50"
+                  "h-8 px-3 rounded-lg transition-all duration-200",
+                  currentMode === mode.id 
+                    ? "bg-background shadow-sm" 
+                    : "hover:bg-background/50"
                 )}
               >
-                <Icon size={16} />
-                <span>{mode.label}</span>
-              </button>
+                <Icon size={14} className="mr-1.5" />
+                {mode.label}
+              </Button>
             );
           })}
         </div>
 
-        <div className="flex items-center space-x-2">
-          <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span className="text-xs text-muted-foreground">Auto-saved</span>
-          </div>
-          <button className="text-sm text-primary hover:text-primary/80">
-            Share
-          </button>
+        <div className="flex items-center space-x-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onToggleRightSidebar}
+            className="h-8 w-8 p-0 rounded-lg hover:bg-accent/50"
+            title={rightSidebarCollapsed ? "Show right sidebar" : "Hide right sidebar"}
+          >
+            {rightSidebarCollapsed ? <ChevronLeft size={16} /> : <ChevronRight size={16} />}
+          </Button>
         </div>
       </div>
     </nav>
