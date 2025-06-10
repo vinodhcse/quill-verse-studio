@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { 
   Bold, 
   Italic, 
-  Underline, 
   List, 
   ListOrdered,
   Quote,
@@ -80,12 +79,6 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
           isActive={editor.isActive('italic')}
         >
           <Italic size={14} />
-        </ToolbarButton>
-        <ToolbarButton
-          onClick={() => editor.chain().focus().toggleUnderline().run()}
-          isActive={editor.isActive('underline')}
-        >
-          <Underline size={14} />
         </ToolbarButton>
       </div>
 
