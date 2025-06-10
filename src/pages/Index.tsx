@@ -11,20 +11,31 @@ const Index = () => {
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20">
       <ModeNavigation 
         currentMode={currentMode}
         onModeChange={setCurrentMode}
       />
       
-      <div className="flex h-[calc(100vh-57px)] w-full">
+      <div className="relative h-[calc(100vh-57px)] w-full">
         <LeftSidebar
           mode={currentMode}
           isCollapsed={leftSidebarCollapsed}
           onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
         />
         
-        <CenterPanel mode={currentMode} />
+        <div className={cn(
+          "h-full transition-all duration-300",
+          leftSidebarCollapsed && rightSidebarCollapsed 
+            ? "mx-4" 
+            : leftSidebarCollapsed 
+              ? "ml-4 mr-80" 
+              : rightSidebarCollapsed 
+                ? "ml-72 mr-4" 
+                : "ml-72 mr-80"
+        )}>
+          <CenterPanel mode={currentMode} />
+        </div>
         
         <RightSidebar
           mode={currentMode}

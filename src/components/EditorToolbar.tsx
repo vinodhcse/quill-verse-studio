@@ -55,8 +55,8 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
       disabled={disabled}
       title={title}
       className={cn(
-        "h-8 w-8 p-0",
-        isActive && "bg-primary text-primary-foreground"
+        "h-8 w-8 p-0 rounded-lg transition-all duration-200",
+        isActive && "bg-primary/10 text-primary border border-primary/20"
       )}
     >
       {children}
@@ -66,7 +66,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
   const addLink = () => {
     const url = window.prompt('Enter URL:');
     if (url) {
-      editor.chain().focus().setLink({ href: url }).run();
+      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
     }
   };
 
@@ -78,72 +78,75 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
   };
 
   return (
-    <div className="flex items-center flex-wrap gap-1 p-2 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+    <div className="flex items-center flex-wrap gap-1 p-3 border-b bg-background/80 backdrop-blur-md sticky top-0 z-10 rounded-t-xl">
       {/* Undo/Redo */}
-      <div className="flex items-center space-x-1 mr-2">
+      <div className="flex items-center space-x-1 mr-3">
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
           title="Undo"
         >
-          <Undo size={14} />
+          <Undo size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().chain().focus().redo().run()}
           title="Redo"
         >
-          <Redo size={14} />
+          <Redo size={16} />
         </ToolbarButton>
       </div>
 
-      <div className="w-px h-6 bg-border mx-2" />
+      <div className="w-px h-6 bg-border/50 mx-2" />
 
       {/* Text Formatting */}
-      <div className="flex items-center space-x-1 mr-2">
+      <div className="flex items-center space-x-1 mr-3">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive('bold')}
           title="Bold"
         >
-          <Bold size={14} />
+          <Bold size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           isActive={editor.isActive('italic')}
           title="Italic"
         >
-          <Italic size={14} />
+          <Italic size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleUnderline().run()}
           isActive={editor.isActive('underline')}
           title="Underline"
         >
-          <Underline size={14} />
+          <Underline size={16} />
         </ToolbarButton>
       </div>
 
-      <div className="w-px h-6 bg-border mx-2" />
+      <div className="w-px h-6 bg-border/50 mx-2" />
 
       {/* Headings Dropdown */}
-      <div className="flex items-center space-x-1 mr-2">
+      <div className="flex items-center space-x-1 mr-3">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant={editor.isActive('heading') ? "default" : "ghost"}
               size="sm"
-              className="h-8 px-2"
+              className={cn(
+                "h-8 px-3 rounded-lg transition-all duration-200",
+                editor.isActive('heading') && "bg-primary/10 text-primary border border-primary/20"
+              )}
               title="Headings"
             >
-              <Heading size={14} className="mr-1" />
+              <Heading size={16} className="mr-1" />
               {editor.isActive('heading', { level: 1 }) && 'H1'}
               {editor.isActive('heading', { level: 2 }) && 'H2'}
               {editor.isActive('heading', { level: 3 }) && 'H3'}
               {!editor.isActive('heading') && 'H'}
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
+          <DropdownMenuContent className="rounded-xl border-border/50">
             <DropdownMenuItem
               onClick={() => editor.chain().focus().setParagraph().run()}
               className={editor.isActive('paragraph') ? 'bg-accent' : ''}
@@ -172,76 +175,76 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         </DropdownMenu>
       </div>
 
-      <div className="w-px h-6 bg-border mx-2" />
+      <div className="w-px h-6 bg-border/50 mx-2" />
 
       {/* Alignment */}
-      <div className="flex items-center space-x-1 mr-2">
+      <div className="flex items-center space-x-1 mr-3">
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('left').run()}
           isActive={editor.isActive({ textAlign: 'left' })}
           title="Align Left"
         >
-          <AlignLeft size={14} />
+          <AlignLeft size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('center').run()}
           isActive={editor.isActive({ textAlign: 'center' })}
           title="Align Center"
         >
-          <AlignCenter size={14} />
+          <AlignCenter size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().setTextAlign('right').run()}
           isActive={editor.isActive({ textAlign: 'right' })}
           title="Align Right"
         >
-          <AlignRight size={14} />
+          <AlignRight size={16} />
         </ToolbarButton>
       </div>
 
-      <div className="w-px h-6 bg-border mx-2" />
+      <div className="w-px h-6 bg-border/50 mx-2" />
 
       {/* Lists and Quotes */}
-      <div className="flex items-center space-x-1 mr-2">
+      <div className="flex items-center space-x-1 mr-3">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           isActive={editor.isActive('bulletList')}
           title="Bullet List"
         >
-          <List size={14} />
+          <List size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editor.isActive('orderedList')}
           title="Numbered List"
         >
-          <ListOrdered size={14} />
+          <ListOrdered size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           isActive={editor.isActive('blockquote')}
           title="Quote"
         >
-          <Quote size={14} />
+          <Quote size={16} />
         </ToolbarButton>
       </div>
 
-      <div className="w-px h-6 bg-border mx-2" />
+      <div className="w-px h-6 bg-border/50 mx-2" />
 
       {/* Links and Media */}
-      <div className="flex items-center space-x-1 mr-2">
+      <div className="flex items-center space-x-1">
         <ToolbarButton
           onClick={addLink}
           isActive={editor.isActive('link')}
           title="Add Link"
         >
-          <Link size={14} />
+          <Link size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={addImage}
           title="Add Image"
         >
-          <Image size={14} />
+          <Image size={16} />
         </ToolbarButton>
       </div>
     </div>

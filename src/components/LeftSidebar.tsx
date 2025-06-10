@@ -22,7 +22,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Chapters</h3>
-              <button className="p-1 hover:bg-muted rounded">
+              <button className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors">
                 <Plus size={14} />
               </button>
             </div>
@@ -31,15 +31,15 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 <div
                   key={i}
                   className={cn(
-                    "p-2 rounded-md cursor-pointer transition-colors text-sm",
-                    i === 0 ? "bg-primary/10 text-primary" : "hover:bg-muted"
+                    "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm group hover:shadow-sm",
+                    i === 0 ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-accent/50"
                   )}
                 >
                   <div className="flex items-center space-x-2">
-                    <FileText size={14} />
-                    <span className="truncate">{chapter}</span>
+                    <FileText size={14} className="opacity-70 group-hover:opacity-100" />
+                    <span className="truncate font-medium">{chapter}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">
+                  <div className="text-xs text-muted-foreground mt-1 ml-6">
                     2,340 words
                   </div>
                 </div>
@@ -56,19 +56,19 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
               {['Plot Outline', 'Character Arcs', 'World Building', 'Timeline'].map((board, i) => (
                 <div
                   key={i}
-                  className="p-2 rounded-md cursor-pointer hover:bg-muted transition-colors text-sm flex items-center space-x-2"
+                  className="p-3 rounded-xl cursor-pointer hover:bg-accent/50 transition-all duration-200 text-sm flex items-center space-x-2 group hover:shadow-sm"
                 >
-                  <Layers size={14} />
-                  <span>{board}</span>
+                  <Layers size={14} className="opacity-70 group-hover:opacity-100" />
+                  <span className="font-medium">{board}</span>
                 </div>
               ))}
             </div>
             
-            <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-2">Characters</h4>
+            <div className="pt-4 border-t border-border/50">
+              <h4 className="text-sm font-medium mb-3">Characters</h4>
               <div className="space-y-1">
                 {['Sarah Chen', 'Marcus Williams', 'Dr. Elena Rodriguez'].map((character, i) => (
-                  <div key={i} className="text-xs p-1 hover:bg-muted rounded cursor-pointer">
+                  <div key={i} className="text-xs p-2 hover:bg-accent/50 rounded-lg cursor-pointer transition-colors font-medium">
                     {character}
                   </div>
                 ))}
@@ -81,17 +81,17 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
         return (
           <div className="space-y-4">
             <h3 className="text-sm font-medium">Collaborators</h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {[
                 { name: 'Alex Thompson', role: 'Editor', status: 'active' },
                 { name: 'Maria Garcia', role: 'Reviewer', status: 'pending' },
               ].map((user, i) => (
-                <div key={i} className="p-2 rounded-md border text-sm">
+                <div key={i} className="p-3 rounded-xl border border-border/50 text-sm hover:shadow-sm transition-all duration-200">
                   <div className="flex items-center space-x-2">
-                    <Users size={14} />
+                    <Users size={14} className="opacity-70" />
                     <span className="font-medium">{user.name}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="text-xs text-muted-foreground mt-1 ml-6">
                     {user.role} • {user.status}
                   </div>
                 </div>
@@ -102,39 +102,48 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       
       default:
         return (
-          <div className="text-sm text-muted-foreground">
+          <div className="text-sm text-muted-foreground text-center py-8">
             {mode.charAt(0).toUpperCase() + mode.slice(1)} tools will appear here
           </div>
         );
     }
   };
 
+  if (isCollapsed) {
+    return (
+      <div className="fixed left-4 top-1/2 -translate-y-1/2 z-50">
+        <div className="bg-background/80 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg p-2">
+          <button
+            onClick={onToggle}
+            className="p-2 hover:bg-accent/50 rounded-xl transition-colors"
+            title="Expand sidebar"
+          >
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div
-      className={cn(
-        "border-r bg-background transition-all duration-300 flex flex-col",
-        isCollapsed ? "w-12" : "w-64"
-      )}
-    >
-      <div className="p-4 border-b flex items-center justify-between">
-        {!isCollapsed && (
-          <h2 className="font-medium text-sm">
+    <div className="fixed left-4 top-4 bottom-4 z-40">
+      <div className="bg-background/80 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg w-64 h-full flex flex-col overflow-hidden">
+        <div className="p-4 border-b border-border/50 flex items-center justify-between">
+          <h2 className="font-medium text-lg">
             {mode.charAt(0).toUpperCase() + mode.slice(1)}
           </h2>
-        )}
-        <button
-          onClick={onToggle}
-          className="p-1 hover:bg-muted rounded transition-colors"
-        >
-          {isCollapsed ? <ChevronRight size={16} /> : <ChevronLeft size={16} />}
-        </button>
-      </div>
-      
-      {!isCollapsed && (
+          <button
+            onClick={onToggle}
+            className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors"
+          >
+            <ChevronLeft size={16} />
+          </button>
+        </div>
+        
         <div className="flex-1 p-4 overflow-y-auto">
           {renderContent()}
         </div>
-      )}
+      </div>
     </div>
   );
 };
