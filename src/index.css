@@ -2,6 +2,9 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Import editor styles */
+@import './components/editor-styles.css';
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. */
 
 @layer base {

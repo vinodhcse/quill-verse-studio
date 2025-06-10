@@ -1,9 +1,14 @@
-
 import React, { useState } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { RichTextEditor } from '@/components/RichTextEditor';
+import { EditorToolbar } from '@/components/EditorToolbar';
+import { useEditor } from '@tiptap/react';
+import StarterKit from '@tiptap/starter-kit';
+import Placeholder from '@tiptap/extension-placeholder';
+import CharacterCount from '@tiptap/extension-character-count';
+import Focus from '@tiptap/extension-focus';
 import { Plus, Mic, Save } from 'lucide-react';
 
 interface CenterPanelProps {
@@ -11,7 +16,29 @@ interface CenterPanelProps {
 }
 
 export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
-  const [content, setContent] = useState("The morning sun filtered through the curtains, casting long shadows across the hardwood floor. Sarah sat at her desk, fingers hovering over the keyboard, waiting for inspiration to strike...");
+  const [content, setContent] = useState(`<h1>Chapter 1: The Beginning</h1><p>The morning sun filtered through the curtains, casting long shadows across the hardwood floor. Sarah sat at her desk, fingers hovering over the keyboard, waiting for inspiration to strike...</p><p>It had been three months since her last published work, and the pressure from her editor was mounting. The blank page seemed to mock her, its pristine whiteness a stark reminder of her creative drought.</p>`);
+
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        heading: {
+          levels: [1, 2, 3],
+        },
+      }),
+      Placeholder.configure({
+        placeholder: "Start writing your story...",
+      }),
+      CharacterCount,
+      Focus.configure({
+        className: 'has-focus',
+        mode: 'all',
+      }),
+    ],
+    content,
+    onUpdate: ({ editor }) => {
+      setContent(editor.getHTML());
+    },
+  });
 
   const renderContent = () => {
     switch (mode) {
@@ -35,12 +62,14 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
               </div>
             </div>
             
-            <div className="flex-1 p-4">
-              <Textarea
-                value={content}
-                onChange={(e) => setContent(e.target.value)}
-                className="min-h-[calc(100vh-12rem)] resize-none border-none text-base leading-relaxed focus-visible:ring-0 focus-visible:ring-offset-0"
+            <EditorToolbar editor={editor} />
+            
+            <div className="flex-1 overflow-hidden">
+              <RichTextEditor
+                content={content}
+                onChange={setContent}
                 placeholder="Start writing your story..."
+                className="h-full"
               />
             </div>
           </div>

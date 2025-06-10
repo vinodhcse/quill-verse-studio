@@ -1,0 +1,72 @@
+
+/* Tiptap Editor Styles */
+.ProseMirror {
+  outline: none;
+  font-family: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  line-height: 1.7;
+  color: hsl(var(--foreground));
+}
+
+.ProseMirror h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 2rem 0 1rem 0;
+  line-height: 1.2;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.75rem 0;
+  line-height: 1.3;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem 0;
+  line-height: 1.4;
+}
+
+.ProseMirror p {
+  margin: 0.75rem 0;
+}
+
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid hsl(var(--border));
+  padding-left: 1rem;
+  margin: 1rem 0;
+  font-style: italic;
+  color: hsl(var(--muted-foreground));
+}
+
+.ProseMirror ul, .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin: 0.75rem 0;
+}
+
+.ProseMirror li {
+  margin: 0.25rem 0;
+}
+
+.ProseMirror.has-focus {
+  /* Add subtle focus styling if needed */
+}
+
+/* Selection styling */
+.ProseMirror ::selection {
+  background: hsl(var(--primary) / 0.2);
+}
+
+/* Ensure proper spacing in the editor */
+.ProseMirror > * + * {
+  margin-top: 0.75em;
+}
