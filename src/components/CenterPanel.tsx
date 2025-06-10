@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -37,7 +36,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-3">
                   {chapterImage && (
-                    <div className="w-12 h-12 rounded-lg overflow-hidden border border-border/50">
+                    <div className="w-16 h-16 rounded-lg overflow-hidden border border-border/50">
                       <img 
                         src={chapterImage} 
                         alt="Chapter" 

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Plus, FileText, Users, Layers, GripVertical } from 'lucide-react';
@@ -96,10 +95,10 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, chapter.id)}
                   className={cn(
-                    "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm group hover:shadow-sm",
+                    "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm group hover:shadow-sm relative",
                     i === 0 ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-accent/50",
-                    draggedChapter === chapter.id ? "opacity-50" : "",
-                    dragOverChapter === chapter.id ? "border-2 border-primary/50" : ""
+                    draggedChapter === chapter.id ? "opacity-50 scale-95" : "",
+                    dragOverChapter === chapter.id && draggedChapter !== chapter.id ? "border-2 border-primary/50 bg-primary/5 transform translate-y-1" : ""
                   )}
                 >
                   <div className="flex items-center space-x-2">
@@ -113,6 +112,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   <div className="text-xs text-muted-foreground mt-1 ml-6">
                     {chapter.words} words
                   </div>
+                  {dragOverChapter === chapter.id && draggedChapter !== chapter.id && (
+                    <div className="absolute -top-1 left-0 right-0 h-0.5 bg-primary rounded-full animate-pulse" />
+                  )}
                 </div>
               ))}
             </div>
