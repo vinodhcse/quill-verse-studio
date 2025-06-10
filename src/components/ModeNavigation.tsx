@@ -53,8 +53,8 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
                 className={cn(
                   "h-8 px-3 rounded-lg transition-all duration-200",
                   currentMode === mode.id 
-                    ? "bg-background shadow-sm" 
-                    : "hover:bg-background/50"
+                    ? "bg-primary text-primary-foreground shadow-sm hover:bg-primary/90" 
+                    : "hover:bg-background/50 text-foreground"
                 )}
               >
                 <Icon size={14} className="mr-1.5" />

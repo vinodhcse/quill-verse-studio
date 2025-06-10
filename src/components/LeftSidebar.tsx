@@ -1,8 +1,9 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Plus, FileText, Users, Layers } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Plus, FileText, Users, Layers, GripVertical } from 'lucide-react';
 import { Mode } from './ModeNavigation';
+import { ChapterContextMenu } from './ChapterContextMenu';
 
 interface LeftSidebarProps {
   mode: Mode;
@@ -15,6 +16,53 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   isCollapsed,
   onToggle,
 }) => {
+  const [chapters, setChapters] = useState([
+    { id: '1', title: 'Chapter 1: Beginning', words: 2340 },
+    { id: '2', title: 'Chapter 2: The Journey', words: 1890 },
+    { id: '3', title: 'Chapter 3: Conflict', words: 2120 },
+  ]);
+
+  const [draggedChapter, setDraggedChapter] = useState<string | null>(null);
+
+  const handleCreateChapter = () => {
+    const newChapter = {
+      id: String(chapters.length + 1),
+      title: `Chapter ${chapters.length + 1}: New Chapter`,
+      words: 0,
+    };
+    setChapters([...chapters, newChapter]);
+  };
+
+  const handleImportChapters = (file: File) => {
+    console.log('Importing chapters from file:', file.name);
+    // Here you would implement the actual file parsing logic
+  };
+
+  const handleDragStart = (e: React.DragEvent, chapterId: string) => {
+    setDraggedChapter(chapterId);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetChapterId: string) => {
+    e.preventDefault();
+    if (!draggedChapter || draggedChapter === targetChapterId) return;
+
+    const draggedIndex = chapters.findIndex(ch => ch.id === draggedChapter);
+    const targetIndex = chapters.findIndex(ch => ch.id === targetChapterId);
+
+    const newChapters = [...chapters];
+    const [draggedItem] = newChapters.splice(draggedIndex, 1);
+    newChapters.splice(targetIndex, 0, draggedItem);
+
+    setChapters(newChapters);
+    setDraggedChapter(null);
+  };
+
   const renderContent = () => {
     switch (mode) {
       case 'writing':
@@ -22,25 +70,36 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-sm font-medium">Chapters</h3>
-              <button className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors">
-                <Plus size={14} />
-              </button>
+              <ChapterContextMenu 
+                onCreateChapter={handleCreateChapter}
+                onImportChapters={handleImportChapters}
+              >
+                <button className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors">
+                  <Plus size={14} />
+                </button>
+              </ChapterContextMenu>
             </div>
             <div className="space-y-2">
-              {['Chapter 1: Beginning', 'Chapter 2: The Journey', 'Chapter 3: Conflict'].map((chapter, i) => (
+              {chapters.map((chapter, i) => (
                 <div
-                  key={i}
+                  key={chapter.id}
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, chapter.id)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, chapter.id)}
                   className={cn(
                     "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm group hover:shadow-sm",
-                    i === 0 ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-accent/50"
+                    i === 0 ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-accent/50",
+                    draggedChapter === chapter.id ? "opacity-50" : ""
                   )}
                 >
                   <div className="flex items-center space-x-2">
+                    <GripVertical size={12} className="opacity-50 group-hover:opacity-100 cursor-grab" />
                     <FileText size={14} className="opacity-70 group-hover:opacity-100" />
-                    <span className="truncate font-medium">{chapter}</span>
+                    <span className="truncate font-medium flex-1">{chapter.title}</span>
                   </div>
                   <div className="text-xs text-muted-foreground mt-1 ml-6">
-                    2,340 words
+                    {chapter.words} words
                   </div>
                 </div>
               ))}

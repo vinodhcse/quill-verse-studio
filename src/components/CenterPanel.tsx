@@ -1,9 +1,11 @@
+
 import React, { useState } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { CollaborativeRichTextEditor } from '@/components/CollaborativeRichTextEditor';
-import { Plus, Mic, Save } from 'lucide-react';
+import { Plus, Mic, Save, Edit3, Image as ImageIcon } from 'lucide-react';
 
 interface CenterPanelProps {
   mode: Mode;
@@ -11,6 +13,20 @@ interface CenterPanelProps {
 
 export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
   const [content, setContent] = useState(`<h1>Chapter 1: The Beginning</h1><p>The morning sun filtered through the curtains, casting long shadows across the hardwood floor. Sarah sat at her desk, fingers hovering over the keyboard, waiting for inspiration to strike...</p><p>It had been three months since her last published work, and the pressure from her editor was mounting. The blank page seemed to mock her, its pristine whiteness a stark reminder of her creative drought.</p>`);
+  const [chapterTitle, setChapterTitle] = useState('Chapter 1: The Beginning');
+  const [chapterImage, setChapterImage] = useState<string | null>(null);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setChapterImage(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const renderContent = () => {
     switch (mode) {
@@ -18,9 +34,43 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
         return (
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
-              <div>
-                <h2 className="text-lg font-semibold">Chapter 1: The Beginning</h2>
-                <p className="text-sm text-muted-foreground">Last edited 5 minutes ago</p>
+              <div className="flex items-center space-x-4">
+                {chapterImage && (
+                  <img 
+                    src={chapterImage} 
+                    alt="Chapter" 
+                    className="w-12 h-12 rounded-lg object-cover"
+                  />
+                )}
+                <div>
+                  {isEditingTitle ? (
+                    <Input
+                      value={chapterTitle}
+                      onChange={(e) => setChapterTitle(e.target.value)}
+                      onBlur={() => setIsEditingTitle(false)}
+                      onKeyPress={(e) => {
+                        if (e.key === 'Enter') {
+                          setIsEditingTitle(false);
+                        }
+                      }}
+                      className="text-lg font-semibold"
+                      autoFocus
+                    />
+                  ) : (
+                    <div className="flex items-center space-x-2">
+                      <h2 className="text-lg font-semibold">{chapterTitle}</h2>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setIsEditingTitle(true)}
+                        className="h-6 w-6 p-0"
+                      >
+                        <Edit3 size={12} />
+                      </Button>
+                    </div>
+                  )}
+                  <p className="text-sm text-muted-foreground">Last edited 5 minutes ago</p>
+                </div>
               </div>
               <div className="flex items-center space-x-2">
                 <Button variant="outline" size="sm">
@@ -31,6 +81,23 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
                   <Save size={14} className="mr-1" />
                   Save
                 </Button>
+                <div>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageUpload}
+                    className="hidden"
+                    id="chapter-image-upload"
+                  />
+                  <Button 
+                    variant="outline" 
+                    size="sm"
+                    onClick={() => document.getElementById('chapter-image-upload')?.click()}
+                  >
+                    <ImageIcon size={14} className="mr-1" />
+                    Image
+                  </Button>
+                </div>
               </div>
             </div>
             
