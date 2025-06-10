@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Book, Grid3X3, List, PenTool } from 'lucide-react';
 import { BookCard } from '@/components/BookCard';
 import { CreateBookModal } from '@/components/CreateBookModal';
+import { BookVersionModal } from '@/components/BookVersionModal';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Pagination,
@@ -21,13 +23,17 @@ interface Book {
   image?: string;
   lastModified: string;
   wordCount: number;
+  role: 'author' | 'editor' | 'reviewer';
 }
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
+  const [activeTab, setActiveTab] = useState('author');
   const booksPerPage = 8;
 
   const [books, setBooks] = useState<Book[]>([
@@ -38,14 +44,16 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=300&h=400&fit=crop',
       lastModified: '2024-06-08',
       wordCount: 45000,
+      role: 'author',
     },
     {
       id: '2',
       title: 'Mountain Adventures',
-      author: 'Jane Smith',
+      author: 'John Doe',
       image: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=300&h=400&fit=crop',
       lastModified: '2024-06-05',
       wordCount: 32000,
+      role: 'author',
     },
     {
       id: '3',
@@ -54,8 +62,8 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=300&h=400&fit=crop',
       lastModified: '2024-06-02',
       wordCount: 28000,
+      role: 'editor',
     },
-    // Add more sample books for pagination demo
     {
       id: '4',
       title: 'Ocean Mysteries',
@@ -63,6 +71,7 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300&h=400&fit=crop',
       lastModified: '2024-06-01',
       wordCount: 51000,
+      role: 'editor',
     },
     {
       id: '5',
@@ -71,6 +80,7 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=300&h=400&fit=crop',
       lastModified: '2024-05-30',
       wordCount: 67000,
+      role: 'reviewer',
     },
     {
       id: '6',
@@ -106,12 +116,17 @@ const Dashboard = () => {
     },
   ]);
 
-  const totalPages = Math.ceil(books.length / booksPerPage);
+  const getFilteredBooks = () => {
+    return books.filter(book => book.role === activeTab);
+  };
+
+  const filteredBooks = getFilteredBooks();
+  const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
   const startIndex = (currentPage - 1) * booksPerPage;
   const endIndex = startIndex + booksPerPage;
-  const currentBooks = books.slice(startIndex, endIndex);
+  const currentBooks = filteredBooks.slice(startIndex, endIndex);
 
-  const handleCreateBook = (bookData: { title: string; author: string; image?: string }) => {
+  const handleCreateBook = (bookData: { title: string; author: string; image?: string; versionName: string }) => {
     const newBook: Book = {
       id: String(books.length + 1),
       title: bookData.title,
@@ -119,20 +134,27 @@ const Dashboard = () => {
       image: bookData.image,
       lastModified: new Date().toISOString().split('T')[0],
       wordCount: 0,
+      role: 'author',
     };
     setBooks([...books, newBook]);
     setIsCreateModalOpen(false);
   };
 
-  const handleBookSelect = (bookId: string) => {
-    console.log('Selected book:', bookId);
-    navigate('/write', { state: { bookId } });
+  const handleBookSelect = (book: Book) => {
+    setSelectedBook(book);
+    setIsVersionModalOpen(true);
+  };
+
+  const handleOpenVersion = (bookId: string, versionId: string) => {
+    console.log('Opening book:', bookId, 'version:', versionId);
+    navigate('/write', { state: { bookId, versionId } });
+    setIsVersionModalOpen(false);
   };
 
   const BookListItem = ({ book }: { book: Book }) => (
     <Card 
       className="cursor-pointer hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 group border-0 bg-card/80 backdrop-blur-sm hover-scale"
-      onClick={() => handleBookSelect(book.id)}
+      onClick={() => handleBookSelect(book)}
     >
       <CardContent className="p-4">
         <div className="flex items-center space-x-4">
@@ -163,6 +185,19 @@ const Dashboard = () => {
       </CardContent>
     </Card>
   );
+
+  const getRoleDisplayName = (role: string) => {
+    switch (role) {
+      case 'author': return 'My Books';
+      case 'editor': return 'Editing';
+      case 'reviewer': return 'Reviewing';
+      default: return role;
+    }
+  };
+
+  const getBookCount = (role: string) => {
+    return books.filter(book => book.role === role).length;
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
@@ -224,58 +259,112 @@ const Dashboard = () => {
           </div>
         </div>
 
-        {viewMode === 'grid' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {/* Create New Book Card */}
-            <Card 
-              className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              <CardContent className="flex flex-col items-center justify-center h-80 p-6">
-                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors pulse-glow">
-                  <Plus size={24} className="text-primary" />
-                </div>
-                <h3 className="font-medium text-center mb-2">Create New Book</h3>
-                <p className="text-sm text-muted-foreground text-center">Start your next masterpiece</p>
-              </CardContent>
-            </Card>
+        {/* Role Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="author" className="flex items-center space-x-2">
+              <span>{getRoleDisplayName('author')}</span>
+              <span className="bg-primary/20 text-primary rounded-full px-2 py-0.5 text-xs">
+                {getBookCount('author')}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="editor" className="flex items-center space-x-2">
+              <span>{getRoleDisplayName('editor')}</span>
+              <span className="bg-primary/20 text-primary rounded-full px-2 py-0.5 text-xs">
+                {getBookCount('editor')}
+              </span>
+            </TabsTrigger>
+            <TabsTrigger value="reviewer" className="flex items-center space-x-2">
+              <span>{getRoleDisplayName('reviewer')}</span>
+              <span className="bg-primary/20 text-primary rounded-full px-2 py-0.5 text-xs">
+                {getBookCount('reviewer')}
+              </span>
+            </TabsTrigger>
+          </TabsList>
 
-            {/* Existing Books */}
-            {currentBooks.map((book) => (
-              <div key={book.id} className="animate-fade-in hover-scale">
-                <BookCard
-                  book={book}
-                  onSelect={() => handleBookSelect(book.id)}
-                />
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {/* Create New Book List Item */}
-            <Card 
-              className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale animate-fade-in"
-              onClick={() => setIsCreateModalOpen(true)}
-            >
-              <CardContent className="flex items-center space-x-4 p-4">
-                <div className="w-16 h-20 rounded bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors pulse-glow">
-                  <Plus size={24} className="text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-medium mb-1">Create New Book</h3>
-                  <p className="text-sm text-muted-foreground">Start your next masterpiece</p>
-                </div>
-              </CardContent>
-            </Card>
+          <TabsContent value={activeTab} className="mt-6">
+            {viewMode === 'grid' ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {/* Create New Book Card - only show for author tab */}
+                {activeTab === 'author' && (
+                  <Card 
+                    className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale"
+                    onClick={() => setIsCreateModalOpen(true)}
+                  >
+                    <CardContent className="flex flex-col items-center justify-center h-80 p-6">
+                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors pulse-glow">
+                        <Plus size={24} className="text-primary" />
+                      </div>
+                      <h3 className="font-medium text-center mb-2">Create New Book</h3>
+                      <p className="text-sm text-muted-foreground text-center">Start your next masterpiece</p>
+                    </CardContent>
+                  </Card>
+                )}
 
-            {/* Existing Books */}
-            {currentBooks.map((book) => (
-              <div key={book.id} className="animate-fade-in">
-                <BookListItem book={book} />
+                {/* Existing Books */}
+                {currentBooks.map((book) => (
+                  <div key={book.id} className="animate-fade-in hover-scale">
+                    <BookCard
+                      book={book}
+                      onSelect={() => handleBookSelect(book)}
+                    />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="space-y-4">
+                {/* Create New Book List Item - only show for author tab */}
+                {activeTab === 'author' && (
+                  <Card 
+                    className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale animate-fade-in"
+                    onClick={() => setIsCreateModalOpen(true)}
+                  >
+                    <CardContent className="flex items-center space-x-4 p-4">
+                      <div className="w-16 h-20 rounded bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors pulse-glow">
+                        <Plus size={24} className="text-primary" />
+                      </div>
+                      <div>
+                        <h3 className="font-medium mb-1">Create New Book</h3>
+                        <p className="text-sm text-muted-foreground">Start your next masterpiece</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* Existing Books */}
+                {currentBooks.map((book) => (
+                  <div key={book.id} className="animate-fade-in">
+                    <BookListItem book={book} />
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Empty State */}
+            {currentBooks.length === 0 && (
+              <div className="text-center py-16 animate-fade-in">
+                <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6 pulse-glow">
+                  <Book size={32} className="text-muted-foreground" />
+                </div>
+                <h3 className="text-xl font-medium mb-2">
+                  No {getRoleDisplayName(activeTab).toLowerCase()} yet
+                </h3>
+                <p className="text-muted-foreground mb-6">
+                  {activeTab === 'author' 
+                    ? 'Create your first book to get started' 
+                    : `You haven't been invited to any books as ${activeTab} yet`
+                  }
+                </p>
+                {activeTab === 'author' && (
+                  <Button onClick={() => setIsCreateModalOpen(true)} className="pulse-glow hover-scale">
+                    <Plus size={16} className="mr-2" />
+                    Create Your First Book
+                  </Button>
+                )}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
         {/* Pagination */}
         {totalPages > 1 && (
@@ -331,6 +420,14 @@ const Dashboard = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateBook={handleCreateBook}
+      />
+
+      <BookVersionModal
+        isOpen={isVersionModalOpen}
+        onClose={() => setIsVersionModalOpen(false)}
+        book={selectedBook || { id: '', title: '', author: '' }}
+        userRole={selectedBook?.role || 'author'}
+        onOpenVersion={handleOpenVersion}
       />
     </div>
   );

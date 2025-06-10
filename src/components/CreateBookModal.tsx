@@ -23,13 +23,14 @@ import { useForm } from 'react-hook-form';
 interface CreateBookModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateBook: (bookData: { title: string; author: string; image?: string }) => void;
+  onCreateBook: (bookData: { title: string; author: string; image?: string; versionName: string }) => void;
 }
 
 interface FormData {
   title: string;
   author: string;
   image?: string;
+  versionName: string;
 }
 
 export const CreateBookModal: React.FC<CreateBookModalProps> = ({
@@ -45,6 +46,7 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
       title: '',
       author: '',
       image: '',
+      versionName: 'Manuscript',
     },
   });
 
@@ -73,6 +75,7 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
         title: data.title,
         author: data.author,
         image: data.image,
+        versionName: data.versionName,
       });
       form.reset();
       setSelectedImage(null);
@@ -120,6 +123,21 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
                   <FormLabel>Author Name</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter author name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="versionName"
+              rules={{ required: 'Version name is required' }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Initial Version Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter version name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
