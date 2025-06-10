@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,6 +79,23 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
           </div>
         );
       
+      case 'formatting':
+        return (
+          <div className="h-full p-6">
+            <h2 className="text-xl font-semibold mb-6">Format Preview</h2>
+            <div className="bg-white border rounded-lg p-8 shadow-sm max-w-2xl mx-auto">
+              <div className="space-y-4">
+                <h1 className="text-2xl font-bold text-center mb-8">Chapter 1</h1>
+                <h2 className="text-lg font-semibold mb-4">The Beginning</h2>
+                <div className="space-y-4 text-sm leading-relaxed">
+                  <p>The morning sun filtered through the curtains, casting long shadows across the hardwood floor. Sarah sat at her desk, fingers hovering over the keyboard, waiting for inspiration to strike.</p>
+                  <p>It had been three months since her last published work, and the pressure from her editor was mounting. The blank page seemed to mock her, its pristine whiteness a stark reminder of her creative drought.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      
       case 'editing':
         return (
           <div className="h-full p-6">
@@ -96,6 +112,25 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
                   <span className="bg-yellow-100">It had been three months since her last published work, and the pressure from her editor was mounting.</span>
                   <span className="ml-2 text-xs text-blue-600 cursor-pointer">[Comment: Consider shortening this sentence - Alex]</span>
                 </p>
+              </div>
+            </div>
+          </div>
+        );
+      
+      case 'reviewing':
+        return (
+          <div className="h-full p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">Review Mode</h2>
+              <div className="text-sm text-muted-foreground">Read-only access</div>
+            </div>
+            <div className="max-w-2xl mx-auto bg-white rounded-lg p-8 shadow-sm">
+              <div className="space-y-6">
+                <h1 className="text-2xl font-bold">Chapter 1: The Beginning</h1>
+                <div className="space-y-4 text-base leading-relaxed">
+                  <p>The morning sun filtered through the curtains, casting long shadows across the hardwood floor. Sarah sat at her desk, fingers hovering over the keyboard, waiting for inspiration to strike.</p>
+                  <p>It had been three months since her last published work, and the pressure from her editor was mounting. The blank page seemed to mock her, its pristine whiteness a stark reminder of her creative drought.</p>
+                </div>
               </div>
             </div>
           </div>
