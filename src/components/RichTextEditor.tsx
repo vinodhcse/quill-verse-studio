@@ -5,6 +5,8 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Focus from '@tiptap/extension-focus';
+import { EditorToolbar } from './EditorToolbar';
+import { TextContextMenu } from './TextContextMenu';
 import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
@@ -44,7 +46,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
       attributes: {
         class: cn(
           'prose prose-sm sm:prose-base max-w-none focus:outline-none',
-          'min-h-[calc(100vh-12rem)] p-4 text-base leading-relaxed',
+          'min-h-[calc(100vh-16rem)] p-4 text-base leading-relaxed',
           className
         ),
       },
@@ -57,12 +59,16 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <EditorContent 
-        editor={editor} 
-        className="flex-1 overflow-y-auto"
-      />
+      <EditorToolbar editor={editor} />
       
-      <div className="flex items-center justify-between px-4 py-2 border-t text-xs text-muted-foreground">
+      <TextContextMenu editor={editor}>
+        <EditorContent 
+          editor={editor} 
+          className="flex-1 overflow-y-auto"
+        />
+      </TextContextMenu>
+      
+      <div className="flex items-center justify-between px-4 py-2 border-t text-xs text-muted-foreground bg-background/50">
         <div className="flex items-center space-x-4">
           <span>
             {editor.storage.characterCount.characters()} characters

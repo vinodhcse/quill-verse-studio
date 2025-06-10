@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
