@@ -26,6 +26,10 @@ const Signup = () => {
     });
   };
 
+  const handleTermsChange = (checked: boolean | "indeterminate") => {
+    setAcceptTerms(checked === true);
+  };
+
   const handleSignup = (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
@@ -169,7 +173,7 @@ const Signup = () => {
               <Checkbox
                 id="terms"
                 checked={acceptTerms}
-                onCheckedChange={setAcceptTerms}
+                onCheckedChange={handleTermsChange}
               />
               <label
                 htmlFor="terms"
