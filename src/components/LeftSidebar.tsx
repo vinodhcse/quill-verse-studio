@@ -23,6 +23,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   ]);
 
   const [draggedChapter, setDraggedChapter] = useState<string | null>(null);
+  const [dragOverChapter, setDragOverChapter] = useState<string | null>(null);
 
   const handleCreateChapter = () => {
     const newChapter = {
@@ -43,9 +44,14 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     e.dataTransfer.effectAllowed = 'move';
   };
 
-  const handleDragOver = (e: React.DragEvent) => {
+  const handleDragOver = (e: React.DragEvent, targetChapterId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
+    setDragOverChapter(targetChapterId);
+  };
+
+  const handleDragLeave = () => {
+    setDragOverChapter(null);
   };
 
   const handleDrop = (e: React.DragEvent, targetChapterId: string) => {
@@ -61,6 +67,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
     setChapters(newChapters);
     setDraggedChapter(null);
+    setDragOverChapter(null);
   };
 
   const renderContent = () => {
@@ -85,16 +92,21 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   key={chapter.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, chapter.id)}
-                  onDragOver={handleDragOver}
+                  onDragOver={(e) => handleDragOver(e, chapter.id)}
+                  onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, chapter.id)}
                   className={cn(
                     "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm group hover:shadow-sm",
                     i === 0 ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-accent/50",
-                    draggedChapter === chapter.id ? "opacity-50" : ""
+                    draggedChapter === chapter.id ? "opacity-50" : "",
+                    dragOverChapter === chapter.id ? "border-2 border-primary/50" : ""
                   )}
                 >
                   <div className="flex items-center space-x-2">
-                    <GripVertical size={12} className="opacity-50 group-hover:opacity-100 cursor-grab" />
+                    <GripVertical 
+                      size={12} 
+                      className="opacity-50 group-hover:opacity-100 cursor-grab active:cursor-grabbing" 
+                    />
                     <FileText size={14} className="opacity-70 group-hover:opacity-100" />
                     <span className="truncate font-medium flex-1">{chapter.title}</span>
                   </div>

@@ -35,41 +35,62 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
           <div className="h-full flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center space-x-4">
-                {chapterImage && (
-                  <img 
-                    src={chapterImage} 
-                    alt="Chapter" 
-                    className="w-12 h-12 rounded-lg object-cover"
-                  />
-                )}
-                <div>
-                  {isEditingTitle ? (
-                    <Input
-                      value={chapterTitle}
-                      onChange={(e) => setChapterTitle(e.target.value)}
-                      onBlur={() => setIsEditingTitle(false)}
-                      onKeyPress={(e) => {
-                        if (e.key === 'Enter') {
-                          setIsEditingTitle(false);
-                        }
-                      }}
-                      className="text-lg font-semibold"
-                      autoFocus
-                    />
-                  ) : (
-                    <div className="flex items-center space-x-2">
-                      <h2 className="text-lg font-semibold">{chapterTitle}</h2>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setIsEditingTitle(true)}
-                        className="h-6 w-6 p-0"
-                      >
-                        <Edit3 size={12} />
-                      </Button>
+                <div className="flex items-center space-x-3">
+                  {chapterImage && (
+                    <div className="w-12 h-12 rounded-lg overflow-hidden border border-border/50">
+                      <img 
+                        src={chapterImage} 
+                        alt="Chapter" 
+                        className="w-full h-full object-cover"
+                      />
                     </div>
                   )}
-                  <p className="text-sm text-muted-foreground">Last edited 5 minutes ago</p>
+                  <div>
+                    {isEditingTitle ? (
+                      <Input
+                        value={chapterTitle}
+                        onChange={(e) => setChapterTitle(e.target.value)}
+                        onBlur={() => setIsEditingTitle(false)}
+                        onKeyPress={(e) => {
+                          if (e.key === 'Enter') {
+                            setIsEditingTitle(false);
+                          }
+                        }}
+                        className="text-lg font-semibold"
+                        autoFocus
+                      />
+                    ) : (
+                      <div className="flex items-center space-x-2">
+                        <h2 className="text-lg font-semibold">{chapterTitle}</h2>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setIsEditingTitle(true)}
+                          className="h-6 w-6 p-0"
+                        >
+                          <Edit3 size={12} />
+                        </Button>
+                        <div>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageUpload}
+                            className="hidden"
+                            id="chapter-image-upload"
+                          />
+                          <Button 
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => document.getElementById('chapter-image-upload')?.click()}
+                            className="h-6 w-6 p-0"
+                          >
+                            <ImageIcon size={12} />
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+                    <p className="text-sm text-muted-foreground">Last edited 5 minutes ago</p>
+                  </div>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
@@ -81,23 +102,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
                   <Save size={14} className="mr-1" />
                   Save
                 </Button>
-                <div>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    id="chapter-image-upload"
-                  />
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    onClick={() => document.getElementById('chapter-image-upload')?.click()}
-                  >
-                    <ImageIcon size={14} className="mr-1" />
-                    Image
-                  </Button>
-                </div>
               </div>
             </div>
             
