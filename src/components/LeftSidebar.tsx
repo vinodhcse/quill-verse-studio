@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
 import { ChevronLeft, ChevronRight, Plus, FileText, Users, Layers, GripVertical } from 'lucide-react';
@@ -201,41 +202,26 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     }
   };
 
+  if (isCollapsed) return null;
+
   return (
-    <div className={cn(
-      "fixed left-4 top-20 bottom-4 z-40 transition-all duration-300 ease-in-out",
-      isCollapsed ? "w-auto" : "w-64"
-    )}>
-      {isCollapsed ? (
-        <div className="bg-background/80 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg p-2">
-          <button
-            onClick={onToggle}
-            className="p-2 hover:bg-accent/50 rounded-xl transition-colors"
-            title="Expand sidebar"
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      ) : (
-        <div className="bg-background/80 backdrop-blur-md border border-border/50 rounded-2xl shadow-lg w-full h-full flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-border/50 flex items-center justify-between">
-            <h2 className="font-medium text-lg">
-              {mode.charAt(0).toUpperCase() + mode.slice(1)}
-            </h2>
-            <button
-              onClick={onToggle}
-              className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors"
-              title="Collapse sidebar"
-            >
-              <ChevronLeft size={16} />
-            </button>
-          </div>
-          
-          <div className="flex-1 p-4 overflow-y-auto">
-            {renderContent()}
-          </div>
-        </div>
-      )}
+    <div className="h-full bg-background/80 backdrop-blur-md border-r border-border/50 overflow-hidden">
+      <div className="p-4 border-b border-border/50 flex items-center justify-between">
+        <h2 className="font-medium text-lg">
+          {mode.charAt(0).toUpperCase() + mode.slice(1)}
+        </h2>
+        <button
+          onClick={onToggle}
+          className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors"
+          title="Collapse sidebar"
+        >
+          <ChevronLeft size={16} />
+        </button>
+      </div>
+      
+      <div className="flex-1 p-4 overflow-y-auto h-[calc(100%-73px)]">
+        {renderContent()}
+      </div>
     </div>
   );
 };

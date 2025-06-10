@@ -29,8 +29,9 @@ const Index = () => {
         <div className="absolute inset-0 opacity-[0.02] bg-[radial-gradient(circle_at_1px_1px,_rgb(255,255,255)_1px,_transparent_0)] bg-[length:40px_40px]" />
       </div>
 
-      <div className="relative z-10">
-        <div className="backdrop-blur-md bg-background/80 border-b border-border/50 sticky top-0 z-20 animate-slide-down">
+      {/* Navigation */}
+      <div className="relative z-30">
+        <div className="backdrop-blur-md bg-background/80 border-b border-border/50 sticky top-0 z-30 animate-slide-down">
           <ModeNavigation 
             currentMode={currentMode}
             onModeChange={setCurrentMode}
@@ -40,37 +41,42 @@ const Index = () => {
             onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
           />
         </div>
+      </div>
         
-        <div className="relative h-[calc(100vh-57px)] w-full">
-          <div className={`transition-all duration-500 ease-in-out transform ${leftSidebarCollapsed ? 'translate-x-0' : 'translate-x-0'}`}>
-            <LeftSidebar
-              mode={currentMode}
-              isCollapsed={leftSidebarCollapsed}
-              onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-            />
-          </div>
-          
-          <div className="h-full px-4 transition-all duration-500 ease-in-out">
-            <div className="h-full animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-              <CenterPanel mode={currentMode} />
-            </div>
-          </div>
-          
-          <div className={`transition-all duration-500 ease-in-out transform ${rightSidebarCollapsed ? 'translate-x-0' : 'translate-x-0'}`}>
-            <RightSidebar
-              mode={currentMode}
-              isCollapsed={rightSidebarCollapsed}
-              onToggle={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
-            />
-          </div>
-
-          <SidebarToggleButtons
-            leftSidebarCollapsed={leftSidebarCollapsed}
-            rightSidebarCollapsed={rightSidebarCollapsed}
-            onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-            onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+      {/* Main Content Area */}
+      <div className="relative z-10 h-[calc(100vh-57px)] w-full flex">
+        {/* Left Sidebar */}
+        <div className={`transition-all duration-500 ease-in-out ${leftSidebarCollapsed ? 'w-0' : 'w-64'} flex-shrink-0`}>
+          <LeftSidebar
+            mode={currentMode}
+            isCollapsed={leftSidebarCollapsed}
+            onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
           />
         </div>
+        
+        {/* Center Panel */}
+        <div className="flex-1 px-4 transition-all duration-500 ease-in-out">
+          <div className="h-full animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <CenterPanel mode={currentMode} />
+          </div>
+        </div>
+        
+        {/* Right Sidebar */}
+        <div className={`transition-all duration-500 ease-in-out ${rightSidebarCollapsed ? 'w-0' : 'w-80'} flex-shrink-0`}>
+          <RightSidebar
+            mode={currentMode}
+            isCollapsed={rightSidebarCollapsed}
+            onToggle={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+          />
+        </div>
+
+        {/* Sidebar Toggle Buttons */}
+        <SidebarToggleButtons
+          leftSidebarCollapsed={leftSidebarCollapsed}
+          rightSidebarCollapsed={rightSidebarCollapsed}
+          onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
+          onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+        />
       </div>
     </div>
   );
