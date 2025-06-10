@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { RichTextEditor } from '@/components/RichTextEditor';
+import { CollaborativeRichTextEditor } from '@/components/CollaborativeRichTextEditor';
 import { Plus, Mic, Save } from 'lucide-react';
 
 interface CenterPanelProps {
@@ -35,11 +35,12 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
             </div>
             
             <div className="flex-1 overflow-hidden">
-              <RichTextEditor
+              <CollaborativeRichTextEditor
                 content={content}
                 onChange={setContent}
                 placeholder="Start writing your story..."
                 className="h-full"
+                blockId="block_001"
               />
             </div>
           </div>
