@@ -103,7 +103,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       default:
         return (
           <div className="text-sm text-muted-foreground text-center py-8">
-            {mode.charAt(0).toUpperCase() + mode.slice(1)} tools will appear here
+            Tools will appear here
           </div>
         );
     }
@@ -111,7 +111,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   return (
     <div className={cn(
-      "fixed left-4 top-4 bottom-4 z-40 transition-all duration-300 ease-in-out",
+      "fixed left-4 top-20 bottom-4 z-40 transition-all duration-300 ease-in-out",
       isCollapsed ? "w-auto" : "w-64"
     )}>
       {isCollapsed ? (
