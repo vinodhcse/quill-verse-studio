@@ -3,6 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { PenTool, Layout, Users, Eye, FileType, Home, Bell, Download, UserPlus, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useNavigate } from 'react-router-dom';
 
 export type Mode = 'writing' | 'planning' | 'editing' | 'formatting' | 'reviewing';
 
@@ -19,6 +20,8 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
   currentMode,
   onModeChange,
 }) => {
+  const navigate = useNavigate();
+
   const modes = [
     { id: 'writing' as Mode, label: 'Writing', icon: PenTool },
     { id: 'planning' as Mode, label: 'Planning', icon: Layout },
@@ -26,6 +29,10 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
     { id: 'formatting' as Mode, label: 'Formatting', icon: FileType },
     { id: 'reviewing' as Mode, label: 'Review', icon: Eye },
   ];
+
+  const handleHomeClick = () => {
+    navigate('/dashboard');
+  };
 
   return (
     <nav className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border/50">
@@ -35,6 +42,7 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
             variant="ghost"
             size="sm"
             className="h-8 px-3 rounded-lg hover:bg-accent/50"
+            onClick={handleHomeClick}
           >
             <Home size={16} className="mr-1.5" />
             AuthorStudio
