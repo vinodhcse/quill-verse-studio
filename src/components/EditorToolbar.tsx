@@ -66,7 +66,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
   const addLink = () => {
     const url = window.prompt('Enter URL:');
     if (url) {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+      editor.chain().focus().toggleLink({ href: url }).run();
     }
   };
 

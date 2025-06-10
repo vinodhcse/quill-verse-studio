@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { ModeNavigation, Mode } from '@/components/ModeNavigation';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { CenterPanel } from '@/components/CenterPanel';
+import { cn } from '@/lib/utils';
 
 const Index = () => {
   const [currentMode, setCurrentMode] = useState<Mode>('writing');
