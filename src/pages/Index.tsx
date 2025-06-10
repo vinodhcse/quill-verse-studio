@@ -1,11 +1,36 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React, { useState } from 'react';
+import { ModeNavigation, Mode } from '@/components/ModeNavigation';
+import { LeftSidebar } from '@/components/LeftSidebar';
+import { RightSidebar } from '@/components/RightSidebar';
+import { CenterPanel } from '@/components/CenterPanel';
 
 const Index = () => {
+  const [currentMode, setCurrentMode] = useState<Mode>('writing');
+  const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
+  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
+    <div className="min-h-screen bg-background">
+      <ModeNavigation 
+        currentMode={currentMode}
+        onModeChange={setCurrentMode}
+      />
+      
+      <div className="flex h-[calc(100vh-57px)] w-full">
+        <LeftSidebar
+          mode={currentMode}
+          isCollapsed={leftSidebarCollapsed}
+          onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
+        />
+        
+        <CenterPanel mode={currentMode} />
+        
+        <RightSidebar
+          mode={currentMode}
+          isCollapsed={rightSidebarCollapsed}
+          onToggle={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+        />
       </div>
     </div>
   );
