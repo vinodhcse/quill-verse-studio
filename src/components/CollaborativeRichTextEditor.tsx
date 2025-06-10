@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -5,11 +6,13 @@ import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Focus from '@tiptap/extension-focus';
 import TextStyle from '@tiptap/extension-text-style';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
 import { CommentExtension } from '@/extensions/CommentExtension';
 import { TrackChangesExtension } from '@/extensions/TrackChangesExtension';
 import { EditorToolbar } from './EditorToolbar';
 import { EditModeSelector } from './EditModeSelector';
-import { ChangesSidebar } from './ChangesSidebar';
+import { TextContextMenu } from './TextContextMenu';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { cn } from '@/lib/utils';
 import './collaboration-styles.css';
@@ -29,7 +32,6 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
   className,
   blockId
 }) => {
-  const [showChanges, setShowChanges] = useState(false);
   const {
     currentUser,
     editMode,
@@ -50,6 +52,10 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         },
       }),
       TextStyle,
+      Underline,
+      TextAlign.configure({
+        types: ['heading', 'paragraph'],
+      }),
       Placeholder.configure({
         placeholder,
       }),
@@ -93,19 +99,6 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
     return null;
   }
 
-  const handleAcceptChange = (changeId: string) => {
-    acceptChange(changeId);
-    console.log('Accepting change:', changeId);
-  };
-
-  const handleRejectChange = (changeId: string) => {
-    rejectChange(changeId);
-    console.log('Rejecting change:', changeId);
-  };
-
-  const blockChanges = changeLogs.filter(change => change.block_id === blockId);
-  const blockComments = comments.filter(comment => comment.block_id === blockId);
-
   return (
     <div className="flex h-full">
       <div className="flex-1 flex flex-col">
@@ -120,10 +113,12 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         <EditorToolbar editor={editor} />
         
         <div className="flex-1 overflow-hidden">
-          <EditorContent 
-            editor={editor} 
-            className="h-full overflow-y-auto"
-          />
+          <TextContextMenu editor={editor}>
+            <EditorContent 
+              editor={editor} 
+              className="h-full overflow-y-auto"
+            />
+          </TextContextMenu>
         </div>
         
         <div className="flex items-center justify-between px-4 py-2 border-t text-xs text-muted-foreground bg-background/50">
@@ -143,15 +138,6 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
           </div>
         </div>
       </div>
-      
-      <ChangesSidebar
-        changes={blockChanges}
-        comments={blockComments}
-        onAcceptChange={handleAcceptChange}
-        onRejectChange={handleRejectChange}
-        showChanges={showChanges}
-        onToggleChanges={() => setShowChanges(!showChanges)}
-      />
     </div>
   );
 };

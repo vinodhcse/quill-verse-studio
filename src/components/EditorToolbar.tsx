@@ -5,12 +5,18 @@ import { Button } from '@/components/ui/button';
 import { 
   Bold, 
   Italic, 
+  Underline,
   List, 
   ListOrdered,
   Quote,
   Undo,
   Redo,
-  Heading
+  Heading,
+  Link,
+  Image,
+  AlignLeft,
+  AlignCenter,
+  AlignRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -33,18 +39,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
     onClick, 
     isActive = false, 
     disabled = false, 
-    children 
+    children,
+    title 
   }: {
     onClick: () => void;
     isActive?: boolean;
     disabled?: boolean;
     children: React.ReactNode;
+    title?: string;
   }) => (
     <Button
       variant={isActive ? "default" : "ghost"}
       size="sm"
       onClick={onClick}
       disabled={disabled}
+      title={title}
       className={cn(
         "h-8 w-8 p-0",
         isActive && "bg-primary text-primary-foreground"
@@ -54,19 +63,35 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
     </Button>
   );
 
+  const addLink = () => {
+    const url = window.prompt('Enter URL:');
+    if (url) {
+      editor.chain().focus().setLink({ href: url }).run();
+    }
+  };
+
+  const addImage = () => {
+    const url = window.prompt('Enter image URL:');
+    if (url) {
+      editor.chain().focus().setImage({ src: url }).run();
+    }
+  };
+
   return (
-    <div className="flex items-center space-x-1 p-2 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
+    <div className="flex items-center flex-wrap gap-1 p-2 border-b bg-background/50 backdrop-blur-sm sticky top-0 z-10">
       {/* Undo/Redo */}
       <div className="flex items-center space-x-1 mr-2">
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
           disabled={!editor.can().chain().focus().undo().run()}
+          title="Undo"
         >
           <Undo size={14} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
           disabled={!editor.can().chain().focus().redo().run()}
+          title="Redo"
         >
           <Redo size={14} />
         </ToolbarButton>
@@ -79,14 +104,23 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBold().run()}
           isActive={editor.isActive('bold')}
+          title="Bold"
         >
           <Bold size={14} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleItalic().run()}
           isActive={editor.isActive('italic')}
+          title="Italic"
         >
           <Italic size={14} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().toggleUnderline().run()}
+          isActive={editor.isActive('underline')}
+          title="Underline"
+        >
+          <Underline size={14} />
         </ToolbarButton>
       </div>
 
@@ -100,6 +134,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
               variant={editor.isActive('heading') ? "default" : "ghost"}
               size="sm"
               className="h-8 px-2"
+              title="Headings"
             >
               <Heading size={14} className="mr-1" />
               {editor.isActive('heading', { level: 1 }) && 'H1'}
@@ -139,25 +174,74 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 
       <div className="w-px h-6 bg-border mx-2" />
 
+      {/* Alignment */}
+      <div className="flex items-center space-x-1 mr-2">
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('left').run()}
+          isActive={editor.isActive({ textAlign: 'left' })}
+          title="Align Left"
+        >
+          <AlignLeft size={14} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('center').run()}
+          isActive={editor.isActive({ textAlign: 'center' })}
+          title="Align Center"
+        >
+          <AlignCenter size={14} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign('right').run()}
+          isActive={editor.isActive({ textAlign: 'right' })}
+          title="Align Right"
+        >
+          <AlignRight size={14} />
+        </ToolbarButton>
+      </div>
+
+      <div className="w-px h-6 bg-border mx-2" />
+
       {/* Lists and Quotes */}
       <div className="flex items-center space-x-1 mr-2">
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBulletList().run()}
           isActive={editor.isActive('bulletList')}
+          title="Bullet List"
         >
           <List size={14} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleOrderedList().run()}
           isActive={editor.isActive('orderedList')}
+          title="Numbered List"
         >
           <ListOrdered size={14} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().toggleBlockquote().run()}
           isActive={editor.isActive('blockquote')}
+          title="Quote"
         >
           <Quote size={14} />
+        </ToolbarButton>
+      </div>
+
+      <div className="w-px h-6 bg-border mx-2" />
+
+      {/* Links and Media */}
+      <div className="flex items-center space-x-1 mr-2">
+        <ToolbarButton
+          onClick={addLink}
+          isActive={editor.isActive('link')}
+          title="Add Link"
+        >
+          <Link size={14} />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={addImage}
+          title="Add Image"
+        >
+          <Image size={14} />
         </ToolbarButton>
       </div>
     </div>
