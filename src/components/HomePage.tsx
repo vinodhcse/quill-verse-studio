@@ -8,7 +8,7 @@ import {
   PenTool, Book, Users, Zap, Check, Star, ArrowRight, Play, Sparkles, Target, Shield,
   FileText, Brain, RefreshCw, Edit3, GitBranch, BarChart3, MessageSquare, Eye,
   Mic, Headphones, Download, Palette, Smartphone, Lock, UserCheck, Fingerprint,
-  AlertTriangle, FileShield
+  AlertTriangle, FileCheck
 } from 'lucide-react';
 
 const HomePage = () => {
@@ -136,7 +136,7 @@ const HomePage = () => {
       benefits: ["Legal protection evidence", "Invisible to readers", "Peace of mind when sharing"]
     },
     {
-      icon: FileShield,
+      icon: FileCheck,
       title: "No Downloads, No Risk",
       description: "Reviewers and editors work directly in our secure platform. They can't download your entire book, reducing the risk of unauthorized distribution.",
       benefits: ["Complete manuscript protection", "Collaborative editing without risk", "Professional review process"]
