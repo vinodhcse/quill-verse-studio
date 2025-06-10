@@ -89,6 +89,7 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=300&h=400&fit=crop',
       lastModified: '2024-05-28',
       wordCount: 39000,
+      role: 'author',
     },
     {
       id: '7',
@@ -97,6 +98,7 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1514905552197-0610a4d8fd73?w=300&h=400&fit=crop',
       lastModified: '2024-05-25',
       wordCount: 43000,
+      role: 'author',
     },
     {
       id: '8',
@@ -105,6 +107,7 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&h=400&fit=crop',
       lastModified: '2024-05-22',
       wordCount: 56000,
+      role: 'author',
     },
     {
       id: '9',
@@ -113,6 +116,7 @@ const Dashboard = () => {
       image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=400&fit=crop',
       lastModified: '2024-05-20',
       wordCount: 34000,
+      role: 'author',
     },
   ]);
 
