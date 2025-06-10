@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { CollaborativeRichTextEditor } from '@/components/CollaborativeRichTextEditor';
-import { Plus, Mic, Save, Edit3, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit3, Image as ImageIcon } from 'lucide-react';
 
 interface CenterPanelProps {
   mode: Mode;
@@ -91,16 +91,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
                     <p className="text-sm text-muted-foreground">Last edited 5 minutes ago</p>
                   </div>
                 </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Button variant="outline" size="sm">
-                  <Mic size={14} className="mr-1" />
-                  Dictate
-                </Button>
-                <Button variant="outline" size="sm">
-                  <Save size={14} className="mr-1" />
-                  Save
-                </Button>
               </div>
             </div>
             

@@ -46,10 +46,23 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   const handleDragOver = (e: React.DragEvent, targetChapterId: string) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    setDragOverChapter(targetChapterId);
+    if (draggedChapter !== targetChapterId) {
+      setDragOverChapter(targetChapterId);
+    }
   };
 
-  const handleDragLeave = () => {
+  const handleDragLeave = (e: React.DragEvent) => {
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
+      setDragOverChapter(null);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedChapter(null);
     setDragOverChapter(null);
   };
 
@@ -93,13 +106,19 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                   onDragStart={(e) => handleDragStart(e, chapter.id)}
                   onDragOver={(e) => handleDragOver(e, chapter.id)}
                   onDragLeave={handleDragLeave}
+                  onDragEnd={handleDragEnd}
                   onDrop={(e) => handleDrop(e, chapter.id)}
                   className={cn(
-                    "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm group hover:shadow-sm relative",
-                    i === 0 ? "bg-primary/10 text-primary border border-primary/20" : "hover:bg-accent/50",
-                    draggedChapter === chapter.id ? "opacity-50 scale-95" : "",
-                    dragOverChapter === chapter.id && draggedChapter !== chapter.id ? "border-2 border-primary/50 bg-primary/5 transform translate-y-1" : ""
+                    "p-3 rounded-xl cursor-pointer transition-all duration-300 text-sm group hover:shadow-sm relative border border-transparent",
+                    i === 0 ? "bg-primary/10 text-primary border-primary/20" : "hover:bg-accent/50",
+                    draggedChapter === chapter.id ? "opacity-30 scale-95 rotate-2 shadow-xl z-10" : "",
+                    dragOverChapter === chapter.id && draggedChapter !== chapter.id ? 
+                      "border-primary border-2 bg-primary/10 transform scale-105 shadow-lg" : ""
                   )}
+                  style={{
+                    transform: dragOverChapter === chapter.id && draggedChapter !== chapter.id ? 
+                      'translateY(-4px) scale(1.02)' : undefined
+                  }}
                 >
                   <div className="flex items-center space-x-2">
                     <GripVertical 
@@ -113,7 +132,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     {chapter.words} words
                   </div>
                   {dragOverChapter === chapter.id && draggedChapter !== chapter.id && (
-                    <div className="absolute -top-1 left-0 right-0 h-0.5 bg-primary rounded-full animate-pulse" />
+                    <div className="absolute -top-1 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 rounded-full animate-pulse shadow-sm" />
                   )}
                 </div>
               ))}
