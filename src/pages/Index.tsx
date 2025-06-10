@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ModeNavigation, Mode } from '@/components/ModeNavigation';
 import { LeftSidebar } from '@/components/LeftSidebar';
@@ -24,16 +25,8 @@ const Index = () => {
           onToggle={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
         />
         
-        <div className={cn(
-          "h-full transition-all duration-300",
-          leftSidebarCollapsed && rightSidebarCollapsed 
-            ? "mx-4" 
-            : leftSidebarCollapsed 
-              ? "ml-4 mr-80" 
-              : rightSidebarCollapsed 
-                ? "ml-72 mr-4" 
-                : "ml-72 mr-80"
-        )}>
+        {/* Center panel now takes full width since sidebars are floating */}
+        <div className="h-full px-4">
           <CenterPanel mode={currentMode} />
         </div>
         
