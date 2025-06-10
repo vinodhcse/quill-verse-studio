@@ -31,7 +31,7 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
   ];
 
   const handleHomeClick = () => {
-    navigate('/dashboard');
+    navigate('/');
   };
 
   return (
