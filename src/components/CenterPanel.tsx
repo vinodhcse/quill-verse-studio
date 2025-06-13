@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -88,7 +89,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
                         </div>
                       </div>
                     )}
-                    <p className="text-sm text-muted-foreground">Last edited 5 minutes ago</p>
+                    <p className="text-sm text-muted-foreground">Last edited 5 minutes ago • TipTap Editor</p>
                   </div>
                 </div>
               </div>
@@ -98,7 +99,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
               <CollaborativeRichTextEditor
                 content={content}
                 onChange={setContent}
-                placeholder="Start writing your story..."
+                placeholder="Start writing your story with TipTap editor..."
                 className="h-full"
                 blockId="block_001"
               />
@@ -201,7 +202,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <h2 className="text-xl font-semibold mb-2">Welcome to AuthorStudio</h2>
-              <p className="text-muted-foreground">Select a mode to get started</p>
+              <p className="text-muted-foreground">Select a mode to get started with TipTap editor</p>
             </div>
           </div>
         );

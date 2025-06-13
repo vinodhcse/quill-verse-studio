@@ -17,6 +17,7 @@ import { EditModeSelector } from './EditModeSelector';
 import { TextContextMenu } from './TextContextMenu';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { cn } from '@/lib/utils';
+import './editor-styles.css';
 import './collaboration-styles.css';
 
 interface CollaborativeRichTextEditorProps {
@@ -57,13 +58,23 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       Underline,
       Link.configure({
         openOnClick: false,
+        HTMLAttributes: {
+          class: 'text-primary underline cursor-pointer',
+        },
       }),
-      Image,
+      Image.configure({
+        HTMLAttributes: {
+          class: 'max-w-full h-auto rounded-lg my-4',
+        },
+      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
+        alignments: ['left', 'center', 'right'],
       }),
       Placeholder.configure({
         placeholder,
+        showOnlyWhenEditable: true,
+        showOnlyCurrent: false,
       }),
       CharacterCount,
       Focus.configure({
@@ -91,18 +102,32 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
     editorProps: {
       attributes: {
         class: cn(
-          'prose prose-sm sm:prose-base max-w-none focus:outline-none',
+          'prose prose-sm sm:prose-base lg:prose-lg max-w-none focus:outline-none',
           'min-h-[calc(100vh-16rem)] p-6 text-base leading-relaxed',
           'bg-background rounded-xl',
           editMode === 'review' && 'cursor-default',
           className
         ),
       },
+      handleDOMEvents: {
+        focus: () => {
+          console.log('TipTap editor focused');
+          return false;
+        },
+        blur: () => {
+          console.log('TipTap editor blurred');
+          return false;
+        },
+      },
     },
   });
 
   if (!editor) {
-    return null;
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="text-muted-foreground">Loading editor...</div>
+      </div>
+    );
   }
 
   return (
@@ -135,7 +160,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
             {editor.storage.characterCount.words()} words
           </span>
           <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20">
-            {editMode} mode
+            {editMode} mode • TipTap
           </span>
         </div>
         <div className="flex items-center space-x-2">
