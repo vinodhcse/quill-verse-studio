@@ -90,7 +90,9 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
     content,
     onUpdate: ({ editor }) => {
       const newContent = editor.getHTML();
+      console.log('Change detected in txt mode:', editor);
       
+      console.log('Change detected in txt mode:', editor);
       if (editMode === 'suggest') {
         console.log('Change detected in suggest mode:', newContent);
         onChange(newContent);
