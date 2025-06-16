@@ -50,9 +50,70 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     }
   };
 
-  const handleImportChapters = (file: File) => {
-    console.log('Importing chapters from file:', file.name);
-    // Here you would implement the actual file parsing logic
+  const handleImportChapters = async (file: File) => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      // Start Import Job
+      const startJobResponse = await apiClient.post(`/books/${bookId}/versions/${versionId}/import-docx`, formData);
+      const jobId = startJobResponse.data.jobId;
+
+      // Show modal with progress bar
+      const modal = document.createElement('div');
+      modal.className = 'fixed inset-0 flex items-center justify-center bg-black bg-opacity-50';
+      modal.innerHTML = `
+        <div class="bg-white p-6 rounded-lg shadow-lg w-96 animate-fadeIn">
+          <h2 class="text-lg font-semibold mb-4">Importing Chapters</h2>
+          <div class="relative w-full h-4 bg-gray-200 rounded-full overflow-hidden">
+            <div id="progress-bar" class="absolute top-0 left-0 h-full bg-blue-500 transition-all duration-500 ease-in-out" style="width: 0%;"></div>
+          </div>
+          <p id="progress-status" class="text-sm mt-2">Status: In Progress</p>
+        </div>
+      `;
+      document.body.appendChild(modal);
+
+      // Track Job Status
+      const trackJobStatus = async () => {
+        try {
+          const jobStatusResponse = await apiClient.get(`/jobs/${jobId}`);
+          const { status, totalChapters, completedChapters } = jobStatusResponse.data;
+
+          // Calculate progress
+          const progress = (completedChapters / totalChapters) * 100;
+
+          // Update progress bar and status
+          const progressBar = document.getElementById('progress-bar');
+          const progressStatus = document.getElementById('progress-status');
+          if (progressBar) progressBar.style.width = `${progress || 0}%`;
+          if (progressStatus) progressStatus.textContent = `Status: ${status} (${Math.round(progress)}%)`;
+
+          if (status === 'Completed') {
+            setTimeout(async () => {
+              alert('Chapters imported successfully!');
+              modal.remove();
+              // Refresh chapters
+              const updatedChapters = await apiClient.get(`/books/${bookId}/versions/${versionId}/chapters`);
+              dispatch({ type: 'SET_CHAPTERS', payload: updatedChapters.data });
+            }, 500); // Delay to show final animation
+          } else if (status === 'Failed') {
+            alert('Failed to import chapters. Please try again.');
+            modal.remove();
+          } else {
+            setTimeout(trackJobStatus, 2000); // Poll every 2 seconds
+          }
+        } catch (error) {
+          console.error('Error tracking job status:', error);
+          alert('An error occurred while tracking the import job.');
+          modal.remove();
+        }
+      };
+
+      trackJobStatus();
+    } catch (error) {
+      console.error('Failed to start import job:', error);
+      alert('Failed to import chapters. Please try again.');
+    }
   };
 
   const handleDragStart = (e: React.DragEvent, chapterId: string) => {
@@ -169,8 +230,9 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     }}
                   >
                     <div className="flex items-center space-x-2">
-                      <GripVertical size={16} />
-                      <span className="flex-1 truncate">{chapter.title}</span>
+                     
+                      <span className="flex-1 truncate">{i+1}.{ } {chapter.title}</span>
+                       <GripVertical size={16} />
                       <button
                         className="text-red-500 hover:text-red-700 p-1 rounded-full transition-colors"
                         onClick={(e) => {
@@ -184,7 +246,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                         </svg>
                       </button>
                     </div>
-                    <div className="text-xs text-muted-foreground">Words: {chapter?.metaData?.totalWords || 0}</div>
+                    <div className="text-xs text-muted-foreground">Words2: {chapter?.content?.metadata?.totalWords || 0}</div>
                   </div>
                 );
               })}
