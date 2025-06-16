@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Header } from '@/components/Header';
+import Header from '@/components/Header';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { CenterPanel } from '@/components/CenterPanel';
 import { RightSidebar } from '@/components/RightSidebar';
@@ -41,15 +41,19 @@ const Index = () => {
       
       <div className="flex-1 flex overflow-hidden relative">
         <SidebarToggleButtons
-          showLeftSidebar={showLeftSidebar}
-          showRightSidebar={showRightSidebar}
-          onToggleLeft={() => setShowLeftSidebar(!showLeftSidebar)}
-          onToggleRight={() => setShowRightSidebar(!showRightSidebar)}
+          leftSidebarCollapsed={!showLeftSidebar}
+          rightSidebarCollapsed={!showRightSidebar}
+          onToggleLeftSidebar={() => setShowLeftSidebar(!showLeftSidebar)}
+          onToggleRightSidebar={() => setShowRightSidebar(!showRightSidebar)}
         />
         
         {showLeftSidebar && (
           <div className="w-80 border-r border-border/50 bg-background/80 backdrop-blur-md">
-            <LeftSidebar mode={mode} />
+            <LeftSidebar 
+              mode={mode} 
+              isCollapsed={false}
+              onToggle={() => setShowLeftSidebar(false)}
+            />
           </div>
         )}
         
@@ -64,8 +68,9 @@ const Index = () => {
         {showRightSidebar && (
           <div className="w-80 border-l border-border/50 bg-background/80 backdrop-blur-md">
             <RightSidebar
-              trackChanges={trackChanges}
-              showComments={showComments}
+              mode={mode}
+              isCollapsed={false}
+              onToggle={() => setShowRightSidebar(false)}
             />
           </div>
         )}
