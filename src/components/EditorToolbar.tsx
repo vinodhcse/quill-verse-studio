@@ -289,6 +289,18 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 
       <div className="w-px h-6 bg-border/50 mx-2" />
 
+      {/* Scene Divider */}
+      <div className="flex items-center space-x-1">
+        <ToolbarButton
+          onClick={() => editor.chain().focus().insertSceneDivider().run()}
+          title="Insert Scene Divider"
+        >
+          <hr className="w-6 border-t-2 border-dashed border-gray-400" />
+        </ToolbarButton>
+      </div>
+
+      <div className="w-px h-6 bg-border/50 mx-2" />
+
       {/* Font Family, Size, and Color */}
       <div className="flex items-center space-x-2">
         <select
@@ -312,12 +324,7 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
           className="px-2 py-1 bg-muted/50 rounded-lg"
         />
-        <button
-          onClick={() => editor.chain().focus().setImage({ src: 'https://via.placeholder.com/150' }).run()}
-          className="px-2 py-1 bg-muted/50 rounded-lg"
-        >
-          Insert Image
-        </button>
+       
       </div>
     </div>
   );

@@ -21,6 +21,7 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { cn } from '@/lib/utils';
 import './editor-styles.css';
 import './collaboration-styles.css';
+import { Node } from '@tiptap/core';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -30,6 +31,46 @@ interface CollaborativeRichTextEditorProps {
   blockId: string;
   selectedChapter: any;
 }
+
+const SceneDivider = Node.create({
+  name: 'sceneDivider',
+
+  group: 'block',
+  content: '',
+  parseHTML() {
+    return [
+      {
+        tag: 'hr.scene-divider',
+      },
+    ];
+  },
+  renderHTML() {
+    return ['hr', { class: 'scene-divider border-t-2 border-dashed border-gray-400 my-4' }];
+  },
+
+  addCommands() {
+    return {
+      insertSceneDivider: () => ({ commands }) => {
+        return commands.insertContent({ type: 'sceneDivider' });
+      },
+    };
+  },
+
+  addNodeView() {
+    return ({ node, getPos }) => {
+      const dom = document.createElement('hr');
+      dom.className = 'scene-divider border-t-2 border-dashed border-gray-400 my-4';
+
+      dom.addEventListener('click', () => {
+        console.log('Scene divider clicked at position:', getPos());
+      });
+
+      return {
+        dom,
+      };
+    };
+  },
+});
 
 export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = ({
   content,
@@ -60,15 +101,6 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
     extensions: [
       StarterKit.configure({
         heading: { levels: [1, 2, 3] },
-        keyboardShortcuts: {
-          Enter: ({ editor }) => {
-            const { $cursor } = editor.state.selection;
-            if ($cursor && $cursor.pos === editor.state.doc.content.size) {
-              return true; // Prevent Enter from going to the last line
-            }
-            return false;
-          },
-        },
         blockquote: {
           HTMLAttributes: {
             class: 'bg-gray-100 p-4 rounded-md',
@@ -109,6 +141,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       FontFamily.configure({ types: ['textStyle'] }),
       FontSize.configure({ types: ['textStyle'] }),
       Color.configure({ types: ['textStyle'] }),
+      SceneDivider, // Ensure SceneDivider is properly registered
     ],
     content: { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
