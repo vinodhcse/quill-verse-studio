@@ -77,17 +77,36 @@ const Dashboard = () => {
   const endIndex = startIndex + booksPerPage;
   const currentBooks = filteredBooks.slice(startIndex, endIndex);
 
-  const handleCreateBookWithImage = async (bookData: { title: string; authorname: string; createdAt: string; file: File }) => {
+  const handleCreateBookWithImage = async (bookData: { 
+    title: string; 
+    authorname: string; 
+    createdAt: string; 
+    file: File;
+    subtitle: string;
+    language: string;
+    description: string;
+  }) => {
     try {
       const createdBook = await createBook(bookData.title, bookData.authorname, bookData.createdAt);
       const bookId = createdBook.id;
       const uploadResponse = await uploadBookImage(bookId, bookData.file, 'cover', 'Book cover image');
-      const imageUrl = uploadResponse.url;
-      await updateBookImage(bookId, imageUrl);
-      fetchBooks();
+      const imageUrl = uploadResponse.data.url;
+      
+      // Update book with additional details
+      await apiClient.patch(`/books/${bookId}`, {
+        bookImage: imageUrl,
+        subtitle: bookData.subtitle,
+        language: bookData.language,
+        description: bookData.description,
+      });
+
+      // Refresh books to include the new one
+      const response = await apiClient.get('/books');
+      setBooks(response.data);
+      setIsCreateModalOpen(false);
     } catch (error) {
-      console.error('Failed to create book with image:', error);
-      alert('Failed to upload book image. Please try again.');
+      console.error('Failed to create book:', error);
+      alert('Failed to create book. Please try again.');
     }
   };
 

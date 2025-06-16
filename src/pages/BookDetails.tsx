@@ -8,10 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share } from 'lucide-react';
+import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share, Edit } from 'lucide-react';
 import { apiClient } from '@/lib/api';
-import { BookDetails as BookDetailsType, User as UserType } from '@/types/collaboration';
+import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
 import { useForm } from 'react-hook-form';
+import { EditBookModal } from '@/components/EditBookModal';
 
 interface InviteFormData {
   email: string;
@@ -22,8 +23,10 @@ const BookDetails = () => {
   const { bookId } = useParams<{ bookId: string }>();
   const navigate = useNavigate();
   const [bookDetails, setBookDetails] = useState<BookDetailsType | null>(null);
+  const [versions, setVersions] = useState<Version[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isInviting, setIsInviting] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   const form = useForm<InviteFormData>({
     defaultValues: {
@@ -38,8 +41,12 @@ const BookDetails = () => {
       
       setIsLoading(true);
       try {
-        const response = await apiClient.get(`/books/${bookId}`);
-        setBookDetails(response.data);
+        const [bookResponse, versionsResponse] = await Promise.all([
+          apiClient.get(`/books/${bookId}`),
+          apiClient.get(`/books/${bookId}/versions`)
+        ]);
+        setBookDetails(bookResponse.data);
+        setVersions(versionsResponse.data);
       } catch (error) {
         console.error('Failed to fetch book details:', error);
       } finally {
@@ -69,21 +76,54 @@ const BookDetails = () => {
     }
   };
 
+  const handleUpdateBook = async (bookData: {
+    title: string;
+    subtitle: string;
+    language: string;
+    description: string;
+    file?: File;
+  }) => {
+    try {
+      // Update book details
+      const updateData: any = {
+        title: bookData.title,
+        subtitle: bookData.subtitle,
+        language: bookData.language,
+        description: bookData.description,
+      };
+
+      // If there's a new image file, upload it first
+      if (bookData.file) {
+        const uploadResponse = await apiClient.post(`/books/${bookId}/files`, {
+          file: bookData.file,
+          tags: 'cover',
+          description: 'Book cover image',
+        }, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        updateData.bookImage = uploadResponse.data.url;
+      }
+
+      await apiClient.patch(`/books/${bookId}`, updateData);
+      
+      // Refresh book details
+      const response = await apiClient.get(`/books/${bookId}`);
+      setBookDetails(response.data);
+      setIsEditModalOpen(false);
+    } catch (error) {
+      console.error('Failed to update book:', error);
+      alert('Failed to update book. Please try again.');
+    }
+  };
+
   const handleOpenVersion = (versionId: string) => {
     navigate(`/write/book/${bookId}/version/${versionId}`);
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Draft': return 'bg-yellow-100 text-yellow-800';
-      case 'Final': return 'bg-blue-100 text-blue-800';
-      case 'Published': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   const getRoleColor = (role: string) => {
@@ -134,6 +174,10 @@ const BookDetails = () => {
                 </Link>
               </Button>
             </div>
+            <Button onClick={() => setIsEditModalOpen(true)} size="sm">
+              <Edit size={16} className="mr-2" />
+              Edit Book
+            </Button>
           </div>
         </div>
       </div>
@@ -157,9 +201,12 @@ const BookDetails = () => {
           
           <div className="flex-1">
             <h1 className="text-3xl font-bold mb-2">{bookDetails.title}</h1>
+            {bookDetails.subtitle && (
+              <p className="text-xl text-muted-foreground mb-2">{bookDetails.subtitle}</p>
+            )}
             <p className="text-lg text-muted-foreground mb-4">by {bookDetails.authorname}</p>
             
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
               <div className="flex items-center space-x-2">
                 <Calendar size={16} className="text-muted-foreground" />
                 <span>Created: {formatDate(bookDetails.createdAt)}</span>
@@ -176,7 +223,20 @@ const BookDetails = () => {
                 <User size={16} className="text-muted-foreground" />
                 <span>{bookDetails.collaborators?.length || 0} collaborators</span>
               </div>
+              {bookDetails.language && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">Language:</span>
+                  <span>{bookDetails.language}</span>
+                </div>
+              )}
             </div>
+
+            {bookDetails.description && (
+              <div className="mt-4">
+                <h3 className="font-medium mb-2">Description</h3>
+                <p className="text-muted-foreground">{bookDetails.description}</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -195,7 +255,7 @@ const BookDetails = () => {
             </div>
             
             <div className="grid gap-4">
-              {bookDetails.versions?.map((version) => (
+              {versions?.map((version) => (
                 <Card key={version.id} className="cursor-pointer hover:shadow-md transition-all duration-200 group">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
@@ -275,7 +335,6 @@ const BookDetails = () => {
             </div>
           </TabsContent>
 
-          {/* Invite Tab */}
           <TabsContent value="invite" className="space-y-4">
             <Card>
               <CardHeader>
@@ -338,6 +397,13 @@ const BookDetails = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      <EditBookModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        book={bookDetails}
+        onUpdateBook={handleUpdateBook}
+      />
     </div>
   );
 };

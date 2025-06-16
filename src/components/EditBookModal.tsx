@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,29 +21,27 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, X } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { BookDetails } from '@/types/collaboration';
 
-interface CreateBookModalProps {
+interface EditBookModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateBookWithImage: (bookData: { 
-    title: string; 
-    authorname: string; 
-    createdAt: string; 
-    file: File;
+  book: BookDetails | null;
+  onUpdateBook: (bookData: {
+    title: string;
     subtitle: string;
     language: string;
     description: string;
+    file?: File;
   }) => void;
 }
 
 interface FormData {
   title: string;
-  author: string;
   subtitle: string;
   language: string;
   description: string;
   image?: string;
-  versionName: string;
 }
 
 const languages = [
@@ -62,10 +60,11 @@ const languages = [
   'Other'
 ];
 
-export const CreateBookModal: React.FC<CreateBookModalProps> = ({
+export const EditBookModal: React.FC<EditBookModalProps> = ({
   isOpen,
   onClose,
-  onCreateBookWithImage,
+  book,
+  onUpdateBook,
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -73,14 +72,22 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
   const form = useForm<FormData>({
     defaultValues: {
       title: '',
-      author: '',
       subtitle: '',
       language: 'English',
       description: '',
       image: '',
-      versionName: 'Manuscript',
     },
   });
+
+  useEffect(() => {
+    if (book && isOpen) {
+      form.setValue('title', book.title || '');
+      form.setValue('subtitle', book.subtitle || '');
+      form.setValue('language', book.language || 'English');
+      form.setValue('description', book.description || '');
+      setSelectedImage(book.bookImage || null);
+    }
+  }, [book, isOpen, form]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -103,25 +110,18 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      const fileInput = document.getElementById('book-cover-upload') as HTMLInputElement;
+      const fileInput = document.getElementById('edit-book-cover-upload') as HTMLInputElement;
       const file = fileInput?.files?.[0];
 
-      if (file) {
-        onCreateBookWithImage({
-          title: data.title,
-          authorname: data.author,
-          createdAt: new Date().toISOString(),
-          file,
-          subtitle: data.subtitle,
-          language: data.language,
-          description: data.description,
-        });
-      } else {
-        alert('Please upload a book cover image.');
-      }
+      onUpdateBook({
+        title: data.title,
+        subtitle: data.subtitle,
+        language: data.language,
+        description: data.description,
+        file,
+      });
 
-      form.reset();
-      setSelectedImage(null);
+      onClose();
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +137,7 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Book</DialogTitle>
+          <DialogTitle>Edit Book Details</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
@@ -165,21 +165,6 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
                   <FormLabel>Subtitle (Optional)</FormLabel>
                   <FormControl>
                     <Input placeholder="Enter book subtitle" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="author"
-              rules={{ required: 'Author name is required' }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Author Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter author name" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -231,25 +216,10 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
 
             <FormField
               control={form.control}
-              name="versionName"
-              rules={{ required: 'Version name is required' }}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Initial Version Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Enter version name" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="image"
               render={() => (
                 <FormItem>
-                  <FormLabel>Book Cover (Required)</FormLabel>
+                  <FormLabel>Book Cover</FormLabel>
                   <FormControl>
                     <div className="space-y-4">
                       {selectedImage && (
@@ -272,7 +242,7 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
                       )}
                       <input
                         type="file"
-                        id="book-cover-upload"
+                        id="edit-book-cover-upload"
                         accept="image/*"
                         onChange={handleImageUpload}
                         className="hidden"
@@ -280,10 +250,10 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => document.getElementById('book-cover-upload')?.click()}
+                        onClick={() => document.getElementById('edit-book-cover-upload')?.click()}
                       >
                         <Upload size={16} className="mr-2" />
-                        Upload Cover
+                        {selectedImage ? 'Change Cover' : 'Upload Cover'}
                       </Button>
                     </div>
                   </FormControl>
@@ -297,7 +267,7 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
                 Cancel
               </Button>
               <Button type="submit" disabled={isLoading}>
-                {isLoading ? 'Creating...' : 'Create Book'}
+                {isLoading ? 'Updating...' : 'Update Book'}
               </Button>
             </DialogFooter>
           </form>

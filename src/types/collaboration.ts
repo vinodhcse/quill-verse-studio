@@ -7,6 +7,7 @@ export interface User {
   role: 'author' | 'editor' | 'reviewer';
   isOnline?: boolean;
   lastSeen?: string;
+  color?: string;
 }
 
 export interface Comment {
@@ -17,6 +18,9 @@ export interface Comment {
   position: number;
   resolved?: boolean;
   replies?: Comment[];
+  created_at?: string;
+  user_id?: string;
+  block_id?: string;
 }
 
 export interface Change {
@@ -39,9 +43,17 @@ export interface ChangeLog {
   position: number;
   accepted?: boolean;
   rejected?: boolean;
+  status?: 'pending' | 'accepted' | 'rejected';
+  change_type?: string;
+  before_text?: string;
+  after_text?: string;
+  comment?: string;
+  user_id?: string;
+  created_at?: string;
+  block_id?: string;
 }
 
-export type EditMode = 'view' | 'edit' | 'review' | 'track-changes';
+export type EditMode = 'view' | 'edit' | 'review' | 'track-changes' | 'suggest';
 
 export interface Version {
   id: string;
@@ -72,8 +84,10 @@ export interface Book {
   bookImage?: string;
   lastModified: string;
   createdAt: string;
-  wordCount: number;
+  wordCount?: number;
   role?: 'author' | 'editor' | 'reviewer';
+  subtitle?: string;
+  language?: string;
 }
 
 export interface BookDetails extends Book {

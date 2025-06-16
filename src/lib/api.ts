@@ -76,6 +76,11 @@ export const uploadBookImage = async (bookId: string, file: File, tags: string, 
   return response.data;
 };
 
+export const updateBook = async (bookId: string, updateData: any) => {
+  const response = await apiClient.patch(`/books/${bookId}`, updateData);
+  return response.data;
+};
+
 export const updateBookImage = async (bookId: string, bookImage: string) => {
   const response = await apiClient.patch(`/books/${bookId}`, { bookImage });
   return response.data;
