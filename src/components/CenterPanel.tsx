@@ -111,7 +111,7 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
       console.log('saveContent triggered with content:', content);
       try {
         statusRef.current = 'Saving';
-      //  setStatus('Saving'); // Update the label
+        setStatus('Saving'); // Update the label
         const currentContent = latestContentRef.current;
         if (JSON.stringify(currentContent) !== JSON.stringify(content)) {
           await apiClient.patch(`/books/${bookId}/versions/${versionId}/chapters/${selectedChapter?.id}`, {
@@ -119,25 +119,36 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
           });
           latestContentRef.current = content; // Update the ref with the latest content
           statusRef.current = 'Saved';
-      //    setStatus('Saved'); // Update the label
+          setStatus('Saved'); // Update the label
         } else {
-          statusRef.current = 'Unchanged';
-        //  setStatus('Unchanged'); // Update the label
+          statusRef.current = 'Latest';
+          setStatus('Latest'); // Update the label
         }
       } catch (error) {
         console.error('Failed to save chapter content:', error);
         statusRef.current = 'Changed';
-     //   setStatus('Changed'); // Update the label
+        setStatus('Changed'); // Update the label
       }
     }, 10000),
     [bookId, versionId, selectedChapter?.id]
   );
 
-  const onChangeHandler = (changedContent) => {
+  const onChangeHandler = (changedContent, totalCharacters, totalWords) => {
     try {
-      const parsedContent = JSON.parse(changedContent);
+      console.log('onChangeHandler triggered with content:', changedContent);
+      let parsedContent = changedContent;
+      if (typeof changedContent === 'string') {
+        // If the content is a string, parse it as JSON
+        console.log('Parsing content as JSON');
+        parsedContent = JSON.parse(changedContent);
+      } else {
+        console.log('Content is already an object, no parsing needed');
+      }
+      //const parsedContent = JSON.parse(changedContent);
       const tiptapBlocks = parsedContent?.content || [];
-      saveContent({ blocks: tiptapBlocks });
+      setStatus('Changed'); // Update the label to 'Changed'
+      statusRef.current = 'Changed';
+      saveContent({ blocks: tiptapBlocks, metadata: { totalCharacters, totalWords } });
     } catch (error) {
       console.error('Failed to parse content:', error);
     }
@@ -214,6 +225,7 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
 
             <div className="flex-1 overflow-hidden">
               <CollaborativeRichTextEditor
+                key={selectedChapter?.id}
                 content={selectedChapter?.content?.blocks?.length ? {
                   type: 'doc',
                   content: selectedChapter.content.blocks

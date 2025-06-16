@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -24,7 +24,7 @@ import './collaboration-styles.css';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
-  onChange: (content: string) => void;
+  onChange: (content: any, totalCharacters: any, totalWords: any) => void;
   placeholder?: string;
   className?: string;
   blockId: string;
@@ -34,10 +34,10 @@ interface CollaborativeRichTextEditorProps {
 export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = ({
   content,
   onChange,
-  placeholder = "Start writing your story...",
+  placeholder = 'Start writing your story...',
   className,
   blockId,
-  selectedChapter
+  selectedChapter,
 }) => {
   const {
     currentUser,
@@ -51,29 +51,35 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
     addComment,
   } = useCollaboration();
 
-  //console.log('Editor content type:', typeof content);
-  //console.log("📄 Editor received content:", content);
-  //const safeContent = JSON.parse(JSON.stringify(content));
-  //console.log("📄 SSafe content:", safeContent);
+  const latestContentRef = useRef<any>(null);
+  const initialContentLoaded = useRef(false); // prevent reset on every update
+  console.log('Editor content type:', typeof content);
+  console.log("📄 Editor received content:", content);
+  
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: {
-          levels: [1, 2, 3],
+        heading: { levels: [1, 2, 3] },
+        keyboardShortcuts: {
+          Enter: ({ editor }) => {
+            const { $cursor } = editor.state.selection;
+            if ($cursor && $cursor.pos === editor.state.doc.content.size) {
+              return true; // Prevent Enter from going to the last line
+            }
+            return false;
+          },
         },
       }),
       TextStyle,
       Underline,
       Link.configure({
         openOnClick: false,
-        HTMLAttributes: {
-          class: 'text-primary underline cursor-pointer',
-        },
+        HTMLAttributes: { class: 'text-primary underline cursor-pointer' },
       }),
       Image.configure({
         HTMLAttributes: {
           class: 'max-w-full h-auto rounded-lg my-4',
-        }
+        },
       }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
@@ -87,7 +93,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       }),
       CharacterCount,
       Focus.configure({
-        className: 'has-focus',
+        className: '', // Remove the focus class to eliminate border color
         mode: 'all',
       }),
       CommentExtension,
@@ -95,26 +101,19 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         userId: currentUser.id,
         userName: currentUser.name,
       }),
-      FontFamily.configure({
-        types: ['textStyle'],
-      }),
-      FontSize.configure({
-        types: ['textStyle'],
-      }),
-      Color.configure({
-        types: ['textStyle'],
-      }),
+      FontFamily.configure({ types: ['textStyle'] }),
+      FontSize.configure({ types: ['textStyle'] }),
+      Color.configure({ types: ['textStyle'] }),
     ],
-    content: content?.type === 'doc' ? content : { type: 'doc', content: [] },
+    content: { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
-      const newContent = editor.getJSON();
-      if (editMode === 'suggest') {
-        console.log('Change detected in suggest mode:', newContent);
-        console.log('Change detected in JSON mode:', editor.getJSON());
-        onChange(JSON.stringify(newContent));
-      } else if (editMode === 'edit') {
-        console.log('Change detected in Edit  mode:', editor.getJSON());
-        onChange(JSON.stringify(newContent));
+      const updated = editor.getJSON();
+      latestContentRef.current = updated;
+      const plainText = editor.getText();
+      const totalCharacters = plainText.length;
+      const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
+      if (editMode !== 'review') {
+        onChange(updated, totalCharacters, totalWords); // push updates to parent
       }
     },
     editable: editMode !== 'review',
@@ -128,21 +127,32 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
           className
         ),
       },
-      handleDOMEvents: {
-        focus: () => {
-          console.log('TipTap editor focused');
-          console.log('TipTap editor content', editor.getJSON());
-          return false;
-        },
-        blur: () => {
-          console.log('TipTap editor blurred');
-          return false;
-        },
+      handleKeyDown(view, event) {
+        if (event.key === 'Enter') {
+          const { selection } = view.state;
+          if (selection.empty && selection.$head.pos === view.state.doc.content.size) {
+            event.preventDefault(); // Prevent Enter from going to the last line
+            return true;
+          }
+        }
+        return false;
       },
     },
   });
 
-  
+  // Load content only once (avoid resetting on every state change)
+  useEffect(() => {
+    if (!editor || initialContentLoaded.current) return;
+
+    if (content?.type === 'doc') {
+      editor.commands.setContent(content);
+      latestContentRef.current = content;
+      initialContentLoaded.current = true;
+      console.log('Editor content set on load.');
+    } else {
+      editor.commands.clearContent();
+    }
+  }, [editor, content]);
 
   if (!editor) {
     return (
@@ -155,51 +165,35 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
   }
 
   useEffect(() => {
-  console.log('useEffect triggered with content:', content);
-  if (editor && content?.type === 'doc') {
-    editor.commands.setContent(content); // dynamically inject content
-    console.log('Editor content set via useEffect');
-  } else if (editor) {
-    editor.commands.clearContent(); // clear editor content for empty chapters
-    console.log('Editor content cleared via useEffect');
-  }
-}, [editor, content]);
-
-/*useEffect(() => {
-  if (!editor || !selectedChapter) return;
-
-  if (selectedChapter?.content?.type === 'doc') {
-    editor.commands.setContent(selectedChapter.content);
-  } else {
-    editor.commands.clearContent();
-  }
-}, [editor, selectedChapter?.id]);*/
-
+  return () => {
+    if (editor) {
+      editor.destroy();
+      initialContentLoaded.current = false; 
+      console.log('Editor destroyed on unmount');
+    }
+  };
+}, []);
 
   return (
     <div className="h-full flex flex-col bg-background/50 rounded-2xl border border-border/50 shadow-lg backdrop-blur-sm overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/80">
-        <EditModeSelector
-          currentMode={editMode}
-          onModeChange={setEditMode}
-          currentUser={currentUser}
-        />
+        <EditModeSelector currentMode={editMode} onModeChange={setEditMode} currentUser={currentUser} />
       </div>
-      
+
       <EditorToolbar editor={editor} />
 
-      
       <div className="flex-1 overflow-hidden">
         <div className="max-h-[calc(100vh-200px)] overflow-y-auto relative">
           <TextContextMenu editor={editor}>
-            <EditorContent 
-              editor={editor} 
+            <EditorContent
+              editor={editor}
               className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent"
             />
           </TextContextMenu>
         </div>
       </div>
-      <div className="flex items-center justify-between px-6 py-3 border-t border-border/50 text-xs text-muted-foreground bg-background/50 z-50 fixed bottom-0 w-full">
+
+      <div className="flex items-center justify-between px-6 py-3 border-t border-border/50 text-xs text-muted-foreground bg-background/50 z-50">
         <div className="flex items-center space-x-4">
           <span className="px-2 py-1 bg-muted/50 rounded-full">
             {editor.storage.characterCount.characters()} characters
@@ -215,8 +209,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
           <div className="w-2 h-2 bg-green-500 rounded-full"></div>
           <span>Auto-saved</span>
         </div>
-      </div> 
-    
+      </div>
     </div>
   );
 };

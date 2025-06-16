@@ -18,7 +18,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   isCollapsed,
   onToggle,
 }) => {
-  const { state } = useBookContext();
+  const { state, dispatch } = useBookContext();
   const { chapters, bookId, versionId } = state;
   const navigate = useNavigate();
 
@@ -104,6 +104,28 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     navigate(`/write/book/${bookId}/version/${versionId}?chapterId=${chapterId}`);
   };
 
+  const handleDeleteChapter = async (chapterId: string) => {
+    const confirmDelete = window.confirm('Are you sure you want to delete this chapter?');
+    if (!confirmDelete) return;
+
+    try {
+      const deletedResponse = await apiClient.delete(`/books/${bookId}/versions/${versionId}/chapters/${chapterId}`);
+      console.log('Chapter deleted successfully', deletedResponse);
+
+      const updatedChapters = chapters.filter(ch => ch.id !== chapterId);
+      dispatch({ type: 'SET_CHAPTERS', payload: updatedChapters });
+
+      if (state.chapterId === chapterId && updatedChapters.length > 0) {
+        const firstChapter = updatedChapters[0];
+        dispatch({ type: 'SET_SELECTED_CHAPTER', payload: firstChapter });
+        navigate(`/write/book/${bookId}/version/${versionId}?chapterId=${firstChapter.id}`);
+      }
+    } catch (error) {
+      console.error('Failed to delete chapter:', error);
+      alert('Failed to delete chapter. Please try again.');
+    }
+  };
+
   const renderContent = () => {
     switch (mode) {
       case 'writing':
@@ -147,19 +169,22 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                     }}
                   >
                     <div className="flex items-center space-x-2">
-                      <GripVertical 
-                        size={12} 
-                        className="opacity-50 group-hover:opacity-100 cursor-grab active:cursor-grabbing" 
-                      />
-                      <FileText size={14} className="opacity-70 group-hover:opacity-100" />
-                      <span className="truncate font-medium flex-1">{chapter.title}</span>
+                      <GripVertical size={16} />
+                      <span className="flex-1 truncate">{chapter.title}</span>
+                      <button
+                        className="text-red-500 hover:text-red-700 p-1 rounded-full transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteChapter(chapter.id);
+                        }}
+                        title="Delete Chapter"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7L7 19M7 7l12 12" />
+                        </svg>
+                      </button>
                     </div>
-                    <div className="text-xs text-muted-foreground mt-1 ml-6">
-                      {chapter.words} words
-                    </div>
-                    {dragOverChapter === chapter.id && draggedChapter !== chapter.id && (
-                      <div className="absolute -top-1 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 rounded-full animate-pulse shadow-sm" />
-                    )}
+                    <div className="text-xs text-muted-foreground">Words: {chapter?.metaData?.totalWords || 0}</div>
                   </div>
                 );
               })}
