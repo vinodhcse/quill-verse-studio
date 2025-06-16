@@ -1,30 +1,145 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { CollaborativeRichTextEditor } from '@/components/CollaborativeRichTextEditor';
-import { Plus, Edit3, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, UploadCloud } from 'lucide-react';
+import { useBookContext } from '@/lib/BookContextProvider';
+import { apiClient } from '@/lib/api';
+import { debounce } from 'lodash';
 
-interface CenterPanelProps {
-  mode: Mode;
-}
+export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
+  const { state, dispatch } = useBookContext();
+  const { selectedChapter, bookId, versionId } = state;
 
-export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
-  const [content, setContent] = useState(`<h1>Chapter 1: The Beginning</h1><p>The morning sun filtered through the curtains, casting long shadows across the hardwood floor. Sarah sat at her desk, fingers hovering over the keyboard, waiting for inspiration to strike...</p><p>It had been three months since her last published work, and the pressure from her editor was mounting. The blank page seemed to mock her, its pristine whiteness a stark reminder of her creative drought.</p>`);
-  const [chapterTitle, setChapterTitle] = useState('Chapter 1: The Beginning');
-  const [chapterImage, setChapterImage] = useState<string | null>(null);
   const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [newTitle, setNewTitle] = useState(selectedChapter?.title || '');
+  const [newImage, setNewImage] = useState<File | null>(null);
+  const [status, setStatus] = useState('');
+  const statusRef = useRef('');
 
-  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setChapterImage(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
+  const latestContentRef = useRef(selectedChapter?.content?.blocks || []);
+
+  useEffect(() => {
+    setNewTitle(selectedChapter?.title || '');
+  }, [selectedChapter]);
+
+  useEffect(() => {
+    if (newImage) {
+      handleImageUpload();
+    }
+  }, [newImage]);
+
+  useEffect(() => {
+    if (selectedChapter?.content) {
+      statusRef.current = 'Latest';
+    }
+  }, [selectedChapter?.content]);
+
+  useEffect(() => {
+    if (selectedChapter?.content?.blocks) {
+      statusRef.current = 'Latest';
+    } else {
+      statusRef.current = 'Latest';
+    }
+  }, [selectedChapter]);
+
+  const handleTitleChange = async () => {
+    try {
+      await apiClient.patch(`/books/${bookId}/versions/${versionId}/chapters/${selectedChapter?.id}`, {
+        title: newTitle,
+      });
+
+      const updatedChapters = state.chapters.map((chapter) =>
+        chapter.id === selectedChapter?.id ? { ...chapter, title: newTitle } : chapter
+      );
+
+      dispatch({ type: 'SET_CHAPTERS', payload: updatedChapters });
+      dispatch({ type: 'SET_SELECTED_CHAPTER', payload: { ...selectedChapter, title: newTitle } });
+
+      setIsEditingTitle(false);
+    } catch (error) {
+      console.error('Failed to update chapter title:', error);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!newImage) {
+      console.error('No image selected for upload');
+      return;
+    }
+
+    console.log('Uploading new image:', newImage.name);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', newImage);
+
+      const uploadResponse = await apiClient.post(`/books/${bookId}/versions/${versionId}/chapters/${selectedChapter?.id}/files`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const imageUrl = uploadResponse.data.url;
+
+      await apiClient.patch(`/books/${bookId}/versions/${versionId}/chapters/${selectedChapter?.id}`, {
+        image: imageUrl,
+      });
+
+      const updatedChapters = state.chapters.map((chapter) =>
+        chapter.id === selectedChapter?.id ? { ...chapter, image: imageUrl } : chapter
+      );
+
+      dispatch({ type: 'SET_CHAPTERS', payload: updatedChapters });
+      dispatch({ type: 'SET_SELECTED_CHAPTER', payload: { ...selectedChapter, image: imageUrl } });
+
+      console.log('Image upload and update successful');
+      setNewImage(null);
+    } catch (error) {
+      console.error('Failed to upload and update chapter image:', error);
+    }
+  };
+
+  const debouncedHandleTitleChange = useCallback(
+    debounce(handleTitleChange, 10),
+    [newTitle]
+  );
+
+  const saveContent = useCallback(
+    debounce(async (content) => {
+      console.log('saveContent triggered with content:', content);
+      try {
+        statusRef.current = 'Saving';
+      //  setStatus('Saving'); // Update the label
+        const currentContent = latestContentRef.current;
+        if (JSON.stringify(currentContent) !== JSON.stringify(content)) {
+          await apiClient.patch(`/books/${bookId}/versions/${versionId}/chapters/${selectedChapter?.id}`, {
+            content,
+          });
+          latestContentRef.current = content; // Update the ref with the latest content
+          statusRef.current = 'Saved';
+      //    setStatus('Saved'); // Update the label
+        } else {
+          statusRef.current = 'Unchanged';
+        //  setStatus('Unchanged'); // Update the label
+        }
+      } catch (error) {
+        console.error('Failed to save chapter content:', error);
+        statusRef.current = 'Changed';
+     //   setStatus('Changed'); // Update the label
+      }
+    }, 10000),
+    [bookId, versionId, selectedChapter?.id]
+  );
+
+  const onChangeHandler = (changedContent) => {
+    try {
+      const parsedContent = JSON.parse(changedContent);
+      const tiptapBlocks = parsedContent?.content || [];
+      saveContent({ blocks: tiptapBlocks });
+    } catch (error) {
+      console.error('Failed to parse content:', error);
     }
   };
 
@@ -36,77 +151,83 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
             <div className="flex items-center justify-between p-4 border-b">
               <div className="flex items-center space-x-4">
                 <div className="flex items-center space-x-3">
-                  {chapterImage && (
+                  {selectedChapter?.image && (
                     <div className="w-16 h-16 rounded-lg overflow-hidden border border-border/50">
                       <img 
-                        src={chapterImage} 
+                        src={selectedChapter.image} 
                         alt="Chapter" 
                         className="w-full h-full object-cover"
                       />
                     </div>
                   )}
-                  <div>
+                  <div className="flex items-center space-x-2">
+                    <input
+                      id="imageUploadInput"
+                      type="file"
+                      style={{ display: 'none' }}
+                      onChange={(e) => {
+                        const file = e.target.files?.[0] || null;
+                        if (file) {
+                          console.log('Selected new image:', file.name);
+                          setNewImage(file);
+                          handleImageUpload();
+                        } else {
+                          console.log('No valid image selected');
+                        }
+                      }}
+                    />
+                    
                     {isEditingTitle ? (
-                      <Input
-                        value={chapterTitle}
-                        onChange={(e) => setChapterTitle(e.target.value)}
-                        onBlur={() => setIsEditingTitle(false)}
-                        onKeyPress={(e) => {
-                          if (e.key === 'Enter') {
-                            setIsEditingTitle(false);
-                          }
-                        }}
-                        className="text-lg font-semibold"
-                        autoFocus
+                      <input
+                        type="text"
+                        value={newTitle}
+                        onChange={(e) => setNewTitle(e.target.value)}
+                        onBlur={handleTitleChange}
+                        className="border border-border rounded px-2 py-1 text-sm"
                       />
                     ) : (
                       <div className="flex items-center space-x-2">
-                        <h2 className="text-lg font-semibold">{chapterTitle}</h2>
-                        <Button
-                          variant="ghost"
-                          size="sm"
+                        <h2
+                          className="text-lg font-semibold cursor-pointer"
                           onClick={() => setIsEditingTitle(true)}
-                          className="h-6 w-6 p-0"
                         >
-                          <Edit3 size={12} />
-                        </Button>
-                        <div>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="hidden"
-                            id="chapter-image-upload"
-                          />
-                          <Button 
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => document.getElementById('chapter-image-upload')?.click()}
-                            className="h-6 w-6 p-0"
-                          >
-                            <ImageIcon size={12} />
-                          </Button>
-                        </div>
+                          {selectedChapter?.title || 'Untitled Chapter'}
+                        </h2>
+                        <Edit
+                          className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
+                          onClick={() => setIsEditingTitle(true)}
+                        />
                       </div>
                     )}
-                    <p className="text-sm text-muted-foreground">Last edited 5 minutes ago • TipTap Editor</p>
+                    <UploadCloud
+                      className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
+                      onClick={() => document.getElementById('imageUploadInput')?.click()}
+                    />
                   </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm text-muted-foreground">Status: {statusRef.current}</span>
+                  <div className="w-4 h-4 rounded-full bg-primary" title={statusRef.current}></div>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex-1 overflow-hidden">
               <CollaborativeRichTextEditor
-                content={content}
-                onChange={setContent}
+                content={selectedChapter?.content?.blocks?.length ? {
+                  type: 'doc',
+                  content: selectedChapter.content.blocks
+                } : null}
+                onChange={onChangeHandler}
                 placeholder="Start writing your story with TipTap editor..."
                 className="h-full"
                 blockId="block_001"
+                selectedChapter={selectedChapter}
               />
             </div>
           </div>
         );
-      
+
       case 'planning':
         return (
           <div className="h-full p-6">
@@ -119,14 +240,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
             </div>
             
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[
-                { title: 'Opening Hook', content: 'Introduce Sarah in her apartment, struggling with writer\'s block' },
-                { title: 'Inciting Incident', content: 'Discovery of the mysterious letter under her door' },
-                { title: 'First Plot Point', content: 'Decision to investigate the letter\'s origins' },
-                { title: 'Midpoint', content: 'Revelation about her family\'s secret past' },
-                { title: 'Crisis', content: 'Confrontation with the antagonist' },
-                { title: 'Climax', content: 'Final showdown and resolution' },
-              ].map((scene, i) => (
+              {selectedChapter?.scenes?.map((scene, i) => (
                 <Card key={i} className="cursor-pointer hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">{scene.title}</CardTitle>

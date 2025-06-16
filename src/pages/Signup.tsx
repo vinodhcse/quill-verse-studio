@@ -1,12 +1,12 @@
-
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Mail, Lock, Eye, EyeOff, User, PenTool } from 'lucide-react';
+import { signup } from '@/lib/api';
 
 const Signup = () => {
   const [formData, setFormData] = useState({
@@ -18,6 +18,7 @@ const Signup = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const navigate = useNavigate();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -30,13 +31,21 @@ const Signup = () => {
     setAcceptTerms(checked === true);
   };
 
-  const handleSignup = (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       alert('Passwords do not match');
       return;
     }
-    console.log('Signup attempt:', formData);
+    try {
+      const data = await signup(formData.name, formData.email, formData.password);
+      console.log('Signup successful:', data);
+      localStorage.setItem('token', data.token);
+      navigate('/login');
+    } catch (error) {
+      console.error('Signup failed:', error);
+      alert(error);
+    }
   };
 
   const handleGoogleSignup = () => {

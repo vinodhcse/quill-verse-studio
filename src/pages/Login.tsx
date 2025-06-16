@@ -5,19 +5,28 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { Mail, Lock, Eye, EyeOff, PenTool } from 'lucide-react';
+import { login } from '@/lib/api';
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Handle login logic here
-    console.log('Login attempt:', { email, password });
-    // Navigate to dashboard after successful login
-    navigate('/dashboard');
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault(); // Explicitly prevent default form submission
+    try {
+      debugger;
+      const data = await login(email, password);
+      console.log('Login successful:', data);
+      localStorage.setItem('token', data.token);
+      navigate('/dashboard');
+    } catch (error) {
+      debugger;
+      console.error('Login failed:', error);
+      setErrorMessage(error.response?.data?.message || 'Unauthorized access. Please check your credentials.');
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -161,7 +170,19 @@ const Login = () => {
                     Forgot password?
                   </Link>
                 </div>
-                <Button type="submit" className="w-full pulse-glow hover-scale group relative overflow-hidden">
+
+                {/* Ensure error message is displayed */}
+                {errorMessage && (
+                  <div className="text-red-500 text-sm text-center mt-2">
+                    {errorMessage}
+                  </div>
+                )}
+
+                <Button
+                  type="submit"
+                  onClick={handleLogin}
+                  className="w-full pulse-glow hover-scale group relative overflow-hidden"
+                >
                   <div className="absolute inset-0 bg-gradient-to-r from-primary to-accent transition-transform duration-300 group-hover:scale-105" />
                   <span className="relative z-10">Sign In</span>
                 </Button>

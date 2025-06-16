@@ -1,15 +1,21 @@
-
 import React, { useState } from 'react';
 import { ModeNavigation, Mode } from '@/components/ModeNavigation';
 import { LeftSidebar } from '@/components/LeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
 import { CenterPanel } from '@/components/CenterPanel';
 import { SidebarToggleButtons } from '@/components/SidebarToggleButtons';
+import { useBookContext } from '@/lib/BookContextProvider';
+import { ArrowUp } from 'lucide-react';
 
 const Index = () => {
+  const { state, loading } = useBookContext();
   const [currentMode, setCurrentMode] = useState<Mode>('writing');
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
+
+  const handleModeChange = (mode: Mode) => {
+    setCurrentMode(mode);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
@@ -34,7 +40,7 @@ const Index = () => {
         <div className="backdrop-blur-md bg-background/80 border-b border-border/50 sticky top-0 z-30 animate-slide-down">
           <ModeNavigation 
             currentMode={currentMode}
-            onModeChange={setCurrentMode}
+            onModeChange={handleModeChange}
             leftSidebarCollapsed={leftSidebarCollapsed}
             rightSidebarCollapsed={rightSidebarCollapsed}
             onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
@@ -57,7 +63,9 @@ const Index = () => {
         {/* Center Panel */}
         <div className="flex-1 px-4 transition-all duration-500 ease-in-out">
           <div className="h-full animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            <CenterPanel mode={currentMode} />
+            <CenterPanel
+              mode={currentMode}
+            />
           </div>
         </div>
         
@@ -78,6 +86,23 @@ const Index = () => {
           onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
         />
       </div>
+
+      {/* Scroll to Top Button */}
+      <button
+        className="fixed bottom-4 right-4 p-2 bg-primary text-white rounded-full shadow-lg hover:bg-primary/80 transition-all"
+        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+      >
+        <ArrowUp className="w-5 h-5" />
+      </button>
+
+      {/* Loading Spinner Overlay */}
+      {loading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-background/80 z-50">
+          <div className="relative inline-block w-12 h-12">
+            <span className="absolute inline-block w-full h-full border-4 border-t-primary border-b-secondary rounded-full animate-spin"></span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

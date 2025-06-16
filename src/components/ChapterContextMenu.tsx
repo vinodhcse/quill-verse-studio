@@ -1,12 +1,10 @@
-
 import React, { useState } from 'react';
 import {
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger,
-  ContextMenuSeparator,
-} from '@/components/ui/context-menu';
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -15,7 +13,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Plus, FileText, Upload, GripVertical } from 'lucide-react';
 
 interface ChapterContextMenuProps {
@@ -41,6 +38,7 @@ export const ChapterContextMenu: React.FC<ChapterContextMenuProps> = ({
   };
 
   const handleCreateChapter = () => {
+    console.log('Creating a new chapter:', onCreateChapter)
     if (onCreateChapter) {
       onCreateChapter();
     }
@@ -49,32 +47,31 @@ export const ChapterContextMenu: React.FC<ChapterContextMenuProps> = ({
 
   return (
     <>
-      <ContextMenu>
-        <ContextMenuTrigger asChild>
-          {children}
-        </ContextMenuTrigger>
-        <ContextMenuContent className="w-64">
-          <ContextMenuItem onClick={handleCreateChapter}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors">
+            <Plus size={14} />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-64">
+          <DropdownMenuItem onSelect={handleCreateChapter}>
             <Plus size={16} className="mr-2" />
             Create new chapter
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem onClick={() => setIsImportDialogOpen(true)}>
+          </DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setIsImportDialogOpen(true)}>
             <Upload size={16} className="mr-2" />
             Import chapters from document
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem>
+          </DropdownMenuItem>
+          <DropdownMenuItem>
             <GripVertical size={16} className="mr-2" />
             Reorder chapters
-          </ContextMenuItem>
-          <ContextMenuSeparator />
-          <ContextMenuItem>
+          </DropdownMenuItem>
+          <DropdownMenuItem>
             <FileText size={16} className="mr-2" />
             Chapter settings
-          </ContextMenuItem>
-        </ContextMenuContent>
-      </ContextMenu>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
 
       <Dialog open={isImportDialogOpen} onOpenChange={setIsImportDialogOpen}>
         <DialogContent>

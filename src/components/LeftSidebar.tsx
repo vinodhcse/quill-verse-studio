@@ -1,9 +1,11 @@
-
 import React, { useState } from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, Plus, FileText, Users, Layers, GripVertical } from 'lucide-react';
+import { ChevronLeft, Plus, FileText, Users, Layers, GripVertical } from 'lucide-react';
 import { Mode } from './ModeNavigation';
 import { ChapterContextMenu } from './ChapterContextMenu';
+import { apiClient } from '@/lib/api';
+import { useBookContext } from '@/lib/BookContextProvider';
+import { useNavigate } from 'react-router-dom';
 
 interface LeftSidebarProps {
   mode: Mode;
@@ -16,22 +18,36 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
   isCollapsed,
   onToggle,
 }) => {
-  const [chapters, setChapters] = useState([
-    { id: '1', title: 'Chapter 1: Beginning', words: 2340 },
-    { id: '2', title: 'Chapter 2: The Journey', words: 1890 },
-    { id: '3', title: 'Chapter 3: Conflict', words: 2120 },
-  ]);
+  const { state } = useBookContext();
+  const { chapters, bookId, versionId } = state;
+  const navigate = useNavigate();
 
   const [draggedChapter, setDraggedChapter] = useState<string | null>(null);
   const [dragOverChapter, setDragOverChapter] = useState<string | null>(null);
 
-  const handleCreateChapter = () => {
-    const newChapter = {
-      id: String(chapters.length + 1),
-      title: `Chapter ${chapters.length + 1}: New Chapter`,
-      words: 0,
-    };
-    setChapters([...chapters, newChapter]);
+  const handleCreateChapter = async () => {
+    try {
+      const newChapterData = {
+        title: `Chapter ${chapters.length + 1}: New Chapter`,
+        blocks: [],
+        position: chapters.length + 1,
+        metaData: {
+          totalChars: 0,
+          totaWords: 0,
+          totalparagraphs: 0,
+          readabilityRating: 0,
+        },
+      };
+
+      const response = await apiClient.post(`/books/${bookId}/versions/${versionId}/chapters`, newChapterData);
+      const newChapter = response.data;
+
+      // Update the URL to load the new chapter
+      window.location.href = `/write/book/${bookId}/version/${versionId}?Chapter=${newChapter.id}`;
+    } catch (error) {
+      console.error('Failed to create chapter:', error);
+      alert('Failed to create chapter. Please try again.');
+    }
   };
 
   const handleImportChapters = (file: File) => {
@@ -56,7 +72,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
     const x = e.clientX;
     const y = e.clientY;
-    
+
     if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) {
       setDragOverChapter(null);
     }
@@ -78,9 +94,14 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     const [draggedItem] = newChapters.splice(draggedIndex, 1);
     newChapters.splice(targetIndex, 0, draggedItem);
 
-    setChapters(newChapters);
+    // setChapters(newChapters);
     setDraggedChapter(null);
     setDragOverChapter(null);
+  };
+
+  const handleChapterClick = (chapterId: string) => {
+    console.log('Chapter clicked:', chapterId);
+    navigate(`/write/book/${bookId}/version/${versionId}?chapterId=${chapterId}`);
   };
 
   const renderContent = () => {
@@ -100,43 +121,48 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
               </ChapterContextMenu>
             </div>
             <div className="space-y-2">
-              {chapters.map((chapter, i) => (
-                <div
-                  key={chapter.id}
-                  draggable
-                  onDragStart={(e) => handleDragStart(e, chapter.id)}
-                  onDragOver={(e) => handleDragOver(e, chapter.id)}
-                  onDragLeave={handleDragLeave}
-                  onDragEnd={handleDragEnd}
-                  onDrop={(e) => handleDrop(e, chapter.id)}
-                  className={cn(
-                    "p-3 rounded-xl cursor-pointer transition-all duration-300 text-sm group hover:shadow-sm relative border border-transparent",
-                    i === 0 ? "bg-primary/10 text-primary border-primary/20" : "hover:bg-accent/50",
-                    draggedChapter === chapter.id ? "opacity-30 scale-95 rotate-2 shadow-xl z-10" : "",
-                    dragOverChapter === chapter.id && draggedChapter !== chapter.id ? 
-                      "border-primary border-2 bg-primary/10 transform scale-105 shadow-lg" : ""
-                  )}
-                  style={{
-                    transform: dragOverChapter === chapter.id && draggedChapter !== chapter.id ? 
-                      'translateY(-4px) scale(1.02)' : undefined
-                  }}
-                >
-                  <div className="flex items-center space-x-2">
-                    <GripVertical 
-                      size={12} 
-                      className="opacity-50 group-hover:opacity-100 cursor-grab active:cursor-grabbing" 
-                    />
-                    <FileText size={14} className="opacity-70 group-hover:opacity-100" />
-                    <span className="truncate font-medium flex-1">{chapter.title}</span>
+              {chapters.map((chapter, i) => {
+                const isSelected = chapter.id === state.chapterId;
+
+                return (
+                  <div
+                    key={chapter.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, chapter.id)}
+                    onDragOver={(e) => handleDragOver(e, chapter.id)}
+                    onDragLeave={handleDragLeave}
+                    onDragEnd={handleDragEnd}
+                    onDrop={(e) => handleDrop(e, chapter.id)}
+                    onClick={() => handleChapterClick(chapter.id)}
+                    className={cn(
+                      "p-3 rounded-xl cursor-pointer transition-all duration-300 text-sm group hover:shadow-sm relative border border-transparent",
+                      isSelected ? "bg-primary/10 text-primary border-primary/20" : "hover:bg-accent/50",
+                      draggedChapter === chapter.id ? "opacity-30 scale-95 rotate-2 shadow-xl z-10" : "",
+                      dragOverChapter === chapter.id && draggedChapter !== chapter.id ? 
+                        "border-primary border-2 bg-primary/10 transform scale-105 shadow-lg" : ""
+                    )}
+                    style={{
+                      transform: dragOverChapter === chapter.id && draggedChapter !== chapter.id ? 
+                        'translateY(-4px) scale(1.02)' : undefined
+                    }}
+                  >
+                    <div className="flex items-center space-x-2">
+                      <GripVertical 
+                        size={12} 
+                        className="opacity-50 group-hover:opacity-100 cursor-grab active:cursor-grabbing" 
+                      />
+                      <FileText size={14} className="opacity-70 group-hover:opacity-100" />
+                      <span className="truncate font-medium flex-1">{chapter.title}</span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 ml-6">
+                      {chapter.words} words
+                    </div>
+                    {dragOverChapter === chapter.id && draggedChapter !== chapter.id && (
+                      <div className="absolute -top-1 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 rounded-full animate-pulse shadow-sm" />
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1 ml-6">
-                    {chapter.words} words
-                  </div>
-                  {dragOverChapter === chapter.id && draggedChapter !== chapter.id && (
-                    <div className="absolute -top-1 left-0 right-0 h-1 bg-gradient-to-r from-primary/50 via-primary to-primary/50 rounded-full animate-pulse shadow-sm" />
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );
@@ -156,47 +182,6 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
                 </div>
               ))}
             </div>
-            
-            <div className="pt-4 border-t border-border/50">
-              <h4 className="text-sm font-medium mb-3">Characters</h4>
-              <div className="space-y-1">
-                {['Sarah Chen', 'Marcus Williams', 'Dr. Elena Rodriguez'].map((character, i) => (
-                  <div key={i} className="text-xs p-2 hover:bg-accent/50 rounded-lg cursor-pointer transition-colors font-medium">
-                    {character}
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        );
-      
-      case 'editing':
-        return (
-          <div className="space-y-4">
-            <h3 className="text-sm font-medium">Collaborators</h3>
-            <div className="space-y-3">
-              {[
-                { name: 'Alex Thompson', role: 'Editor', status: 'active' },
-                { name: 'Maria Garcia', role: 'Reviewer', status: 'pending' },
-              ].map((user, i) => (
-                <div key={i} className="p-3 rounded-xl border border-border/50 text-sm hover:shadow-sm transition-all duration-200">
-                  <div className="flex items-center space-x-2">
-                    <Users size={14} className="opacity-70" />
-                    <span className="font-medium">{user.name}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 ml-6">
-                    {user.role} • {user.status}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      
-      default:
-        return (
-          <div className="text-sm text-muted-foreground text-center py-8">
-            Tools will appear here
           </div>
         );
     }

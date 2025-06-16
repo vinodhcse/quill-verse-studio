@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -44,3 +43,14 @@ export interface Comment {
 }
 
 export type EditMode = 'edit' | 'suggest' | 'review';
+
+export interface Book {
+  id: string;
+  title: string;
+  authorname: string; // Updated to match backend API
+  bookImage?: string;
+  lastModified?: string;
+  createdAt?: string;
+  wordCount?: number;
+  role?: 'author' | 'editor' | 'reviewer';
+}

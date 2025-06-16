@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -60,7 +59,8 @@ export const CreateVersionModal: React.FC<CreateVersionModalProps> = ({
     },
   });
 
-  const onSubmit = async (data: FormData) => {
+  const onSubmit = async (data: FormData, e: React.FormEvent) => {
+    e.preventDefault();
     setIsLoading(true);
     try {
       onCreateVersion({
@@ -102,31 +102,34 @@ export const CreateVersionModal: React.FC<CreateVersionModalProps> = ({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="baseVersionId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Copy from Version (Optional)</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select a version to copy from" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="">Start from scratch</SelectItem>
-                        {existingVersions.map((version) => (
-                          <SelectItem key={version.id} value={version.id}>
-                            {version.name} ({version.status})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {existingVersions.length > 0 && (
+              <FormField
+                control={form.control}
+                name="baseVersionId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Copy from Version (Optional)</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={(value) => field.onChange(value)} value={field.value || undefined}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a version to copy from" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {existingVersions.map((version) => (
+                            version.id && (
+                              <SelectItem key={version.id} value={version.id}>
+                                {version.name} ({version.status})
+                              </SelectItem>
+                            )
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter>
               <Button type="button" variant="outline" onClick={handleClose}>

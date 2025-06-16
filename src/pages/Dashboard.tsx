@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -15,110 +15,43 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-
-interface Book {
-  id: string;
-  title: string;
-  author: string;
-  image?: string;
-  lastModified: string;
-  wordCount: number;
-  role: 'author' | 'editor' | 'reviewer';
-}
+import { apiClient, createBook, uploadBookImage, updateBookImage } from '@/lib/api';
+import { Book as BookType } from '@/types/collaboration'; // Rename Book interface to avoid conflict
 
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
-  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('author');
   const booksPerPage = 8;
 
-  const [books, setBooks] = useState<Book[]>([
-    {
-      id: '1',
-      title: 'The Digital Frontier',
-      author: 'John Doe',
-      image: 'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=300&h=400&fit=crop',
-      lastModified: '2024-06-08',
-      wordCount: 45000,
-      role: 'author',
-    },
-    {
-      id: '2',
-      title: 'Mountain Adventures',
-      author: 'John Doe',
-      image: 'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=300&h=400&fit=crop',
-      lastModified: '2024-06-05',
-      wordCount: 32000,
-      role: 'author',
-    },
-    {
-      id: '3',
-      title: 'Code Chronicles',
-      author: 'Alex Johnson',
-      image: 'https://images.unsplash.com/photo-1461749280684-dccba630e2f6?w=300&h=400&fit=crop',
-      lastModified: '2024-06-02',
-      wordCount: 28000,
-      role: 'editor',
-    },
-    {
-      id: '4',
-      title: 'Ocean Mysteries',
-      author: 'Sarah Wilson',
-      image: 'https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=300&h=400&fit=crop',
-      lastModified: '2024-06-01',
-      wordCount: 51000,
-      role: 'editor',
-    },
-    {
-      id: '5',
-      title: 'Space Odyssey',
-      author: 'Mike Chen',
-      image: 'https://images.unsplash.com/photo-1446776877081-d282a0f896e2?w=300&h=400&fit=crop',
-      lastModified: '2024-05-30',
-      wordCount: 67000,
-      role: 'reviewer',
-    },
-    {
-      id: '6',
-      title: 'Desert Tales',
-      author: 'Lisa Brown',
-      image: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=300&h=400&fit=crop',
-      lastModified: '2024-05-28',
-      wordCount: 39000,
-      role: 'author',
-    },
-    {
-      id: '7',
-      title: 'City Lights',
-      author: 'David Kim',
-      image: 'https://images.unsplash.com/photo-1514905552197-0610a4d8fd73?w=300&h=400&fit=crop',
-      lastModified: '2024-05-25',
-      wordCount: 43000,
-      role: 'author',
-    },
-    {
-      id: '8',
-      title: 'Forest Whispers',
-      author: 'Emma Davis',
-      image: 'https://images.unsplash.com/photo-1441974231531-c6227db76b6e?w=300&h=400&fit=crop',
-      lastModified: '2024-05-22',
-      wordCount: 56000,
-      role: 'author',
-    },
-    {
-      id: '9',
-      title: 'River Journey',
-      author: 'Tom Anderson',
-      image: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=300&h=400&fit=crop',
-      lastModified: '2024-05-20',
-      wordCount: 34000,
-      role: 'author',
-    },
-  ]);
+  const [books, setBooks] = useState<BookType[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchBooks = async () => {
+      setIsLoading(true);
+      try {
+        const response = await apiClient.get('/books/userbooks');
+        const { authoredBooks, editableBooks, reviewableBooks } = response.data;
+        setBooks([
+          ...authoredBooks.map(book => ({ ...book, role: 'author' })),
+          ...editableBooks.map(book => ({ ...book, role: 'editor' })),
+          ...reviewableBooks.map(book => ({ ...book, role: 'reviewer' })),
+        ]);
+      } catch (error) {
+        console.error('Failed to fetch books:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+  useEffect(() => {
+    
+    fetchBooks();
+  }, []);
 
   const getFilteredBooks = () => {
     return books.filter(book => book.role === activeTab);
@@ -130,32 +63,54 @@ const Dashboard = () => {
   const endIndex = startIndex + booksPerPage;
   const currentBooks = filteredBooks.slice(startIndex, endIndex);
 
-  const handleCreateBook = (bookData: { title: string; author: string; image?: string; versionName: string }) => {
-    const newBook: Book = {
+  const handleCreateBook = (bookData: { title: string; authorname: string; image?: string; versionName: string }) => {
+    const newBook: BookType = {
       id: String(books.length + 1),
       title: bookData.title,
-      author: bookData.author,
-      image: bookData.image,
+      authorname: bookData.authorname, // Updated to match unified Book interface
+      bookImage: bookData.image,
       lastModified: new Date().toISOString().split('T')[0],
       wordCount: 0,
       role: 'author',
+      createdAt: new Date().toISOString(), // Set createdAt to current date
     };
     setBooks([...books, newBook]);
     setIsCreateModalOpen(false);
   };
 
-  const handleBookSelect = (book: Book) => {
+  const handleCreateBookWithImage = async (bookData: { title: string; authorname: string; createdAt: string; file: File }) => {
+    try {
+      // Step 1: Create the book
+      const createdBook = await createBook(bookData.title, bookData.authorname, bookData.createdAt);
+      const bookId = createdBook.id;
+
+      // Step 2: Upload the book image
+      const uploadResponse = await uploadBookImage(bookId, bookData.file, 'cover', 'Book cover image');
+      const imageUrl = uploadResponse.url;
+
+      // Step 3: Update the book with the image URL
+      await updateBookImage(bookId, imageUrl);
+
+      // Step 4: Refresh the dashboard
+      fetchBooks();
+    } catch (error) {
+      console.error('Failed to create book with image:', error);
+      alert('Failed to upload book image. Please try again.');
+    }
+  };
+
+  const handleBookSelect = (book: BookType) => {
     setSelectedBook(book);
     setIsVersionModalOpen(true);
   };
 
   const handleOpenVersion = (bookId: string, versionId: string) => {
-    console.log('Opening book:', bookId, 'version:', versionId);
-    navigate('/write', { state: { bookId, versionId } });
-    setIsVersionModalOpen(false);
+    console.log(`Opening version ${versionId} for book ${bookId}`);
+    const url = `/write/book/${bookId}/version/${versionId}`;
+    window.location.href = url;
   };
 
-  const BookListItem = ({ book }: { book: Book }) => (
+  const BookListItem = ({ book }: { book: BookType }) => (
     <Card 
       className="cursor-pointer hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 group border-0 bg-card/80 backdrop-blur-sm hover-scale"
       onClick={() => handleBookSelect(book)}
@@ -163,9 +118,9 @@ const Dashboard = () => {
       <CardContent className="p-4">
         <div className="flex items-center space-x-4">
           <div className="w-16 h-20 flex-shrink-0">
-            {book.image ? (
+            {book.bookImage ? (
               <img
-                src={book.image}
+                src={book.bookImage}
                 alt={book.title}
                 className="w-full h-full object-cover rounded"
               />
@@ -179,10 +134,10 @@ const Dashboard = () => {
             <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors truncate">
               {book.title}
             </h3>
-            <p className="text-sm text-muted-foreground mb-2">by {book.author}</p>
+            <p className="text-sm text-muted-foreground mb-2">by {book.authorName}</p>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Last modified: {book.lastModified}</span>
-              <span>{book.wordCount.toLocaleString()} words</span>
+              <span>{book.wordCount?.toLocaleString() || 0} words</span>
             </div>
           </div>
         </div>
@@ -423,16 +378,25 @@ const Dashboard = () => {
       <CreateBookModal
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
-        onCreateBook={handleCreateBook}
+        onCreateBookWithImage={handleCreateBookWithImage}
       />
 
       <BookVersionModal
         isOpen={isVersionModalOpen}
         onClose={() => setIsVersionModalOpen(false)}
-        book={selectedBook || { id: '', title: '', author: '' }}
+        book={selectedBook}
         userRole={selectedBook?.role || 'author'}
         onOpenVersion={handleOpenVersion}
       />
+
+      {/* Loading Spinner */}
+      {isLoading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+          <div className="relative inline-block w-12 h-12">
+            <span className="absolute inline-block w-full h-full border-4 border-t-primary border-b-secondary rounded-full animate-spin"></span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -23,7 +22,8 @@ import { useForm } from 'react-hook-form';
 interface CreateBookModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateBook: (bookData: { title: string; author: string; image?: string; versionName: string }) => void;
+  onCreateBookWithImage: (bookData: { title: string; authorname: string; createdAt: string; file: File }) => void;
+  onCreateBook?: (bookData: { title: string; authorname: string; image?: string; versionName: string }) => void; // Updated to match unified Book interface
 }
 
 interface FormData {
@@ -36,7 +36,7 @@ interface FormData {
 export const CreateBookModal: React.FC<CreateBookModalProps> = ({
   isOpen,
   onClose,
-  onCreateBook,
+  onCreateBookWithImage,
 }) => {
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -71,12 +71,20 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
   const onSubmit = async (data: FormData) => {
     setIsLoading(true);
     try {
-      onCreateBook({
-        title: data.title,
-        author: data.author,
-        image: data.image,
-        versionName: data.versionName,
-      });
+      const fileInput = document.getElementById('book-cover-upload') as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+
+      if (file) {
+        onCreateBookWithImage({
+          title: data.title,
+          authorname: data.author, // Updated to match unified Book interface
+          createdAt: new Date().toISOString(),
+          file,
+        });
+      } else {
+        alert('Please upload a book cover image.');
+      }
+
       form.reset();
       setSelectedImage(null);
     } finally {
@@ -152,37 +160,20 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
                   <FormLabel>Book Cover (Optional)</FormLabel>
                   <FormControl>
                     <div className="space-y-4">
-                      {selectedImage ? (
-                        <div className="relative">
-                          <img
-                            src={selectedImage}
-                            alt="Book cover preview"
-                            className="w-32 h-44 object-cover rounded-lg border"
-                          />
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="sm"
-                            className="absolute -top-2 -right-2 h-6 w-6 rounded-full p-0"
-                            onClick={removeImage}
-                          >
-                            <X size={12} />
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center hover:border-primary/50 transition-colors">
-                          <Upload size={24} className="mx-auto mb-2 text-muted-foreground" />
-                          <p className="text-sm text-muted-foreground mb-2">
-                            Click to upload book cover
-                          </p>
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleImageUpload}
-                            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-                          />
-                        </div>
-                      )}
+                      <input
+                        type="file"
+                        id="book-cover-upload"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('book-cover-upload')?.click()}
+                      >
+                        Upload Cover
+                      </Button>
                     </div>
                   </FormControl>
                   <FormMessage />

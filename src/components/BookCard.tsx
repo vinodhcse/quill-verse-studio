@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,9 +7,10 @@ import { formatDistanceToNow } from 'date-fns';
 interface Book {
   id: string;
   title: string;
-  author: string;
-  image?: string;
+  authorName: string;
+  bookImage?: string;
   lastModified: string;
+  createdAt: string;
   wordCount: number;
 }
 
@@ -20,7 +20,10 @@ interface BookCardProps {
 }
 
 export const BookCard: React.FC<BookCardProps> = ({ book, onSelect }) => {
-  const formatWordCount = (count: number) => {
+  const formatWordCount = (count: number | undefined) => {
+    if (!count) {
+      return '0';
+    }
     if (count >= 1000) {
       return `${(count / 1000).toFixed(1)}k`;
     }
@@ -42,9 +45,9 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onSelect }) => {
     >
       <CardContent className="p-0">
         <div className="aspect-[3/4] relative overflow-hidden rounded-t-lg">
-          {book.image ? (
+          {book.bookImage ? (
             <img
-              src={book.image}
+              src={book.bookImage}
               alt={book.title}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-200"
             />
@@ -64,12 +67,12 @@ export const BookCard: React.FC<BookCardProps> = ({ book, onSelect }) => {
           <h3 className="font-semibold text-sm mb-1 line-clamp-2 group-hover:text-primary transition-colors">
             {book.title}
           </h3>
-          <p className="text-xs text-muted-foreground mb-3">by {book.author}</p>
+          <p className="text-xs text-muted-foreground mb-3">by {book.authorName}</p>
           
           <div className="flex items-center justify-between text-xs text-muted-foreground">
             <div className="flex items-center space-x-1">
               <Calendar size={12} />
-              <span>{getLastModifiedText(book.lastModified)}</span>
+              <span>{getLastModifiedText(book.createdAt)}</span>
             </div>
             <div className="flex items-center space-x-1">
               <FileText size={12} />
