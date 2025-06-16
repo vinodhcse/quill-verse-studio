@@ -5,7 +5,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Book, Grid3X3, List, PenTool } from 'lucide-react';
 import { BookCard } from '@/components/BookCard';
 import { CreateBookModal } from '@/components/CreateBookModal';
-import { BookVersionModal } from '@/components/BookVersionModal';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   Pagination,
@@ -21,8 +20,6 @@ import { Book as BookType } from '@/types/collaboration';
 const Dashboard = () => {
   const navigate = useNavigate();
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [isVersionModalOpen, setIsVersionModalOpen] = useState(false);
-  const [selectedBook, setSelectedBook] = useState<BookType | null>(null);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState('author');
@@ -80,21 +77,6 @@ const Dashboard = () => {
   const endIndex = startIndex + booksPerPage;
   const currentBooks = filteredBooks.slice(startIndex, endIndex);
 
-  const handleCreateBook = (bookData: { title: string; authorname: string; image?: string; versionName: string }) => {
-    const newBook: BookType = {
-      id: String(books.length + 1),
-      title: bookData.title,
-      authorname: bookData.authorname,
-      bookImage: bookData.image,
-      lastModified: new Date().toISOString().split('T')[0],
-      wordCount: 0,
-      role: 'author',
-      createdAt: new Date().toISOString(),
-    };
-    setBooks([...books, newBook]);
-    setIsCreateModalOpen(false);
-  };
-
   const handleCreateBookWithImage = async (bookData: { title: string; authorname: string; createdAt: string; file: File }) => {
     try {
       const createdBook = await createBook(bookData.title, bookData.authorname, bookData.createdAt);
@@ -110,14 +92,7 @@ const Dashboard = () => {
   };
 
   const handleBookSelect = (book: BookType) => {
-    setSelectedBook(book);
-    setIsVersionModalOpen(true);
-  };
-
-  const handleOpenVersion = (bookId: string, versionId: string) => {
-    console.log(`Opening version ${versionId} for book ${bookId}`);
-    const url = `/write/book/${bookId}/version/${versionId}`;
-    window.location.href = url;
+    navigate(`/book/${book.id}`);
   };
 
   const BookListItem = ({ book }: { book: BookType }) => (
@@ -255,15 +230,15 @@ const Dashboard = () => {
               <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-3">
                 {activeTab === 'author' && (
                   <Card 
-                    className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale w-full max-w-[140px]"
+                    className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale w-full max-w-[120px]"
                     onClick={() => setIsCreateModalOpen(true)}
                   >
-                    <CardContent className="flex flex-col items-center justify-center h-44 p-2">
-                      <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors pulse-glow">
-                        <Plus size={14} className="text-primary" />
+                    <CardContent className="flex flex-col items-center justify-center h-36 p-2">
+                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors pulse-glow">
+                        <Plus size={12} className="text-primary" />
                       </div>
                       <h3 className="font-medium text-center mb-1 text-xs leading-tight">Create New Book</h3>
-                      <p className="text-[10px] text-muted-foreground text-center">Start your next masterpiece</p>
+                      <p className="text-[9px] text-muted-foreground text-center">Start your next masterpiece</p>
                     </CardContent>
                   </Card>
                 )}
@@ -384,14 +359,6 @@ const Dashboard = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateBookWithImage={handleCreateBookWithImage}
-      />
-
-      <BookVersionModal
-        isOpen={isVersionModalOpen}
-        onClose={() => setIsVersionModalOpen(false)}
-        book={selectedBook}
-        userRole={selectedBook?.role || 'author'}
-        onOpenVersion={handleOpenVersion}
       />
 
       {/* Loading Spinner */}

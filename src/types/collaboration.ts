@@ -30,6 +30,19 @@ export interface Change {
   rejected?: boolean;
 }
 
+export interface ChangeLog {
+  id: string;
+  type: 'insert' | 'delete' | 'format';
+  content: string;
+  author: User;
+  timestamp: string;
+  position: number;
+  accepted?: boolean;
+  rejected?: boolean;
+}
+
+export type EditMode = 'view' | 'edit' | 'review' | 'track-changes';
+
 export interface Version {
   id: string;
   name: string;
