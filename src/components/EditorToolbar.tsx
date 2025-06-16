@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
@@ -34,8 +35,7 @@ interface EditorToolbarProps {
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
-  const { state } = useBookContext();
-  const { bookId, versionId, selectedChapter } = state;
+  const { bookId, versionId, selectedChapter } = useBookContext();
 
   if (!editor) {
     return null;
@@ -98,11 +98,12 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
           if (uploadResponse?.data) {
             const url = uploadResponse?.data?.url;
             editor.chain().focus().setImage({ src: url }).run();
-            editor.commands.setContent(editor.getJSON());
+            editor.commands.setContent(editor.getJSON()); // Force re-render by resetting content
 
+            // Focus the editor on the newly added image
             const imageElement = editor.view.dom.querySelector(`img[src='${url}']`) as HTMLImageElement;
             if (imageElement) {
-              const position = editor.view.posAtDOM(imageElement, 0);
+              const position = editor.view.posAtDOM(imageElement, 0); // Correctly calculate position
               editor.chain().setTextSelection(position).focus().run();
             }
           } else {
@@ -302,21 +303,30 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 
       <div className="w-px h-6 bg-border/50 mx-2" />
 
-      {/* Font Family and Color */}
+      {/* Font Family, Size, and Color */}
       <div className="flex items-center space-x-2">
         <select
           onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
-          className="px-2 py-1 bg-muted/50 rounded-lg text-sm"
+          className="px-2 py-1 bg-muted/50 rounded-lg"
         >
           <option value="Arial">Arial</option>
           <option value="Courier New">Courier New</option>
           <option value="Georgia">Georgia</option>
         </select>
+        <select
+          onChange={(e) => editor.chain().focus().setFontSize(e.target.value).run()}
+          className="px-2 py-1 bg-muted/50 rounded-lg"
+        >
+          <option value="12px">12px</option>
+          <option value="16px">16px</option>
+          <option value="20px">20px</option>
+        </select>
         <input
           type="color"
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-          className="w-8 h-8 bg-muted/50 rounded-lg border-0 cursor-pointer"
+          className="px-2 py-1 bg-muted/50 rounded-lg"
         />
+       
       </div>
     </div>
   );

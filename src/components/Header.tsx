@@ -5,25 +5,7 @@ import { Button } from '@/components/ui/button';
 import { NavigationMenu, NavigationMenuContent, NavigationMenuItem, NavigationMenuList, NavigationMenuTrigger } from '@/components/ui/navigation-menu';
 import { PenTool, Menu, X } from 'lucide-react';
 
-type Mode = 'writing' | 'editing' | 'planning';
-
-interface HeaderProps {
-  mode: Mode;
-  onModeChange: (mode: Mode) => void;
-  trackChanges: boolean;
-  onTrackChangesChange: (trackChanges: boolean) => void;
-  showComments: boolean;
-  onShowCommentsChange: (showComments: boolean) => void;
-}
-
-const Header: React.FC<HeaderProps> = ({
-  mode,
-  onModeChange,
-  trackChanges,
-  onTrackChangesChange,
-  showComments,
-  onShowCommentsChange
-}) => {
+const Header = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -51,31 +33,6 @@ const Header: React.FC<HeaderProps> = ({
             <PenTool className="h-6 w-6 text-primary" />
             <span className="text-xl font-bold">AuthorStudio</span>
           </Link>
-
-          {/* Mode selector */}
-          <div className="flex items-center space-x-2">
-            <Button
-              variant={mode === 'writing' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onModeChange('writing')}
-            >
-              Writing
-            </Button>
-            <Button
-              variant={mode === 'editing' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onModeChange('editing')}
-            >
-              Editing
-            </Button>
-            <Button
-              variant={mode === 'planning' ? 'default' : 'ghost'}
-              size="sm"
-              onClick={() => onModeChange('planning')}
-            >
-              Planning
-            </Button>
-          </div>
 
           {/* Desktop Navigation */}
           <NavigationMenu className="hidden md:flex">
@@ -178,5 +135,4 @@ const Header: React.FC<HeaderProps> = ({
   );
 };
 
-export { Header };
 export default Header;

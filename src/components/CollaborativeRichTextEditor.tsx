@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -19,17 +18,14 @@ import { CommentExtension } from '../extensions/CommentExtension';
 import './editor-styles.css';
 
 interface CollaborativeRichTextEditorProps {
-  content: string | any;
-  onChange: (content: string, totalCharacters?: number, totalWords?: number) => void;
+  content: string;
+  onChange: (content: string) => void;
   placeholder?: string;
   trackChanges?: boolean;
   showComments?: boolean;
   userColor?: string;
   userName?: string;
   isReadOnly?: boolean;
-  className?: string;
-  blockId?: string;
-  selectedChapter?: any;
 }
 
 const SceneDivider = Node.create({
@@ -54,7 +50,7 @@ const SceneDivider = Node.create({
       insertSceneDivider: () => ({ commands }) => {
         return commands.insertContent({ type: this.name });
       },
-    } as any;
+    };
   },
 });
 
@@ -66,14 +62,13 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
   showComments = false,
   userColor = '#3b82f6',
   userName = 'Anonymous',
-  isReadOnly = false,
-  className = ''
+  isReadOnly = false
 }) => {
   const editor = useEditor({
     editable: !isReadOnly,
     extensions: [
       StarterKit.configure({
-        history: false,
+        history: true,
       }),
       Underline,
       TextAlign.configure({
@@ -103,58 +98,34 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       ...(trackChanges
         ? [
             TrackChangesExtension.configure({
-              userName: userName,
+              user: {
+                name: userName,
+                color: userColor,
+              },
             }),
           ]
         : []),
       ...(showComments
         ? [
-            CommentExtension,
+            CommentExtension.configure({
+              user: {
+                name: userName,
+                color: userColor,
+              },
+            }),
           ]
         : []),
     ],
     content: content,
     onUpdate: ({ editor }) => {
-      const html = editor.getHTML();
-      const json = editor.getJSON();
-      const characterCount = editor.storage.characterCount?.characters() || 0;
-      const wordCount = editor.storage.characterCount?.words() || 0;
-      onChange(JSON.stringify(json), characterCount, wordCount);
+      onChange(editor.getHTML());
     },
   });
 
-  // Update editor content when content prop changes
-  useEffect(() => {
-    if (editor && content !== undefined) {
-      let editorContent = content;
-      
-      // If content is a string, try to parse it as JSON
-      if (typeof content === 'string') {
-        try {
-          editorContent = JSON.parse(content);
-        } catch (error) {
-          // If parsing fails, treat as HTML string
-          editorContent = content;
-        }
-      }
-      
-      // Only update if content actually changed
-      const currentContent = editor.getJSON();
-      if (JSON.stringify(currentContent) !== JSON.stringify(editorContent)) {
-        editor.commands.setContent(editorContent);
-      }
-    }
-  }, [editor, content]);
-
   return (
-    <div className={`editor-container h-full flex flex-col ${className}`}>
+    <div className="editor-container">
       <EditorToolbar editor={editor} />
-      <div className="flex-1 overflow-auto">
-        <EditorContent 
-          editor={editor} 
-          className="h-full prose prose-sm max-w-none focus:outline-none p-4"
-        />
-      </div>
+      <EditorContent editor={editor} />
     </div>
   );
 };

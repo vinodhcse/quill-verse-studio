@@ -1,36 +1,52 @@
 
 import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, X } from 'lucide-react';
+import { useForm } from 'react-hook-form';
 
 interface CreateBookModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateBookWithImage: (bookData: {
-    title: string;
-    authorname: string;
-    subtitle: string;
-    language: string;
-    description: string;
-    createdAt: string;
+  onCreateBookWithImage: (bookData: { 
+    title: string; 
+    authorname: string; 
+    createdAt: string; 
     file: File;
-  }) => Promise<void>;
-  onCreateBookWithoutImage: (bookData: {
-    title: string;
-    authorname: string;
     subtitle: string;
     language: string;
     description: string;
-    createdAt: string;
-  }) => Promise<void>;
+  }) => void;
 }
 
-const LANGUAGES = [
+interface FormData {
+  title: string;
+  author: string;
+  subtitle: string;
+  language: string;
+  description: string;
+  image?: string;
+  versionName: string;
+}
+
+const languages = [
   'English',
   'Spanish',
   'French',
@@ -50,222 +66,242 @@ export const CreateBookModal: React.FC<CreateBookModalProps> = ({
   isOpen,
   onClose,
   onCreateBookWithImage,
-  onCreateBookWithoutImage
 }) => {
-  const [formData, setFormData] = useState({
-    title: '',
-    authorname: '',
-    subtitle: '',
-    language: 'English',
-    description: ''
-  });
-  const [coverImage, setCoverImage] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleInputChange = (field: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
+  const form = useForm<FormData>({
+    defaultValues: {
+      title: '',
+      author: '',
+      subtitle: '',
+      language: 'English',
+      description: '',
+      image: '',
+      versionName: 'Manuscript',
+    },
+  });
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setCoverImage(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const imageUrl = e.target?.result as string;
+        setSelectedImage(imageUrl);
+        form.setValue('image', imageUrl);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const removeImage = () => {
-    setCoverImage(null);
-    if (previewUrl) {
-      URL.revokeObjectURL(previewUrl);
-      setPreviewUrl(null);
+    setSelectedImage(null);
+    form.setValue('image', '');
+  };
+
+  const onSubmit = async (data: FormData) => {
+    setIsLoading(true);
+    try {
+      const fileInput = document.getElementById('book-cover-upload') as HTMLInputElement;
+      const file = fileInput?.files?.[0];
+
+      if (file) {
+        onCreateBookWithImage({
+          title: data.title,
+          authorname: data.author,
+          createdAt: new Date().toISOString(),
+          file,
+          subtitle: data.subtitle,
+          language: data.language,
+          description: data.description,
+        });
+      } else {
+        alert('Please upload a book cover image.');
+      }
+
+      form.reset();
+      setSelectedImage(null);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.title.trim() || !formData.authorname.trim()) {
-      return;
-    }
-
-    setIsSubmitting(true);
-
-    try {
-      const bookData = {
-        ...formData,
-        createdAt: new Date().toISOString()
-      };
-
-      if (coverImage) {
-        await onCreateBookWithImage({
-          ...bookData,
-          file: coverImage
-        });
-      } else {
-        await onCreateBookWithoutImage(bookData);
-      }
-
-      // Reset form
-      setFormData({
-        title: '',
-        authorname: '',
-        subtitle: '',
-        language: 'English',
-        description: ''
-      });
-      setCoverImage(null);
-      if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        setPreviewUrl(null);
-      }
-    } catch (error) {
-      console.error('Error creating book:', error);
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleClose = () => {
+    form.reset();
+    setSelectedImage(null);
+    onClose();
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={handleClose}>
+      <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Book</DialogTitle>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Cover Image Upload */}
-          <div className="space-y-2">
-            <Label>Cover Image (Optional)</Label>
-            {!previewUrl ? (
-              <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center">
-                <Upload className="h-8 w-8 text-gray-400 mx-auto mb-2" />
-                <p className="text-sm text-gray-600 mb-2">Upload a cover image</p>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  id="cover-upload"
-                />
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById('cover-upload')?.click()}
-                >
-                  Choose Image
-                </Button>
-              </div>
-            ) : (
-              <div className="relative">
-                <img
-                  src={previewUrl}
-                  alt="Cover preview"
-                  className="w-full h-48 object-cover rounded-lg"
-                />
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={removeImage}
-                  className="absolute top-2 right-2 bg-white/80 hover:bg-white"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            )}
-          </div>
 
-          {/* Title */}
-          <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
-            <Input
-              id="title"
-              value={formData.title}
-              onChange={(e) => handleInputChange('title', e.target.value)}
-              placeholder="Enter book title"
-              required
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="title"
+              rules={{ required: 'Book title is required' }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Book Title</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter your book title" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* Author Name */}
-          <div className="space-y-2">
-            <Label htmlFor="authorname">Author Name *</Label>
-            <Input
-              id="authorname"
-              value={formData.authorname}
-              onChange={(e) => handleInputChange('authorname', e.target.value)}
-              placeholder="Enter author name"
-              required
+            <FormField
+              control={form.control}
+              name="subtitle"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Subtitle (Optional)</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter book subtitle" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* Subtitle */}
-          <div className="space-y-2">
-            <Label htmlFor="subtitle">Subtitle</Label>
-            <Input
-              id="subtitle"
-              value={formData.subtitle}
-              onChange={(e) => handleInputChange('subtitle', e.target.value)}
-              placeholder="Enter book subtitle (optional)"
+            <FormField
+              control={form.control}
+              name="author"
+              rules={{ required: 'Author name is required' }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Author Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter author name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* Language */}
-          <div className="space-y-2">
-            <Label htmlFor="language">Language</Label>
-            <Select
-              value={formData.language}
-              onValueChange={(value) => handleInputChange('language', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select language" />
-              </SelectTrigger>
-              <SelectContent>
-                {LANGUAGES.map((language) => (
-                  <SelectItem key={language} value={language}>
-                    {language}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-
-          {/* Description */}
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Enter book description (optional)"
-              rows={3}
+            <FormField
+              control={form.control}
+              name="language"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Language</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {languages.map((language) => (
+                          <SelectItem key={language} value={language}>
+                            {language}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
             />
-          </div>
 
-          {/* Submit Buttons */}
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-              disabled={isSubmitting}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              className="flex-1"
-              disabled={isSubmitting || !formData.title.trim() || !formData.authorname.trim()}
-            >
-              {isSubmitting ? 'Creating...' : 'Create Book'}
-            </Button>
-          </div>
-        </form>
+            <FormField
+              control={form.control}
+              name="description"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Description (Optional)</FormLabel>
+                  <FormControl>
+                    <Textarea 
+                      placeholder="Enter book description" 
+                      className="min-h-[100px]"
+                      {...field} 
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="versionName"
+              rules={{ required: 'Version name is required' }}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Initial Version Name</FormLabel>
+                  <FormControl>
+                    <Input placeholder="Enter version name" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="image"
+              render={() => (
+                <FormItem>
+                  <FormLabel>Book Cover (Required)</FormLabel>
+                  <FormControl>
+                    <div className="space-y-4">
+                      {selectedImage && (
+                        <div className="relative w-32 h-44">
+                          <img
+                            src={selectedImage}
+                            alt="Book cover preview"
+                            className="w-full h-full object-cover rounded-lg"
+                          />
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute -top-2 -right-2 w-6 h-6 rounded-full p-0"
+                            onClick={removeImage}
+                          >
+                            <X size={12} />
+                          </Button>
+                        </div>
+                      )}
+                      <input
+                        type="file"
+                        id="book-cover-upload"
+                        accept="image/*"
+                        onChange={handleImageUpload}
+                        className="hidden"
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => document.getElementById('book-cover-upload')?.click()}
+                      >
+                        <Upload size={16} className="mr-2" />
+                        Upload Cover
+                      </Button>
+                    </div>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={handleClose}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Creating...' : 'Create Book'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </Form>
       </DialogContent>
     </Dialog>
   );
