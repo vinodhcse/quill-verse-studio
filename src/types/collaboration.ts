@@ -2,56 +2,86 @@
 export interface User {
   id: string;
   name: string;
+  email: string;
+  avatar?: string;
   role: 'author' | 'editor' | 'reviewer';
-  color: string;
-}
-
-export interface ChangeLog {
-  id: string;
-  book_id: string;
-  chapter_id: string;
-  block_id: string;
-  user_id: string;
-  change_type: 'insert' | 'delete' | 'replace';
-  before_text: string;
-  after_text: string;
-  start_offset: number;
-  end_offset: number;
-  status: 'pending' | 'accepted' | 'rejected';
-  created_at: string;
-  comment?: string;
-}
-
-export interface ChapterBlock {
-  id: string;
-  chapter_id: string;
-  position: number;
-  type: 'page' | 'paragraph';
-  text: string;
-  rich_format: any; // TipTap JSON format
-  change_suggestions: ChangeLog[];
+  isOnline?: boolean;
+  lastSeen?: string;
 }
 
 export interface Comment {
   id: string;
-  block_id: string;
-  user_id: string;
   content: string;
+  author: User;
+  timestamp: string;
   position: number;
-  resolved: boolean;
-  created_at: string;
-  replies: Comment[];
+  resolved?: boolean;
+  replies?: Comment[];
 }
 
-export type EditMode = 'edit' | 'suggest' | 'review';
+export interface Change {
+  id: string;
+  type: 'insert' | 'delete' | 'format';
+  content: string;
+  author: User;
+  timestamp: string;
+  position: number;
+  accepted?: boolean;
+  rejected?: boolean;
+}
+
+export interface Version {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  createdBy: User;
+  content: string;
+  wordCount: number;
+  isPublished?: boolean;
+  collaborators: User[];
+}
+
+export interface Chapter {
+  id: string;
+  title: string;
+  content: string;
+  order: number;
+  wordCount: number;
+  lastModified: string;
+  versions: Version[];
+}
 
 export interface Book {
   id: string;
   title: string;
-  authorname: string; // Updated to match backend API
+  authorname: string;
   bookImage?: string;
   lastModified: string;
   createdAt: string;
-  wordCount?: number;
+  wordCount: number;
   role?: 'author' | 'editor' | 'reviewer';
+}
+
+export interface BookDetails extends Book {
+  description?: string;
+  genre?: string;
+  chapters: Chapter[];
+  collaborators: User[];
+  versions: Version[];
+  currentVersion: Version;
+  settings: {
+    trackChanges: boolean;
+    allowComments: boolean;
+    autoSave: boolean;
+  };
+}
+
+export interface CollaborationSession {
+  id: string;
+  bookId: string;
+  versionId: string;
+  participants: User[];
+  activeUsers: User[];
+  lastActivity: string;
 }
