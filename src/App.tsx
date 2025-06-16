@@ -11,6 +11,7 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
 import { BookProvider } from '@/lib/BookContextProvider';
+import { UserContextProvider } from '@/lib/UserContextProvider';
 
 const queryClient = new QueryClient();
 
@@ -22,21 +23,30 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/write" element={
-            <BookProvider>
-              <Index />
-            </BookProvider>
-          } />
-          <Route path="/write/book/:bookId/version/:versionId" element={
-            <BookProvider>
-              <Index />
-            </BookProvider>
-          } />
-          <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="*" element={<NotFound />} />
+          <Route
+            path="/*"
+            element={
+              <UserContextProvider>
+                <Routes>
+                  <Route path="/write" element={
+                    <BookProvider>
+                      <Index />
+                    </BookProvider>
+                  } />
+                  <Route path="/write/book/:bookId/version/:versionId" element={
+                    <BookProvider>
+                      <Index />
+                    </BookProvider>
+                  } />
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </UserContextProvider>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>
