@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -18,14 +19,17 @@ import { CommentExtension } from '../extensions/CommentExtension';
 import './editor-styles.css';
 
 interface CollaborativeRichTextEditorProps {
-  content: string;
-  onChange: (content: string) => void;
+  content: string | any;
+  onChange: (content: string, totalCharacters?: number, totalWords?: number) => void;
   placeholder?: string;
   trackChanges?: boolean;
   showComments?: boolean;
   userColor?: string;
   userName?: string;
   isReadOnly?: boolean;
+  className?: string;
+  blockId?: string;
+  selectedChapter?: any;
 }
 
 const SceneDivider = Node.create({
@@ -50,7 +54,7 @@ const SceneDivider = Node.create({
       insertSceneDivider: () => ({ commands }) => {
         return commands.insertContent({ type: this.name });
       },
-    };
+    } as any;
   },
 });
 
@@ -62,13 +66,14 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
   showComments = false,
   userColor = '#3b82f6',
   userName = 'Anonymous',
-  isReadOnly = false
+  isReadOnly = false,
+  className = ''
 }) => {
   const editor = useEditor({
     editable: !isReadOnly,
     extensions: [
       StarterKit.configure({
-        history: true,
+        history: false,
       }),
       Underline,
       TextAlign.configure({
@@ -98,34 +103,39 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       ...(trackChanges
         ? [
             TrackChangesExtension.configure({
-              user: {
-                name: userName,
-                color: userColor,
-              },
+              userName: userName,
+              userColor: userColor,
             }),
           ]
         : []),
       ...(showComments
         ? [
             CommentExtension.configure({
-              user: {
-                name: userName,
-                color: userColor,
-              },
+              userName: userName,
+              userColor: userColor,
             }),
           ]
         : []),
     ],
     content: content,
     onUpdate: ({ editor }) => {
-      onChange(editor.getHTML());
+      const html = editor.getHTML();
+      const json = editor.getJSON();
+      const characterCount = editor.storage.characterCount?.characters() || 0;
+      const wordCount = editor.storage.characterCount?.words() || 0;
+      onChange(JSON.stringify(json), characterCount, wordCount);
     },
   });
 
   return (
-    <div className="editor-container">
+    <div className={`editor-container h-full flex flex-col ${className}`}>
       <EditorToolbar editor={editor} />
-      <EditorContent editor={editor} />
+      <div className="flex-1 overflow-auto">
+        <EditorContent 
+          editor={editor} 
+          className="h-full prose prose-sm max-w-none focus:outline-none p-4"
+        />
+      </div>
     </div>
   );
 };

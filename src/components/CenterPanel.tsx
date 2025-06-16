@@ -133,7 +133,7 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
     [bookId, versionId, selectedChapter?.id]
   );
 
-  const onChangeHandler = (changedContent, totalCharacters, totalWords) => {
+  const onChangeHandler = (changedContent: string, totalCharacters?: number, totalWords?: number) => {
     try {
       console.log('onChangeHandler triggered with content:', changedContent);
       let parsedContent = changedContent;
@@ -144,11 +144,10 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
       } else {
         console.log('Content is already an object, no parsing needed');
       }
-      //const parsedContent = JSON.parse(changedContent);
       const tiptapBlocks = parsedContent?.content || [];
       setStatus('Changed'); // Update the label to 'Changed'
       statusRef.current = 'Changed';
-      saveContent({ blocks: tiptapBlocks, metadata: { totalCharacters, totalWords } });
+      saveContent({ blocks: tiptapBlocks, metadata: { totalCharacters: totalCharacters || 0, totalWords: totalWords || 0 } });
     } catch (error) {
       console.error('Failed to parse content:', error);
     }
@@ -226,10 +225,10 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
             <div className="flex-1 overflow-hidden">
               <CollaborativeRichTextEditor
                 key={selectedChapter?.id}
-                content={selectedChapter?.content?.blocks?.length ? {
+                content={selectedChapter?.content?.blocks?.length ? JSON.stringify({
                   type: 'doc',
                   content: selectedChapter.content.blocks
-                } : null}
+                }) : ''}
                 onChange={onChangeHandler}
                 placeholder="Start writing your story with TipTap editor..."
                 className="h-full"

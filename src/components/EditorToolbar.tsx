@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
@@ -303,30 +302,21 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
 
       <div className="w-px h-6 bg-border/50 mx-2" />
 
-      {/* Font Family, Size, and Color */}
+      {/* Font Family and Color */}
       <div className="flex items-center space-x-2">
         <select
           onChange={(e) => editor.chain().focus().setFontFamily(e.target.value).run()}
-          className="px-2 py-1 bg-muted/50 rounded-lg"
+          className="px-2 py-1 bg-muted/50 rounded-lg text-sm"
         >
           <option value="Arial">Arial</option>
           <option value="Courier New">Courier New</option>
           <option value="Georgia">Georgia</option>
         </select>
-        <select
-          onChange={(e) => editor.chain().focus().setFontSize(e.target.value).run()}
-          className="px-2 py-1 bg-muted/50 rounded-lg"
-        >
-          <option value="12px">12px</option>
-          <option value="16px">16px</option>
-          <option value="20px">20px</option>
-        </select>
         <input
           type="color"
           onChange={(e) => editor.chain().focus().setColor(e.target.value).run()}
-          className="px-2 py-1 bg-muted/50 rounded-lg"
+          className="w-8 h-8 bg-muted/50 rounded-lg border-0 cursor-pointer"
         />
-       
       </div>
     </div>
   );

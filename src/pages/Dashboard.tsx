@@ -110,6 +110,34 @@ const Dashboard = () => {
     }
   };
 
+  const handleCreateBook = async (bookData: { 
+    title: string; 
+    description?: string;
+    subtitle?: string;
+    language?: string;
+  }) => {
+    try {
+      const response = await apiClient.post('/books', bookData);
+      const newBook = {
+        ...response.data,
+        wordCount: 0, // Ensure wordCount is always present
+      };
+      setBooks([...books, newBook]);
+      setIsCreateModalOpen(false);
+      toast({
+        title: "Success",
+        description: "Book created successfully!",
+      });
+    } catch (error) {
+      console.error('Error creating book:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create book. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleBookSelect = (book: BookType) => {
     navigate(`/book/${book.id}`);
   };
@@ -378,6 +406,7 @@ const Dashboard = () => {
         isOpen={isCreateModalOpen}
         onClose={() => setIsCreateModalOpen(false)}
         onCreateBookWithImage={handleCreateBookWithImage}
+        onCreateBook={handleCreateBook}
       />
 
       {/* Loading Spinner */}
