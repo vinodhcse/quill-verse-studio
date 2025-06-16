@@ -15,27 +15,36 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
   trackChanges,
   showComments
 }) => {
-  const { selectedChapter, setSelectedChapter } = useBookContext();
+  const { state, dispatch, loading } = useBookContext();
+  const { selectedChapter } = state;
   const [content, setContent] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    console.log('CenterPanel - selectedChapter changed:', selectedChapter);
     if (selectedChapter) {
-      // Parse content if it's a string
+      // Handle different content formats
       let chapterContent = selectedChapter.content;
+      
       if (typeof chapterContent === 'string') {
         try {
+          // Try to parse as JSON first
           const parsed = JSON.parse(chapterContent);
           chapterContent = parsed;
         } catch (error) {
-          console.log('Content is not JSON, using as is');
+          // If parsing fails, use as HTML string
+          console.log('Content is not JSON, using as HTML string');
         }
       }
-      setContent(chapterContent);
+      
+      console.log('CenterPanel - setting content:', chapterContent);
+      setContent(chapterContent || '');
+    } else {
+      setContent('');
     }
   }, [selectedChapter]);
 
   const handleContentChange = (newContent: string, totalCharacters?: number, totalWords?: number) => {
+    console.log('CenterPanel - content changed:', newContent);
     setContent(newContent);
     
     if (selectedChapter) {
@@ -46,7 +55,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
         lastModified: new Date().toISOString()
       };
       
-      setSelectedChapter(updatedChapter);
+      dispatch({ type: 'SET_SELECTED_CHAPTER', payload: updatedChapter });
     }
   };
 
@@ -63,7 +72,7 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({
     );
   }
 
-  if (isLoading) {
+  if (loading) {
     return (
       <div className="h-full flex items-center justify-center">
         <div className="text-center">

@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { fetchChapters, fetchSelectedChapter } from './bookService';
@@ -39,7 +40,7 @@ export const BookProvider = ({ children }) => {
     if (state.bookId && state.versionId) {
       try {
         const chapters = await fetchChapters(state.bookId, state.versionId);
-        const sortedChapters = chapters.sort((a, b) => a.position - b.position); // Sort by position (asc)
+        const sortedChapters = chapters.sort((a, b) => a.position - b.position);
         dispatch({ type: 'SET_CHAPTERS', payload: sortedChapters || [] });
       } catch (error) {
         console.error('Failed to refetch chapters:', error);
@@ -52,9 +53,9 @@ export const BookProvider = ({ children }) => {
     const queryParams = new URLSearchParams(location.search);
     const chapterIdFromQuery = queryParams.get('chapterId');
 
-    console.log('Extracted bookId:', bookId);
-    console.log('Extracted versionId:', versionId);
-    console.log('Extracted chapterId:', chapterIdFromQuery);
+    console.log('BookProvider - Extracted bookId:', bookId);
+    console.log('BookProvider - Extracted versionId:', versionId);
+    console.log('BookProvider - Extracted chapterId:', chapterIdFromQuery);
 
     if (bookId) dispatch({ type: 'SET_BOOK', payload: bookId });
     if (versionId) dispatch({ type: 'SET_VERSION', payload: versionId });
@@ -66,21 +67,33 @@ export const BookProvider = ({ children }) => {
       if (state.bookId && state.versionId) {
         try {
           const chapters = await fetchChapters(state.bookId, state.versionId);
-          const sortedChapters = chapters.sort((a, b) => a.position - b.position); // Sort by position (asc)
+          const sortedChapters = chapters.sort((a, b) => a.position - b.position);
           dispatch({ type: 'SET_CHAPTERS', payload: sortedChapters || [] });
+          
+          // If no chapter is selected and we have chapters, select the first one
           if (!state.chapterId && sortedChapters.length > 0) {
-            dispatch({ type: 'SET_SELECTED_CHAPTER', payload: sortedChapters[0] });
+            const firstChapter = sortedChapters[0];
+            dispatch({ type: 'SET_SELECTED_CHAPTER', payload: firstChapter });
+            dispatch({ type: 'SET_CHAPTER', payload: firstChapter.id });
           }
         } catch (error) {
           console.error('Failed to fetch chapters:', error);
           dispatch({ type: 'SET_CHAPTERS', payload: [] });
         }
       }
+    };
 
+    fetchData();
+  }, [state.bookId, state.versionId]);
+
+  useEffect(() => {
+    const fetchSelectedChapterData = async () => {
       if (state.chapterId && state.bookId && state.versionId) {
         setLoading(true);
         try {
+          console.log('BookProvider - Fetching chapter:', state.chapterId);
           const selectedChapter = await fetchSelectedChapter(state.bookId, state.versionId, state.chapterId);
+          console.log('BookProvider - Fetched chapter data:', selectedChapter);
           dispatch({ type: 'SET_SELECTED_CHAPTER', payload: selectedChapter });
         } catch (error) {
           console.error('Failed to fetch selected chapter:', error);
@@ -91,8 +104,8 @@ export const BookProvider = ({ children }) => {
       }
     };
 
-    fetchData();
-  }, [state.bookId, state.versionId, state.chapterId]);
+    fetchSelectedChapterData();
+  }, [state.chapterId, state.bookId, state.versionId]);
 
   return (
     <BookContext.Provider value={{ state, dispatch, refetchChapters, loading }}>
@@ -102,5 +115,9 @@ export const BookProvider = ({ children }) => {
 };
 
 export const useBookContext = () => {
-  return useContext(BookContext);
+  const context = useContext(BookContext);
+  if (!context) {
+    throw new Error('useBookContext must be used within a BookProvider');
+  }
+  return context;
 };

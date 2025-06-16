@@ -109,9 +109,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         : []),
       ...(showComments
         ? [
-            CommentExtension.configure({
-              userName: userName,
-            }),
+            CommentExtension,
           ]
         : []),
     ],
@@ -124,6 +122,29 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       onChange(JSON.stringify(json), characterCount, wordCount);
     },
   });
+
+  // Update editor content when content prop changes
+  useEffect(() => {
+    if (editor && content !== undefined) {
+      let editorContent = content;
+      
+      // If content is a string, try to parse it as JSON
+      if (typeof content === 'string') {
+        try {
+          editorContent = JSON.parse(content);
+        } catch (error) {
+          // If parsing fails, treat as HTML string
+          editorContent = content;
+        }
+      }
+      
+      // Only update if content actually changed
+      const currentContent = editor.getJSON();
+      if (JSON.stringify(currentContent) !== JSON.stringify(editorContent)) {
+        editor.commands.setContent(editorContent);
+      }
+    }
+  }, [editor, content]);
 
   return (
     <div className={`editor-container h-full flex flex-col ${className}`}>
