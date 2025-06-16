@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
@@ -124,14 +123,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
       <div className="flex items-center space-x-1 mr-3">
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().undo()}
+          disabled={!editor.can().chain().focus().undo().run()}
           title="Undo"
         >
           <Undo size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().redo()}
+          disabled={!editor.can().chain().focus().redo().run()}
           title="Redo"
         >
           <Redo size={16} />
