@@ -37,9 +37,9 @@ const Dashboard = () => {
         const response = await apiClient.get('/books/userbooks');
         const { authoredBooks, editableBooks, reviewableBooks } = response.data;
         setBooks([
-          ...authoredBooks.map(book => ({ ...book, role: 'author' })),
-          ...editableBooks.map(book => ({ ...book, role: 'editor' })),
-          ...reviewableBooks.map(book => ({ ...book, role: 'reviewer' })),
+          ...authoredBooks.map(book => ({ ...book, role: 'author', lastModified: book.lastModified || new Date().toISOString(), createdAt: book.createdAt || new Date().toISOString() })),
+          ...editableBooks.map(book => ({ ...book, role: 'editor', lastModified: book.lastModified || new Date().toISOString(), createdAt: book.createdAt || new Date().toISOString() })),
+          ...reviewableBooks.map(book => ({ ...book, role: 'reviewer', lastModified: book.lastModified || new Date().toISOString(), createdAt: book.createdAt || new Date().toISOString() })),
         ]);
       } catch (error) {
         console.error('Failed to fetch books:', error);
@@ -264,10 +264,7 @@ const Dashboard = () => {
                 {currentBooks.map((book) => (
                   <div key={book.id} className="animate-fade-in hover-scale">
                     <BookCard
-                      book={{
-                        ...book,
-                        authorname: book.authorname || book.authorName || 'Unknown Author'
-                      }}
+                      book={book}
                       onSelect={() => handleBookSelect(book)}
                     />
                   </div>

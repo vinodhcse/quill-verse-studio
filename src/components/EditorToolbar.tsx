@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,8 @@ import {
   Image,
   AlignLeft,
   AlignCenter,
-  AlignRight
+  AlignRight,
+  Minus
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
@@ -292,10 +294,10 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
       {/* Scene Divider */}
       <div className="flex items-center space-x-1">
         <ToolbarButton
-          onClick={() => editor.chain().focus().insertSceneDivider().run()}
+          onClick={() => editor.chain().focus().insertContent({ type: 'sceneDivider' }).run()}
           title="Insert Scene Divider"
         >
-          <hr className="w-6 border-t-2 border-dashed border-gray-400" />
+          <Minus size={16} />
         </ToolbarButton>
       </div>
 
