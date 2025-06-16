@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
@@ -69,7 +70,10 @@ const Dashboard = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [selectedBook, setSelectedBook] = useState<BookDetails | null>(null);
 
-  const { data: books, refetch, isLoading, isError } = useQuery('books', fetchBooks);
+  const { data: books, refetch, isLoading, isError } = useQuery({
+    queryKey: ['books'],
+    queryFn: fetchBooks,
+  });
 
   const form = useForm<z.infer<typeof bookSchema>>({
     resolver: zodResolver(bookSchema),
@@ -91,6 +95,7 @@ const Dashboard = () => {
       // Refresh books list
       refetch();
       setIsCreateModalOpen(false);
+      form.reset();
     } catch (error) {
       console.error('Failed to create book:', error);
     }
@@ -113,9 +118,15 @@ const Dashboard = () => {
       chapters: [],
       collaborators: [],
       versions: [],
-      currentVersion: null,
       settings: {}
     } as BookDetails);
+    
+    // Set form values
+    form.setValue('title', book.title);
+    form.setValue('subtitle', book.subtitle);
+    form.setValue('language', book.language);
+    form.setValue('description', book.description);
+    
     setIsEditModalOpen(true);
   };
 
@@ -132,6 +143,7 @@ const Dashboard = () => {
       refetch();
       setIsEditModalOpen(false);
       setSelectedBook(null);
+      form.reset();
     } catch (error) {
       console.error('Failed to update book:', error);
     }
@@ -144,9 +156,9 @@ const Dashboard = () => {
     <div className="container mx-auto py-10">
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold">My Books</h1>
-        <Dialog>
+        <Dialog open={isCreateModalOpen} onOpenChange={setIsCreateModalOpen}>
           <DialogTrigger asChild>
-            <Button variant="primary">
+            <Button>
               <Plus className="mr-2 h-4 w-4" />
               Create Book
             </Button>
@@ -235,7 +247,7 @@ const Dashboard = () => {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {books?.map((book) => (
+            {books?.map((book: Book) => (
               <TableRow key={book.id}>
                 <TableCell className="font-medium">{book.id}</TableCell>
                 <TableCell>{book.title}</TableCell>
@@ -274,7 +286,7 @@ const Dashboard = () => {
                   <FormItem>
                     <FormLabel>Title</FormLabel>
                     <FormControl>
-                      <Input placeholder="Book Title" {...field} defaultValue={selectedBook?.title || ""} />
+                      <Input placeholder="Book Title" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -287,7 +299,7 @@ const Dashboard = () => {
                   <FormItem>
                     <FormLabel>Subtitle</FormLabel>
                     <FormControl>
-                      <Input placeholder="Book Subtitle" {...field} defaultValue={selectedBook?.subtitle || ""} />
+                      <Input placeholder="Book Subtitle" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -300,7 +312,7 @@ const Dashboard = () => {
                   <FormItem>
                     <FormLabel>Language</FormLabel>
                     <FormControl>
-                      <Input placeholder="Book Language" {...field} defaultValue={selectedBook?.language || ""} />
+                      <Input placeholder="Book Language" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -317,7 +329,6 @@ const Dashboard = () => {
                         placeholder="Book description."
                         className="resize-none"
                         {...field}
-                        defaultValue={selectedBook?.description || ""}
                       />
                     </FormControl>
                     <FormMessage />

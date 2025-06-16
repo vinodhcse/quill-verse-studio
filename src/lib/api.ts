@@ -1,3 +1,4 @@
+
 import axios from 'axios';
 import { jwtDecode } from 'jwt-decode';
 
@@ -57,8 +58,29 @@ export const signup = async (name: string, email: string, password: string) => {
   return response.data;
 };
 
-export const createBook = async (title: string, authorName: string, createdAt: string) => {
-  const response = await apiClient.post('/books', { title, authorName, createdAt });
+export const fetchBooks = async () => {
+  const response = await apiClient.get('/books');
+  return response.data;
+};
+
+export const createBook = async (bookData: {
+  title: string;
+  subtitle: string;
+  language: string;
+  description: string;
+  bookImage?: string;
+}) => {
+  const response = await apiClient.post('/books', {
+    title: bookData.title,
+    authorName: 'Current User', // Default author name
+    createdAt: new Date().toISOString(),
+    ...bookData
+  });
+  return response.data;
+};
+
+export const deleteBook = async (bookId: string) => {
+  const response = await apiClient.delete(`/books/${bookId}`);
   return response.data;
 };
 
