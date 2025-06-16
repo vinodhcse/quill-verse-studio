@@ -77,9 +77,9 @@ const Dashboard = () => {
   const endIndex = startIndex + booksPerPage;
   const currentBooks = filteredBooks.slice(startIndex, endIndex);
 
-  const handleCreateBookWithImage = async (bookData: { title: string; authorName: string; createdAt: string; file: File }) => {
+  const handleCreateBookWithImage = async (bookData: { title: string; authorname: string; createdAt: string; file: File }) => {
     try {
-      const createdBook = await createBook(bookData.title, bookData.authorName, bookData.createdAt);
+      const createdBook = await createBook(bookData.title, bookData.authorname, bookData.createdAt);
       const bookId = createdBook.id;
       const uploadResponse = await uploadBookImage(bookId, bookData.file, 'cover', 'Book cover image');
       const imageUrl = uploadResponse.url;
@@ -119,7 +119,7 @@ const Dashboard = () => {
             <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors truncate">
               {book.title}
             </h3>
-            <p className="text-sm text-muted-foreground mb-2">by {book.authorName}</p>
+            <p className="text-sm text-muted-foreground mb-2">by {book.authorname}</p>
             <div className="text-xs text-muted-foreground">
               <span>Last modified: {book.lastModified}</span>
             </div>

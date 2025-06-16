@@ -170,7 +170,7 @@ const BookDetails = () => {
               </div>
               <div className="flex items-center space-x-2">
                 <FileText size={16} className="text-muted-foreground" />
-                <span>{bookDetails.wordCount.toLocaleString()} words</span>
+                <span>{(bookDetails.wordCount || 0).toLocaleString()} words</span>
               </div>
               <div className="flex items-center space-x-2">
                 <User size={16} className="text-muted-foreground" />
@@ -213,7 +213,7 @@ const BookDetails = () => {
                           </div>
                           <div className="flex items-center space-x-1">
                             <FileText size={12} />
-                            <span>{version.wordCount?.toLocaleString() || 0} words</span>
+                            <span>{(version.wordCount || 0).toLocaleString()} words</span>
                           </div>
                           <div className="flex items-center space-x-1">
                             <User size={12} />

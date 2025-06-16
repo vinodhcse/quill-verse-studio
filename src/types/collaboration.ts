@@ -50,7 +50,7 @@ export interface Version {
   createdAt: string;
   createdBy: User;
   content: string;
-  wordCount: number;
+  wordCount?: number;
   isPublished?: boolean;
   collaborators: User[];
 }
