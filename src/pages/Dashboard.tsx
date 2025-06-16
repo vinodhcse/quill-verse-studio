@@ -134,7 +134,7 @@ const Dashboard = () => {
             <h3 className="font-semibold text-lg mb-1 group-hover:text-primary transition-colors truncate">
               {book.title}
             </h3>
-            <p className="text-sm text-muted-foreground mb-2">by {book.authorName}</p>
+            <p className="text-sm text-muted-foreground mb-2">by {book.authorname}</p>
             <div className="flex items-center justify-between text-xs text-muted-foreground">
               <span>Last modified: {book.lastModified}</span>
               <span>{book.wordCount?.toLocaleString() || 0} words</span>
@@ -264,7 +264,10 @@ const Dashboard = () => {
                 {currentBooks.map((book) => (
                   <div key={book.id} className="animate-fade-in hover-scale">
                     <BookCard
-                      book={book}
+                      book={{
+                        ...book,
+                        authorname: book.authorname || book.authorName || 'Unknown Author'
+                      }}
                       onSelect={() => handleBookSelect(book)}
                     />
                   </div>
