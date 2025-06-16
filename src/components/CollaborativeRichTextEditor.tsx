@@ -69,6 +69,11 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
             return false;
           },
         },
+        blockquote: {
+          HTMLAttributes: {
+            class: 'bg-gray-100 p-4 rounded-md',
+          },
+        },
       }),
       TextStyle,
       Underline,

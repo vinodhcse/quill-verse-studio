@@ -144,21 +144,32 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
     setDragOverChapter(null);
   };
 
-  const handleDrop = (e: React.DragEvent, targetChapterId: string) => {
-    e.preventDefault();
-    if (!draggedChapter || draggedChapter === targetChapterId) return;
+  const handleDrop = async (e: React.DragEvent, targetChapterId: string) => {
+      e.preventDefault();
+      if (!draggedChapter || draggedChapter === targetChapterId) return;
 
-    const draggedIndex = chapters.findIndex(ch => ch.id === draggedChapter);
-    const targetIndex = chapters.findIndex(ch => ch.id === targetChapterId);
+      const draggedIndex = chapters.findIndex(ch => ch.id === draggedChapter);
+      const targetIndex = chapters.findIndex(ch => ch.id === targetChapterId);
 
-    const newChapters = [...chapters];
-    const [draggedItem] = newChapters.splice(draggedIndex, 1);
-    newChapters.splice(targetIndex, 0, draggedItem);
+      const newChapters = [...chapters];
+      const [draggedItem] = newChapters.splice(draggedIndex, 1);
+      newChapters.splice(targetIndex, 0, draggedItem);
 
-    // setChapters(newChapters);
-    setDraggedChapter(null);
-    setDragOverChapter(null);
-  };
+      try {
+        // Update chapter order in the backend
+        const reorderedChapters = newChapters.map((chapter, index) => ({ id: chapter.id, position: index + 1 }));
+        await apiClient.patch(`/books/${bookId}/versions/${versionId}/chapters/reorder`, { chapters: reorderedChapters });
+
+        // Update local state
+        dispatch({ type: 'SET_CHAPTERS', payload: newChapters });
+      } catch (error) {
+        console.error('Failed to reorder chapters:', error);
+        alert('Failed to reorder chapters. Please try again.');
+      }
+
+      setDraggedChapter(null);
+      setDragOverChapter(null);
+    };
 
   const handleChapterClick = (chapterId: string) => {
     console.log('Chapter clicked:', chapterId);

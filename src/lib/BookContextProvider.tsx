@@ -39,7 +39,8 @@ export const BookProvider = ({ children }) => {
     if (state.bookId && state.versionId) {
       try {
         const chapters = await fetchChapters(state.bookId, state.versionId);
-        dispatch({ type: 'SET_CHAPTERS', payload: chapters || [] });
+        const sortedChapters = chapters.sort((a, b) => a.position - b.position); // Sort by position (asc)
+        dispatch({ type: 'SET_CHAPTERS', payload: sortedChapters || [] });
       } catch (error) {
         console.error('Failed to refetch chapters:', error);
         dispatch({ type: 'SET_CHAPTERS', payload: [] });
@@ -65,9 +66,10 @@ export const BookProvider = ({ children }) => {
       if (state.bookId && state.versionId) {
         try {
           const chapters = await fetchChapters(state.bookId, state.versionId);
-          dispatch({ type: 'SET_CHAPTERS', payload: chapters || [] });
-          if (!state.chapterId && chapters.length > 0) {
-            dispatch({ type: 'SET_SELECTED_CHAPTER', payload: chapters[0] });
+          const sortedChapters = chapters.sort((a, b) => a.position - b.position); // Sort by position (asc)
+          dispatch({ type: 'SET_CHAPTERS', payload: sortedChapters || [] });
+          if (!state.chapterId && sortedChapters.length > 0) {
+            dispatch({ type: 'SET_SELECTED_CHAPTER', payload: sortedChapters[0] });
           }
         } catch (error) {
           console.error('Failed to fetch chapters:', error);
