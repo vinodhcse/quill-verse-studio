@@ -1,421 +1,435 @@
+
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Book, Grid3X3, List, PenTool } from 'lucide-react';
-import { BookCard } from '@/components/BookCard';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Plus, Search, Filter, BookOpen, Users, Calendar, MoreHorizontal } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Book } from '@/types/collaboration';
 import { CreateBookModal } from '@/components/CreateBookModal';
-import { useNavigate, Link } from 'react-router-dom';
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from '@/components/ui/pagination';
-import { apiClient, createBook, uploadBookImage, updateBookImage } from '@/lib/api';
-import { Book as BookType } from '@/types/collaboration';
+import { EditBookModal } from '@/components/EditBookModal';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { useNavigate } from 'react-router-dom';
+import { useToast } from '@/hooks/use-toast';
+import { apiClient } from '@/lib/api';
 
 const Dashboard = () => {
+  const [books, setBooks] = useState<Book[]>([]);
+  const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'recent' | 'title' | 'wordCount'>('recent');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [selectedBook, setSelectedBook] = useState<Book | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  
   const navigate = useNavigate();
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState('author');
-  const booksPerPage = 12;
+  const { toast } = useToast();
 
-  const [books, setBooks] = useState<BookType[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-
-  const fetchBooks = async () => {
-      setIsLoading(true);
-      try {
-        const response = await apiClient.get('/books/userbooks');
-        const { authoredBooks, editableBooks, reviewableBooks } = response.data;
-        setBooks([
-          ...authoredBooks.map(book => ({ 
-            ...book, 
-            role: 'author', 
-            lastModified: book.lastModified || new Date().toISOString(), 
-            createdAt: book.createdAt || new Date().toISOString(),
-            wordCount: book.wordCount || 0
-          })),
-          ...editableBooks.map(book => ({ 
-            ...book, 
-            role: 'editor', 
-            lastModified: book.lastModified || new Date().toISOString(), 
-            createdAt: book.createdAt || new Date().toISOString(),
-            wordCount: book.wordCount || 0
-          })),
-          ...reviewableBooks.map(book => ({ 
-            ...book, 
-            role: 'reviewer', 
-            lastModified: book.lastModified || new Date().toISOString(), 
-            createdAt: book.createdAt || new Date().toISOString(),
-            wordCount: book.wordCount || 0
-          })),
-        ]);
-      } catch (error) {
-        console.error('Failed to fetch books:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
+  // Fetch books on component mount
   useEffect(() => {
     fetchBooks();
   }, []);
 
-  const getFilteredBooks = () => {
-    return books.filter(book => book.role === activeTab);
-  };
-
-  const filteredBooks = getFilteredBooks();
-  const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
-  const startIndex = (currentPage - 1) * booksPerPage;
-  const endIndex = startIndex + booksPerPage;
-  const currentBooks = filteredBooks.slice(startIndex, endIndex);
-
-  const handleCreateBookWithImage = async (bookData: { 
-    title: string; 
-    authorname: string; 
-    createdAt: string; 
-    file: File;
-    subtitle: string;
-    language: string;
-    description: string;
-  }) => {
+  const fetchBooks = async () => {
     try {
-      const createdBook = await createBook(bookData.title, bookData.authorname, bookData.createdAt);
-      const bookId = createdBook.id;
-      const uploadResponse = await uploadBookImage(bookId, bookData.file, 'cover', 'Book cover image');
-      const imageUrl = uploadResponse.data.url;
-      
-      // Update book with additional details
-      await apiClient.patch(`/books/${bookId}`, {
-        bookImage: imageUrl,
-        subtitle: bookData.subtitle,
-        language: bookData.language,
-        description: bookData.description,
-      });
-
-      // Refresh books to include the new one
+      setIsLoading(true);
       const response = await apiClient.get('/books');
-      setBooks(response.data);
-      setIsCreateModalOpen(false);
+      
+      const booksData = response.data.map((book: any) => ({
+        id: book.id,
+        title: book.title,
+        authorname: book.authorname,
+        bookImage: book.bookImage,
+        lastModified: book.lastModified || book.createdAt,
+        createdAt: book.createdAt,
+        wordCount: book.wordCount || 0,
+        role: book.role || 'author',
+        subtitle: book.subtitle,
+        language: book.language,
+        description: book.description
+      }));
+      
+      setBooks(booksData);
+      setFilteredBooks(booksData);
     } catch (error) {
-      console.error('Failed to create book:', error);
-      alert('Failed to create book. Please try again.');
+      console.error('Error fetching books:', error);
+      toast({
+        title: "Error",
+        description: "Failed to fetch books",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleCreateBook = async (bookData: { 
-    title: string; 
-    description?: string;
-    subtitle?: string;
-    language?: string;
+  // Filter and sort books
+  useEffect(() => {
+    let filtered = books.filter(book =>
+      book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      book.authorname.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    // Sort books
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case 'title':
+          return a.title.localeCompare(b.title);
+        case 'wordCount':
+          return (b.wordCount || 0) - (a.wordCount || 0);
+        case 'recent':
+        default:
+          return new Date(b.lastModified || b.createdAt).getTime() - new Date(a.lastModified || a.createdAt).getTime();
+      }
+    });
+
+    setFilteredBooks(filtered);
+  }, [books, searchTerm, sortBy]);
+
+  const handleCreateBook = async (bookData: {
+    title: string;
+    authorname: string;
+    subtitle: string;
+    language: string;
+    description: string;
+    createdAt: string;
   }) => {
     try {
       const response = await apiClient.post('/books', bookData);
-      const newBook = {
+      const newBook: Book = {
         ...response.data,
-        wordCount: 0, // Ensure wordCount is always present
+        wordCount: 0
       };
-      setBooks([...books, newBook]);
-      setIsCreateModalOpen(false);
+      
+      setBooks(prevBooks => [newBook, ...prevBooks]);
+      setShowCreateModal(false);
+      
       toast({
         title: "Success",
-        description: "Book created successfully!",
+        description: "Book created successfully",
       });
     } catch (error) {
       console.error('Error creating book:', error);
       toast({
         title: "Error",
-        description: "Failed to create book. Please try again.",
+        description: "Failed to create book",
         variant: "destructive",
       });
     }
   };
 
-  const handleBookSelect = (book: BookType) => {
-    navigate(`/book/${book.id}`);
-  };
+  const handleCreateBookWithImage = async (bookData: {
+    title: string;
+    authorname: string;
+    subtitle: string;
+    language: string;
+    description: string;
+    createdAt: string;
+    file: File;
+  }) => {
+    try {
+      // First create the book
+      const bookResponse = await apiClient.post('/books', {
+        title: bookData.title,
+        authorname: bookData.authorname,
+        subtitle: bookData.subtitle,
+        language: bookData.language,
+        description: bookData.description,
+        createdAt: bookData.createdAt,
+      });
 
-  const BookListItem = ({ book }: { book: BookType }) => (
-    <Card 
-      className="cursor-pointer hover:shadow-xl hover:shadow-primary/10 transition-all duration-300 group border-0 bg-card/80 backdrop-blur-sm hover-scale"
-      onClick={() => handleBookSelect(book)}
-    >
-      <CardContent className="p-4">
-        <div className="flex items-center space-x-4">
-          <div className="w-12 h-16 flex-shrink-0">
-            {book.bookImage ? (
-              <img
-                src={book.bookImage}
-                alt={book.title}
-                className="w-full h-full object-cover rounded"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center rounded">
-                <Book size={16} className="text-primary/60" />
-              </div>
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors truncate">
-              {book.title}
-            </h3>
-            <p className="text-sm text-muted-foreground mb-2">by {book.authorname}</p>
-            <div className="text-xs text-muted-foreground">
-              <span>Last modified: {book.lastModified}</span>
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
+      const newBook = bookResponse.data;
 
-  const getRoleDisplayName = (role: string) => {
-    switch (role) {
-      case 'author': return 'My Books';
-      case 'editor': return 'Editing';
-      case 'reviewer': return 'Reviewing';
-      default: return role;
+      // Then upload the image
+      const formData = new FormData();
+      formData.append('file', bookData.file);
+      formData.append('tags', 'book-cover');
+      formData.append('description', 'Book cover image');
+
+      const imageResponse = await apiClient.post(`/books/${newBook.id}/files`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      // Update the book with the image URL
+      const updatedBookResponse = await apiClient.patch(`/books/${newBook.id}`, {
+        bookImage: imageResponse.data.url,
+      });
+
+      const finalBook: Book = {
+        ...updatedBookResponse.data,
+        wordCount: 0
+      };
+
+      setBooks(prevBooks => [finalBook, ...prevBooks]);
+      setShowCreateModal(false);
+      
+      toast({
+        title: "Success",
+        description: "Book created successfully with cover image",
+      });
+    } catch (error) {
+      console.error('Error creating book with image:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create book with image",
+        variant: "destructive",
+      });
     }
   };
 
-  const getBookCount = (role: string) => {
-    return books.filter(book => book.role === role).length;
+  const handleEditBook = async (bookId: string, bookData: {
+    title: string;
+    subtitle: string;
+    language: string;
+    description: string;
+    bookImage?: string;
+  }) => {
+    try {
+      const response = await apiClient.patch(`/books/${bookId}`, bookData);
+      const updatedBook = response.data;
+
+      setBooks(prevBooks =>
+        prevBooks.map(book =>
+          book.id === bookId ? { ...book, ...updatedBook } : book
+        )
+      );
+      setShowEditModal(false);
+      setSelectedBook(null);
+      
+      toast({
+        title: "Success",
+        description: "Book updated successfully",
+      });
+    } catch (error) {
+      console.error('Error updating book:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update book",
+        variant: "destructive",
+      });
+    }
   };
 
+  const handleDeleteBook = async (bookId: string) => {
+    try {
+      await apiClient.delete(`/books/${bookId}`);
+      setBooks(prevBooks => prevBooks.filter(book => book.id !== bookId));
+      
+      toast({
+        title: "Success",
+        description: "Book deleted successfully",
+      });
+    } catch (error) {
+      console.error('Error deleting book:', error);
+      toast({
+        title: "Error",
+        description: "Failed to delete book",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const openBook = (bookId: string) => {
+    navigate(`/book/${bookId}`);
+  };
+
+  const openEditor = (bookId: string) => {
+    navigate(`/write/book/${bookId}/version/default`);
+  };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading your books...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
-      {/* Animated background elements */}
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-primary/5 rounded-full blur-3xl animate-pulse" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-accent/5 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '3s' }} />
-        <div className="absolute top-1/3 left-1/3 w-60 h-60 bg-primary/3 rounded-full blur-2xl animate-pulse" style={{ animationDelay: '6s' }} />
-      </div>
-
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       {/* Header */}
-      <div className="relative z-10 bg-background/80 backdrop-blur-sm border-b border-border/50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2 hover-scale">
-              <PenTool className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">AuthorStudio</span>
-            </Link>
-            <Button asChild variant="outline" className="hover-scale">
-              <Link to="/login">Sign Out</Link>
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center py-6">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">My Library</h1>
+              <p className="text-gray-600 mt-1">Manage your writing projects</p>
+            </div>
+            <Button onClick={() => setShowCreateModal(true)} className="bg-blue-600 hover:bg-blue-700">
+              <Plus className="h-4 w-4 mr-2" />
+              New Book
             </Button>
           </div>
         </div>
       </div>
 
-      <div className="relative z-10 container mx-auto px-6 py-8">
-        <div className="flex items-center justify-between mb-8 animate-fade-in">
-          <div>
-            <h1 className="text-3xl font-bold mb-2 gradient-animate bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-              Your Library
-            </h1>
-            <p className="text-muted-foreground">Select a book to continue writing or create a new one</p>
+      {/* Content */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Search and Filter */}
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+            <Input
+              placeholder="Search books..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
-          
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center space-x-2 bg-card/80 backdrop-blur-sm rounded-lg p-1 border border-border/50">
-              <Button
-                variant={viewMode === 'grid' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('grid')}
-                className="h-8 w-8 p-0 hover-scale"
-              >
-                <Grid3X3 size={16} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="w-full sm:w-auto">
+                <Filter className="h-4 w-4 mr-2" />
+                Sort by: {sortBy === 'recent' ? 'Recent' : sortBy === 'title' ? 'Title' : 'Word Count'}
               </Button>
-              <Button
-                variant={viewMode === 'list' ? 'default' : 'ghost'}
-                size="sm"
-                onClick={() => setViewMode('list')}
-                className="h-8 w-8 p-0 hover-scale"
-              >
-                <List size={16} />
-              </Button>
-            </div>
-            
-            <Button onClick={() => setIsCreateModalOpen(true)} className="pulse-glow hover-scale">
-              <Plus size={16} className="mr-2" />
-              Create New Book
-            </Button>
-          </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuItem onClick={() => setSortBy('recent')}>Recent</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy('title')}>Title</DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setSortBy('wordCount')}>Word Count</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
-        {/* Role Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full mb-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="author" className="flex items-center space-x-2">
-              <span>{getRoleDisplayName('author')}</span>
-              <span className="bg-primary/20 text-primary rounded-full px-2 py-0.5 text-xs">
-                {getBookCount('author')}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="editor" className="flex items-center space-x-2">
-              <span>{getRoleDisplayName('editor')}</span>
-              <span className="bg-primary/20 text-primary rounded-full px-2 py-0.5 text-xs">
-                {getBookCount('editor')}
-              </span>
-            </TabsTrigger>
-            <TabsTrigger value="reviewer" className="flex items-center space-x-2">
-              <span>{getRoleDisplayName('reviewer')}</span>
-              <span className="bg-primary/20 text-primary rounded-full px-2 py-0.5 text-xs">
-                {getBookCount('reviewer')}
-              </span>
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value={activeTab} className="mt-6">
-            {viewMode === 'grid' ? (
-              <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 xl:grid-cols-10 2xl:grid-cols-12 gap-3">
-                {activeTab === 'author' && (
-                  <Card 
-                    className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale w-full max-w-[120px]"
-                    onClick={() => setIsCreateModalOpen(true)}
-                  >
-                    <CardContent className="flex flex-col items-center justify-center h-36 p-2">
-                      <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center mb-2 group-hover:bg-primary/20 transition-colors pulse-glow">
-                        <Plus size={12} className="text-primary" />
-                      </div>
-                      <h3 className="font-medium text-center mb-1 text-xs leading-tight">Create New Book</h3>
-                      <p className="text-[9px] text-muted-foreground text-center">Start your next masterpiece</p>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {currentBooks.map((book) => (
-                  <div key={book.id} className="animate-fade-in hover-scale">
-                    <BookCard
-                      book={book}
-                      onSelect={() => handleBookSelect(book)}
+        {/* Books Grid */}
+        {filteredBooks.length === 0 ? (
+          <div className="text-center py-12">
+            <BookOpen className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-900 mb-2">
+              {books.length === 0 ? 'No books yet' : 'No books found'}
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {books.length === 0 
+                ? 'Start your writing journey by creating your first book'
+                : 'Try adjusting your search terms'
+              }
+            </p>
+            {books.length === 0 && (
+              <Button onClick={() => setShowCreateModal(true)} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="h-4 w-4 mr-2" />
+                Create Your First Book
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filteredBooks.map((book) => (
+              <Card key={book.id} className="group hover:shadow-lg transition-shadow duration-200 cursor-pointer">
+                <div className="relative">
+                  {book.bookImage ? (
+                    <img
+                      src={book.bookImage}
+                      alt={book.title}
+                      className="w-full h-48 object-cover rounded-t-lg"
                     />
+                  ) : (
+                    <div className="w-full h-48 bg-gradient-to-br from-blue-400 to-purple-500 rounded-t-lg flex items-center justify-center">
+                      <BookOpen className="h-12 w-12 text-white" />
+                    </div>
+                  )}
+                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="h-8 w-8 p-0 bg-white/80 hover:bg-white">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => openEditor(book.id)}>
+                          Open Editor
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => openBook(book.id)}>
+                          View Details
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => {
+                          setSelectedBook(book);
+                          setShowEditModal(true);
+                        }}>
+                          Edit Book
+                        </DropdownMenuItem>
+                        <DropdownMenuItem 
+                          onClick={() => handleDeleteBook(book.id)}
+                          className="text-red-600"
+                        >
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {activeTab === 'author' && (
-                  <Card 
-                    className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale animate-fade-in"
-                    onClick={() => setIsCreateModalOpen(true)}
-                  >
-                    <CardContent className="flex items-center space-x-4 p-4">
-                      <div className="w-12 h-16 rounded bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors pulse-glow">
-                        <Plus size={20} className="text-primary" />
-                      </div>
-                      <div>
-                        <h3 className="font-medium mb-1">Create New Book</h3>
-                        <p className="text-sm text-muted-foreground">Start your next masterpiece</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {currentBooks.map((book) => (
-                  <div key={book.id} className="animate-fade-in">
-                    <BookListItem book={book} />
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Empty State */}
-            {currentBooks.length === 0 && (
-              <div className="text-center py-16 animate-fade-in">
-                <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6 pulse-glow">
-                  <Book size={32} className="text-muted-foreground" />
                 </div>
-                <h3 className="text-xl font-medium mb-2">
-                  No {getRoleDisplayName(activeTab).toLowerCase()} yet
-                </h3>
-                <p className="text-muted-foreground mb-6">
-                  {activeTab === 'author' 
-                    ? 'Create your first book to get started' 
-                    : `You haven't been invited to any books as ${activeTab} yet`
-                  }
-                </p>
-                {activeTab === 'author' && (
-                  <Button onClick={() => setIsCreateModalOpen(true)} className="pulse-glow hover-scale">
-                    <Plus size={16} className="mr-2" />
-                    Create Your First Book
-                  </Button>
-                )}
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        {/* Pagination */}
-        {totalPages > 1 && (
-          <div className="mt-8 flex justify-center animate-fade-in">
-            <Pagination>
-              <PaginationContent>
-                <PaginationItem>
-                  <PaginationPrevious 
-                    onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                    className={currentPage === 1 ? "pointer-events-none opacity-50" : "cursor-pointer hover-scale"}
-                  />
-                </PaginationItem>
-                
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                  <PaginationItem key={page}>
-                    <PaginationLink
-                      onClick={() => setCurrentPage(page)}
-                      isActive={currentPage === page}
-                      className="cursor-pointer hover-scale"
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg line-clamp-2">{book.title}</CardTitle>
+                  {book.subtitle && (
+                    <CardDescription className="text-sm text-gray-600 line-clamp-1">
+                      {book.subtitle}
+                    </CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between text-sm text-gray-600 mb-3">
+                    <span>by {book.authorname}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {book.role}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <BookOpen className="h-4 w-4 mr-1" />
+                      {book.wordCount?.toLocaleString() || 0} words
+                    </div>
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      {new Date(book.lastModified || book.createdAt).toLocaleDateString()}
+                    </div>
+                  </div>
+                  <div className="mt-3 flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => openEditor(book.id)}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700"
                     >
-                      {page}
-                    </PaginationLink>
-                  </PaginationItem>
-                ))}
-                
-                <PaginationItem>
-                  <PaginationNext 
-                    onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                    className={currentPage === totalPages ? "pointer-events-none opacity-50" : "cursor-pointer hover-scale"}
-                  />
-                </PaginationItem>
-              </PaginationContent>
-            </Pagination>
-          </div>
-        )}
-
-        {books.length === 0 && (
-          <div className="text-center py-16 animate-fade-in">
-            <div className="w-24 h-24 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-6 pulse-glow">
-              <Book size={32} className="text-muted-foreground" />
-            </div>
-            <h3 className="text-xl font-medium mb-2">No books yet</h3>
-            <p className="text-muted-foreground mb-6">Create your first book to get started</p>
-            <Button onClick={() => setIsCreateModalOpen(true)} className="pulse-glow hover-scale">
-              <Plus size={16} className="mr-2" />
-              Create Your First Book
-            </Button>
+                      Write
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openBook(book.id)}
+                      className="flex-1"
+                    >
+                      Details
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </div>
 
+      {/* Modals */}
       <CreateBookModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
         onCreateBookWithImage={handleCreateBookWithImage}
-        onCreateBook={handleCreateBook}
+        onCreateBookWithoutImage={handleCreateBook}
       />
 
-      {/* Loading Spinner */}
-      {isLoading && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
-          <div className="relative inline-block w-12 h-12">
-            <span className="absolute inline-block w-full h-full border-4 border-t-primary border-b-secondary rounded-full animate-spin"></span>
-          </div>
-        </div>
+      {selectedBook && (
+        <EditBookModal
+          isOpen={showEditModal}
+          onClose={() => {
+            setShowEditModal(false);
+            setSelectedBook(null);
+          }}
+          book={selectedBook}
+          onUpdateBook={handleEditBook}
+        />
       )}
     </div>
   );

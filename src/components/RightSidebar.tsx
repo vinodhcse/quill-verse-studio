@@ -5,7 +5,6 @@ import { ChevronLeft, ChevronRight, MessageSquare, Settings, Users } from 'lucid
 import { ChangesSidebar } from './ChangesSidebar';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { Mode } from './ModeNavigation';
-import { cn } from '@/lib/utils';
 
 interface RightSidebarProps {
   mode: Mode;
@@ -20,11 +19,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'changes' | 'settings' | 'users'>('changes');
   const {
-    changeLogs,
-    comments,
+    changeLogs = [],
+    comments = [],
     acceptChange,
     rejectChange,
-  } = useCollaboration();
+  } = useCollaboration("mock-document-id");
 
   const mockBlockId = "block_001";
   const blockChanges = changeLogs.filter(change => change.block_id === mockBlockId);

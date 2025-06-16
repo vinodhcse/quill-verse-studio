@@ -104,7 +104,6 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         ? [
             TrackChangesExtension.configure({
               userName: userName,
-              userColor: userColor,
             }),
           ]
         : []),
@@ -112,7 +111,6 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         ? [
             CommentExtension.configure({
               userName: userName,
-              userColor: userColor,
             }),
           ]
         : []),
