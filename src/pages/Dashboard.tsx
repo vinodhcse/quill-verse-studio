@@ -243,19 +243,19 @@ const Dashboard = () => {
 
           <TabsContent value={activeTab} className="mt-6">
             {viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-4">
                 {/* Create New Book Card - only show for author tab */}
                 {activeTab === 'author' && (
                   <Card 
                     className="border-2 border-dashed border-muted-foreground/25 hover:border-primary/50 transition-all duration-300 cursor-pointer group bg-card/50 backdrop-blur-sm hover-scale"
                     onClick={() => setIsCreateModalOpen(true)}
                   >
-                    <CardContent className="flex flex-col items-center justify-center h-80 p-6">
-                      <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4 group-hover:bg-primary/20 transition-colors pulse-glow">
-                        <Plus size={24} className="text-primary" />
+                    <CardContent className="flex flex-col items-center justify-center h-64 p-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3 group-hover:bg-primary/20 transition-colors pulse-glow">
+                        <Plus size={20} className="text-primary" />
                       </div>
-                      <h3 className="font-medium text-center mb-2">Create New Book</h3>
-                      <p className="text-sm text-muted-foreground text-center">Start your next masterpiece</p>
+                      <h3 className="font-medium text-center mb-1 text-sm">Create New Book</h3>
+                      <p className="text-xs text-muted-foreground text-center">Start your next masterpiece</p>
                     </CardContent>
                   </Card>
                 )}
