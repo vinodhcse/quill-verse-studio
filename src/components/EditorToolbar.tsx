@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Editor } from '@tiptap/react';
 import { Button } from '@/components/ui/button';
@@ -34,7 +35,8 @@ interface EditorToolbarProps {
 }
 
 export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
-  const { bookId, versionId, selectedChapter } = useBookContext();
+  const { state } = useBookContext();
+  const { bookId, versionId, selectedChapter } = state;
 
   if (!editor) {
     return null;
@@ -97,12 +99,11 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
           if (uploadResponse?.data) {
             const url = uploadResponse?.data?.url;
             editor.chain().focus().setImage({ src: url }).run();
-            editor.commands.setContent(editor.getJSON()); // Force re-render by resetting content
+            editor.commands.setContent(editor.getJSON());
 
-            // Focus the editor on the newly added image
             const imageElement = editor.view.dom.querySelector(`img[src='${url}']`) as HTMLImageElement;
             if (imageElement) {
-              const position = editor.view.posAtDOM(imageElement, 0); // Correctly calculate position
+              const position = editor.view.posAtDOM(imageElement, 0);
               editor.chain().setTextSelection(position).focus().run();
             }
           } else {
@@ -123,14 +124,14 @@ export const EditorToolbar: React.FC<EditorToolbarProps> = ({ editor }) => {
       <div className="flex items-center space-x-1 mr-3">
         <ToolbarButton
           onClick={() => editor.chain().focus().undo().run()}
-          disabled={!editor.can().chain().focus().undo().run()}
+          disabled={!editor.can().undo()}
           title="Undo"
         >
           <Undo size={16} />
         </ToolbarButton>
         <ToolbarButton
           onClick={() => editor.chain().focus().redo().run()}
-          disabled={!editor.can().chain().focus().redo().run()}
+          disabled={!editor.can().redo()}
           title="Redo"
         >
           <Redo size={16} />
