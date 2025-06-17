@@ -165,10 +165,10 @@ const BookDetails = () => {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'author': return 'bg-purple-100 text-purple-800';
-      case 'Co-Author': return 'bg-blue-100 text-blue-800';
-      case 'Editor': return 'bg-green-100 text-green-800';
-      case 'Reviewer': return 'bg-orange-100 text-orange-800';
+      case 'AUTHOR': return 'bg-purple-100 text-purple-800';
+      case 'CO_WRITER': return 'bg-blue-100 text-blue-800';
+      case 'EDITOR': return 'bg-green-100 text-green-800';
+      case 'REVIEWER': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -462,7 +462,7 @@ const BookDetails = () => {
             {/* Collaborators List */}
             <div className="grid gap-3">
               {bookDetails.collaborators?.map((collaborator) => (
-                <Card key={collaborator.id}>
+                <Card key={collaborator.user_id}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-3">
@@ -471,21 +471,21 @@ const BookDetails = () => {
                         </div>
                         <div>
                           <p className="font-medium">{collaborator.name}</p>
-                          <p className="text-sm text-muted-foreground">{collaborator.email}</p>
+                          <p className="text-sm text-muted-foreground">{collaborator.user_email}</p>
                         </div>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <Badge className={getRoleColor(collaborator.role)}>
-                          {collaborator.role}
+                        <Badge className={getRoleColor(collaborator.collaborator_type)}>
+                          {collaborator.collaborator_type}
                         </Badge>
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => handleDeleteCollaborator(collaborator.id)}
-                          disabled={isDeletingCollaborator === collaborator.id}
+                          onClick={() => handleDeleteCollaborator(collaborator.user_id)}
+                          disabled={isDeletingCollaborator === collaborator.user_id}
                           className="text-red-600 hover:text-red-700 hover:bg-red-50"
                         >
-                          {isDeletingCollaborator === collaborator.id ? (
+                          {isDeletingCollaborator === collaborator.user_id ? (
                             <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
                           ) : (
                             <Trash2 size={16} />
