@@ -430,9 +430,9 @@ const BookDetails = () => {
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  <SelectItem value="Co-Author">Co-Author</SelectItem>
-                                  <SelectItem value="Editor">Editor</SelectItem>
-                                  <SelectItem value="Reviewer">Reviewer</SelectItem>
+                                  <SelectItem value="CO_WRITER">CO_WRITER</SelectItem>
+                                  <SelectItem value="EDITOR">EDITOR</SelectItem>
+                                  <SelectItem value="REVIEWER">REVIEWER</SelectItem>
                                 </SelectContent>
                               </Select>
                             </FormControl>
