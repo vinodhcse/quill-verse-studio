@@ -1,6 +1,8 @@
+
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { fetchChapters, fetchSelectedChapter } from './bookService';
+import { apiClient } from './api';
 
 const initialState = {
   bookId: null,
@@ -8,6 +10,8 @@ const initialState = {
   chapterId: null,
   chapters: [],
   selectedChapter: null,
+  bookDetails: null,
+  collaborators: [],
 };
 
 const BookContext = createContext(null);
@@ -24,6 +28,10 @@ const bookReducer = (state, action) => {
       return { ...state, chapters: action.payload };
     case 'SET_SELECTED_CHAPTER':
       return { ...state, selectedChapter: action.payload };
+    case 'SET_BOOK_DETAILS':
+      return { ...state, bookDetails: action.payload };
+    case 'SET_COLLABORATORS':
+      return { ...state, collaborators: action.payload };
     default:
       return state;
   }
@@ -44,6 +52,18 @@ export const BookProvider = ({ children }) => {
       } catch (error) {
         console.error('Failed to refetch chapters:', error);
         dispatch({ type: 'SET_CHAPTERS', payload: [] });
+      }
+    }
+  };
+
+  const fetchBookDetails = async () => {
+    if (state.bookId) {
+      try {
+        const response = await apiClient.get(`/books/${state.bookId}`);
+        dispatch({ type: 'SET_BOOK_DETAILS', payload: response.data });
+        dispatch({ type: 'SET_COLLABORATORS', payload: response.data.collaborators || [] });
+      } catch (error) {
+        console.error('Failed to fetch book details:', error);
       }
     }
   };
@@ -89,13 +109,16 @@ export const BookProvider = ({ children }) => {
           setLoading(false);
         }
       }
+
+      // Fetch book details including collaborators
+      await fetchBookDetails();
     };
 
     fetchData();
   }, [state.bookId, state.versionId, state.chapterId]);
 
   return (
-    <BookContext.Provider value={{ state, dispatch, refetchChapters, loading }}>
+    <BookContext.Provider value={{ state, dispatch, refetchChapters, fetchBookDetails, loading }}>
       {children}
     </BookContext.Provider>
   );
