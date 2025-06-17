@@ -76,6 +76,7 @@ const BookDetails = () => {
       if (existingUser) {
         // User exists, add them directly to collaborators
         const currentCollaborators = bookDetails?.collaborators || [];
+        const currentCollaboratorsIds = bookDetails?.collaboratorIds }} []
         const newCollaborator = {
           user_id: existingUser.id,
           user_email: existingUser.email,
@@ -87,9 +88,11 @@ const BookDetails = () => {
         };
 
         const updatedCollaborators = [...currentCollaborators, newCollaborator];
+        const updatedCollaboratorids = [...currentCollaboratorsIds, existingUser.id];
 
         await apiClient.patch(`/books/${bookId}`, {
-          collaborators: updatedCollaborators
+          collaborators: updatedCollaborators,
+          collaboratorIds: updatedCollaboratorids
         });
       } else {
         // User doesn't exist, create placeholder and send invitation
