@@ -78,6 +78,8 @@ const BookDetails = () => {
         const currentCollaborators = bookDetails?.collaborators || [];
         const newCollaborator = {
           user_id: existingUser.id,
+          user_email: existingUser.email,
+          name: existingUser.name,
           collaborator_type: data.role,
           addedBy: "user_001", // This should come from current user context
           addedAt: new Date().toISOString(),
