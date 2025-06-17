@@ -76,7 +76,7 @@ const BookDetails = () => {
       if (existingUser) {
         // User exists, add them directly to collaborators
         const currentCollaborators = bookDetails?.collaborators || [];
-        const currentCollaboratorsIds = bookDetails?.collaboratorIds }} []
+        const currentCollaboratorsIds = bookDetails?.collaboratorIds || [];
         const newCollaborator = {
           user_id: existingUser.id,
           user_email: existingUser.email,
@@ -183,7 +183,7 @@ const BookDetails = () => {
     try {
       // Filter out the collaborator to be deleted
       const updatedCollaborators = bookDetails.collaborators.filter(
-        collaborator => collaborator.id !== collaboratorId
+        collaborator => collaborator.user_id !== collaboratorId
       );
 
       // Update the book with the new collaborators list
