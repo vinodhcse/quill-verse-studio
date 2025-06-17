@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -8,11 +7,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share, Edit, UserPlus } from 'lucide-react';
+import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share, Edit, UserPlus, Trash2 } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
 import { useForm } from 'react-hook-form';
 import { EditBookModal } from '@/components/EditBookModal';
+import { useToast } from '@/hooks/use-toast';
 
 interface InviteFormData {
   email: string;
@@ -22,12 +22,14 @@ interface InviteFormData {
 const BookDetails = () => {
   const { bookId } = useParams<{ bookId: string }>();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [bookDetails, setBookDetails] = useState<BookDetailsType | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isInviting, setIsInviting] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [isDeletingCollaborator, setIsDeletingCollaborator] = useState<string | null>(null);
 
   const form = useForm<InviteFormData>({
     defaultValues: {
@@ -166,6 +168,43 @@ const BookDetails = () => {
       case 'Editor': return 'bg-green-100 text-green-800';
       case 'Reviewer': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleDeleteCollaborator = async (collaboratorId: string) => {
+    if (!bookDetails) return;
+    
+    setIsDeletingCollaborator(collaboratorId);
+    try {
+      // Filter out the collaborator to be deleted
+      const updatedCollaborators = bookDetails.collaborators.filter(
+        collaborator => collaborator.id !== collaboratorId
+      );
+
+      // Update the book with the new collaborators list
+      await apiClient.patch(`/books/${bookId}`, {
+        collaborators: updatedCollaborators
+      });
+
+      // Update local state
+      setBookDetails({
+        ...bookDetails,
+        collaborators: updatedCollaborators
+      });
+
+      toast({
+        title: "Success",
+        description: "Collaborator removed successfully",
+      });
+    } catch (error) {
+      console.error('Failed to delete collaborator:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove collaborator. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeletingCollaborator(null);
     }
   };
 
@@ -433,9 +472,24 @@ const BookDetails = () => {
                           <p className="text-sm text-muted-foreground">{collaborator.email}</p>
                         </div>
                       </div>
-                      <Badge className={getRoleColor(collaborator.role)}>
-                        {collaborator.role}
-                      </Badge>
+                      <div className="flex items-center space-x-2">
+                        <Badge className={getRoleColor(collaborator.role)}>
+                          {collaborator.role}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteCollaborator(collaborator.id)}
+                          disabled={isDeletingCollaborator === collaborator.id}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          {isDeletingCollaborator === collaborator.id ? (
+                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                        </Button>
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
