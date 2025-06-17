@@ -186,9 +186,14 @@ const BookDetails = () => {
         collaborator => collaborator.user_id !== collaboratorId
       );
 
+      const updatedCollaboratorids = bookDetails?.collaboratorIds?.filter(
+         id => id !== collaboratorId
+      );
+
       // Update the book with the new collaborators list
       await apiClient.patch(`/books/${bookId}`, {
-        collaborators: updatedCollaborators
+        collaborators: updatedCollaborators,
+        collaboratorIds: updatedCollaboratorids
       });
 
       // Update local state
