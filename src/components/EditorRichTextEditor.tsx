@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -26,6 +25,7 @@ import { cn } from '@/lib/utils';
 import './editor-styles.css';
 import './collaboration-styles.css';
 import { Node } from '@tiptap/core';
+import { consolidateTrackChanges } from '@/utils/trackChangesUtils';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -158,7 +158,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     content: { type: 'doc', content: [] },
     onUpdate: ({ editor, transaction }) => {
       const updated = editor.getJSON();
-      latestContentRef.current = updated;
+      
+      // Consolidate track changes before saving
+      const consolidatedContent = consolidateTrackChanges(updated);
+      latestContentRef.current = consolidatedContent;
 
       const plainText = editor.getText();
       const totalCharacters = plainText.length;

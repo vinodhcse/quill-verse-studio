@@ -16,6 +16,7 @@ declare module '@tiptap/core' {
       acceptChange: (changeId?: string) => ReturnType;
       rejectChange: (changeId?: string) => ReturnType;
       toggleTrackChanges: (enabled: boolean) => ReturnType;
+      consolidateInsertions: () => ReturnType;
     };
   }
 }
@@ -195,7 +196,71 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
         ({ editor }) => {
           const plugin = trackChangesPluginKey.get(editor.state);
           if (plugin) {
-            (plugin.spec as any).enabled = enabled;
+            (plugin.spec as any).trackChangesEnabled = enabled;
+          }
+          return true;
+        },
+      consolidateInsertions:
+        () =>
+        ({ editor }) => {
+          const { state } = editor;
+          const { tr } = state;
+          let modified = false;
+          const consolidatedNodes: any[] = [];
+
+          // Group consecutive insertion nodes
+          state.doc.descendants((node, pos) => {
+            if (node.isText && node.marks) {
+              const insertionMark = node.marks.find(mark => 
+                mark.type.name === 'textStyle' && mark.attrs.insertion
+              );
+              
+              if (insertionMark) {
+                const lastGroup = consolidatedNodes[consolidatedNodes.length - 1];
+                
+                if (lastGroup && 
+                    lastGroup.insertionData === insertionMark.attrs.insertion &&
+                    lastGroup.endPos === pos) {
+                  // Extend the last group
+                  lastGroup.text += node.text;
+                  lastGroup.endPos = pos + node.nodeSize;
+                  lastGroup.nodes.push({ node, pos });
+                } else {
+                  // Start a new group
+                  consolidatedNodes.push({
+                    insertionData: insertionMark.attrs.insertion,
+                    changeId: insertionMark.attrs.changeId,
+                    text: node.text,
+                    startPos: pos,
+                    endPos: pos + node.nodeSize,
+                    nodes: [{ node, pos }]
+                  });
+                }
+              }
+            }
+          });
+
+          // Replace groups with single nodes
+          consolidatedNodes.reverse().forEach(group => {
+            if (group.nodes.length > 1) {
+              // Remove all individual nodes
+              group.nodes.forEach(({ pos, node }) => {
+                tr.delete(pos, pos + node.nodeSize);
+              });
+              
+              // Insert consolidated text
+              const insertionMark = editor.schema.marks.textStyle.create({
+                insertion: group.insertionData,
+                changeId: group.changeId
+              });
+              
+              tr.insert(group.startPos, editor.schema.text(group.text, [insertionMark]));
+              modified = true;
+            }
+          });
+
+          if (modified) {
+            editor.view.dispatch(tr);
           }
           return true;
         },
@@ -204,29 +269,6 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
 
   addProseMirrorPlugins() {
     const { userId, userName } = this.options;
-    let pendingInsertion = '';
-    let insertionStart = -1;
-    let insertionTimeout: NodeJS.Timeout | null = null;
-
-    const commitPendingInsertion = (editor: any) => {
-      if (pendingInsertion && insertionStart >= 0) {
-        const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
-        
-        // Apply mark to the entire pending insertion
-        editor.commands.setTextSelection({
-          from: insertionStart,
-          to: insertionStart + pendingInsertion.length
-        });
-        editor.commands.setMark('textStyle', {
-          insertion: changeData,
-          changeId: changeId
-        });
-        
-        pendingInsertion = '';
-        insertionStart = -1;
-      }
-    };
 
     return [
       new Plugin({
@@ -237,7 +279,7 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           },
           apply(tr, decorationSet, oldState, newState) {
             const plugin = trackChangesPluginKey.get(newState);
-            const enabled = plugin ? (plugin.spec as any).enabled !== false : this.options.enabled;
+            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : this.options.enabled;
             
             if (!enabled) {
               return DecorationSet.empty;
@@ -273,52 +315,6 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
                         return span;
                       });
                       decorationSet = decorationSet.add(tr.doc, [decoration]);
-                    }
-                    
-                    // Start tracking the new insertion
-                    const newText = slice.content.textBetween(0, slice.content.size);
-                    if (newText) {
-                      if (insertionStart === -1) {
-                        insertionStart = from;
-                        pendingInsertion = newText;
-                      } else {
-                        pendingInsertion += newText;
-                      }
-                      
-                      // Clear existing timeout and set new one
-                      if (insertionTimeout) {
-                        clearTimeout(insertionTimeout);
-                      }
-                      
-                      insertionTimeout = setTimeout(() => {
-                        commitPendingInsertion(tr.getMeta('editor'));
-                      }, 500); // Wait 500ms after last keystroke
-                    }
-                  }
-                  // Handle pure insertions
-                  else if (slice.size > 0) {
-                    const newText = slice.content.textBetween(0, slice.content.size);
-                    if (newText) {
-                      if (insertionStart === -1) {
-                        insertionStart = from;
-                        pendingInsertion = newText;
-                      } else if (from === insertionStart + pendingInsertion.length) {
-                        // Continuing previous insertion
-                        pendingInsertion += newText;
-                      } else {
-                        // New insertion at different position
-                        commitPendingInsertion(tr.getMeta('editor'));
-                        insertionStart = from;
-                        pendingInsertion = newText;
-                      }
-                      
-                      if (insertionTimeout) {
-                        clearTimeout(insertionTimeout);
-                      }
-                      
-                      insertionTimeout = setTimeout(() => {
-                        commitPendingInsertion(tr.getMeta('editor'));
-                      }, 500);
                     }
                   }
                   // Handle pure deletions
@@ -356,9 +352,35 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           decorations(state) {
             return this.getState(state);
           },
+          handleTextInput(view, from, to, text) {
+            const plugin = trackChangesPluginKey.get(view.state);
+            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : true;
+            
+            if (!enabled) {
+              return false;
+            }
+
+            // Mark new insertions immediately at character level
+            const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
+            
+            const tr = view.state.tr;
+            tr.insertText(text, from, to);
+            
+            // Apply insertion mark to the new text
+            const insertionMark = view.state.schema.marks.textStyle.create({
+              insertion: changeData,
+              changeId: changeId
+            });
+            
+            tr.addMark(from, from + text.length, insertionMark);
+            view.dispatch(tr);
+            
+            return true;
+          },
         },
         spec: {
-          enabled: this.options.enabled,
+          trackChangesEnabled: this.options.enabled,
         } as any,
       }),
     ];
