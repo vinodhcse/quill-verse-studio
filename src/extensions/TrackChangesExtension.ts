@@ -1,4 +1,3 @@
-
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -14,8 +13,8 @@ declare module '@tiptap/core' {
     trackChanges: {
       setInsertion: (userId: string, userName: string) => ReturnType;
       setDeletion: (userId: string, userName: string) => ReturnType;
-      acceptChange: () => ReturnType;
-      rejectChange: () => ReturnType;
+      acceptChange: (changeId?: string) => ReturnType;
+      rejectChange: (changeId?: string) => ReturnType;
       toggleTrackChanges: (enabled: boolean) => ReturnType;
     };
   }
@@ -65,6 +64,18 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
               };
             },
           },
+          changeId: {
+            default: null,
+            parseHTML: element => element.getAttribute('data-change-id'),
+            renderHTML: attributes => {
+              if (!attributes.changeId) {
+                return {};
+              }
+              return {
+                'data-change-id': attributes.changeId,
+              };
+            },
+          },
         },
       },
     ];
@@ -75,23 +86,108 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
       setInsertion:
         (userId: string, userName: string) =>
         ({ commands }) => {
+          const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
-          return commands.setMark('textStyle', { insertion: changeData });
+          return commands.setMark('textStyle', { 
+            insertion: changeData,
+            changeId: changeId 
+          });
         },
       setDeletion:
         (userId: string, userName: string) =>
         ({ commands }) => {
+          const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
-          return commands.setMark('textStyle', { deletion: changeData });
+          return commands.setMark('textStyle', { 
+            deletion: changeData,
+            changeId: changeId 
+          });
         },
       acceptChange:
-        () =>
-        ({ commands }) => {
+        (changeId?: string) =>
+        ({ editor, commands }) => {
+          if (changeId) {
+            // Find and remove specific change marks
+            const { state } = editor;
+            const { tr } = state;
+            let modified = false;
+
+            state.doc.descendants((node, pos) => {
+              if (node.marks) {
+                node.marks.forEach(mark => {
+                  if (mark.type.name === 'textStyle' && 
+                      mark.attrs.changeId === changeId) {
+                    // Remove the track changes marks but keep the text
+                    const newAttrs = { ...mark.attrs };
+                    delete newAttrs.insertion;
+                    delete newAttrs.deletion;
+                    delete newAttrs.changeId;
+                    
+                    if (Object.keys(newAttrs).length === 0) {
+                      tr.removeMark(pos, pos + node.nodeSize, mark.type);
+                    } else {
+                      tr.addMark(pos, pos + node.nodeSize, 
+                        mark.type.create(newAttrs));
+                    }
+                    modified = true;
+                  }
+                });
+              }
+            });
+
+            if (modified) {
+              editor.view.dispatch(tr);
+            }
+            return true;
+          }
+          
+          // Accept all changes if no specific ID
           return commands.unsetMark('textStyle');
         },
       rejectChange:
-        () =>
-        ({ commands }) => {
+        (changeId?: string) =>
+        ({ editor, commands }) => {
+          if (changeId) {
+            const { state } = editor;
+            const { tr } = state;
+            let modified = false;
+
+            state.doc.descendants((node, pos) => {
+              if (node.marks) {
+                node.marks.forEach(mark => {
+                  if (mark.type.name === 'textStyle' && 
+                      mark.attrs.changeId === changeId) {
+                    
+                    // For insertions: remove the text
+                    if (mark.attrs.insertion) {
+                      tr.delete(pos, pos + node.nodeSize);
+                      modified = true;
+                    }
+                    // For deletions: restore the text and remove deletion mark
+                    else if (mark.attrs.deletion) {
+                      const newAttrs = { ...mark.attrs };
+                      delete newAttrs.deletion;
+                      delete newAttrs.changeId;
+                      
+                      if (Object.keys(newAttrs).length === 0) {
+                        tr.removeMark(pos, pos + node.nodeSize, mark.type);
+                      } else {
+                        tr.addMark(pos, pos + node.nodeSize, 
+                          mark.type.create(newAttrs));
+                      }
+                      modified = true;
+                    }
+                  }
+                });
+              }
+            });
+
+            if (modified) {
+              editor.view.dispatch(tr);
+            }
+            return true;
+          }
+          
           return commands.deleteSelection();
         },
       toggleTrackChanges:
@@ -99,7 +195,6 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
         ({ editor }) => {
           const plugin = trackChangesPluginKey.get(editor.state);
           if (plugin) {
-            // Store enabled state in the plugin's spec
             (plugin.spec as any).enabled = enabled;
           }
           return true;
@@ -109,6 +204,29 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
 
   addProseMirrorPlugins() {
     const { userId, userName } = this.options;
+    let pendingInsertion = '';
+    let insertionStart = -1;
+    let insertionTimeout: NodeJS.Timeout | null = null;
+
+    const commitPendingInsertion = (editor: any) => {
+      if (pendingInsertion && insertionStart >= 0) {
+        const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
+        
+        // Apply mark to the entire pending insertion
+        editor.commands.setTextSelection({
+          from: insertionStart,
+          to: insertionStart + pendingInsertion.length
+        });
+        editor.commands.setMark('textStyle', {
+          insertion: changeData,
+          changeId: changeId
+        });
+        
+        pendingInsertion = '';
+        insertionStart = -1;
+      }
+    };
 
     return [
       new Plugin({
@@ -118,7 +236,6 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
             return DecorationSet.empty;
           },
           apply(tr, decorationSet, oldState, newState) {
-            // Check if track changes is enabled
             const plugin = trackChangesPluginKey.get(newState);
             const enabled = plugin ? (plugin.spec as any).enabled !== false : this.options.enabled;
             
@@ -128,54 +245,105 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
 
             decorationSet = decorationSet.map(tr.mapping, tr.doc);
 
-            // Detect insertions and deletions
             if (tr.docChanged) {
               tr.steps.forEach((step: any) => {
                 if (step.jsonID === 'replace') {
                   const { from, to, slice } = step;
                   
-                  // Handle insertions
-                  if (slice.size > 0) {
-                    const changeData = JSON.stringify({ 
-                      userId, 
-                      userName, 
-                      timestamp: Date.now(),
-                      type: 'insertion'
-                    });
-                    
-                    // Add decoration for visual highlighting
-                    const decoration = Decoration.inline(
-                      from, 
-                      from + slice.size, 
-                      { 
-                        class: 'track-insertion',
-                        'data-insertion': changeData 
-                      }
-                    );
-                    decorationSet = decorationSet.add(tr.doc, [decoration]);
-                  }
-                  
-                  // Handle deletions
-                  if (from < to && slice.size === 0) {
-                    const deletedContent = oldState.doc.slice(from, to);
+                  // Handle selection replacement (selected text + new text)
+                  if (from < to && slice.size > 0) {
+                    // Mark original text as deleted
                     const deletedText = oldState.doc.textBetween(from, to);
-                    const changeData = JSON.stringify({ 
-                      userId, 
-                      userName, 
-                      timestamp: Date.now(),
-                      type: 'deletion',
-                      deletedText: deletedText
-                    });
+                    if (deletedText) {
+                      const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                      const changeData = JSON.stringify({ 
+                        userId, 
+                        userName, 
+                        timestamp: Date.now(),
+                        type: 'deletion',
+                        deletedText: deletedText
+                      });
+                      
+                      const decoration = Decoration.widget(from, () => {
+                        const span = document.createElement('span');
+                        span.className = 'track-deletion';
+                        span.setAttribute('data-deletion', changeData);
+                        span.setAttribute('data-change-id', changeId);
+                        span.textContent = deletedText;
+                        return span;
+                      });
+                      decorationSet = decorationSet.add(tr.doc, [decoration]);
+                    }
                     
-                    // Add decoration to show deleted content
-                    const decoration = Decoration.widget(from, () => {
-                      const span = document.createElement('span');
-                      span.className = 'track-deletion';
-                      span.setAttribute('data-deletion', changeData);
-                      span.textContent = deletedText;
-                      return span;
-                    });
-                    decorationSet = decorationSet.add(tr.doc, [decoration]);
+                    // Start tracking the new insertion
+                    const newText = slice.content.textBetween(0, slice.content.size);
+                    if (newText) {
+                      if (insertionStart === -1) {
+                        insertionStart = from;
+                        pendingInsertion = newText;
+                      } else {
+                        pendingInsertion += newText;
+                      }
+                      
+                      // Clear existing timeout and set new one
+                      if (insertionTimeout) {
+                        clearTimeout(insertionTimeout);
+                      }
+                      
+                      insertionTimeout = setTimeout(() => {
+                        commitPendingInsertion(tr.getMeta('editor'));
+                      }, 500); // Wait 500ms after last keystroke
+                    }
+                  }
+                  // Handle pure insertions
+                  else if (slice.size > 0) {
+                    const newText = slice.content.textBetween(0, slice.content.size);
+                    if (newText) {
+                      if (insertionStart === -1) {
+                        insertionStart = from;
+                        pendingInsertion = newText;
+                      } else if (from === insertionStart + pendingInsertion.length) {
+                        // Continuing previous insertion
+                        pendingInsertion += newText;
+                      } else {
+                        // New insertion at different position
+                        commitPendingInsertion(tr.getMeta('editor'));
+                        insertionStart = from;
+                        pendingInsertion = newText;
+                      }
+                      
+                      if (insertionTimeout) {
+                        clearTimeout(insertionTimeout);
+                      }
+                      
+                      insertionTimeout = setTimeout(() => {
+                        commitPendingInsertion(tr.getMeta('editor'));
+                      }, 500);
+                    }
+                  }
+                  // Handle pure deletions
+                  else if (from < to && slice.size === 0) {
+                    const deletedText = oldState.doc.textBetween(from, to);
+                    if (deletedText) {
+                      const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                      const changeData = JSON.stringify({ 
+                        userId, 
+                        userName, 
+                        timestamp: Date.now(),
+                        type: 'deletion',
+                        deletedText: deletedText
+                      });
+                      
+                      const decoration = Decoration.widget(from, () => {
+                        const span = document.createElement('span');
+                        span.className = 'track-deletion';
+                        span.setAttribute('data-deletion', changeData);
+                        span.setAttribute('data-change-id', changeId);
+                        span.textContent = deletedText;
+                        return span;
+                      });
+                      decorationSet = decorationSet.add(tr.doc, [decoration]);
+                    }
                   }
                 }
               });
