@@ -30,6 +30,8 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
           // Start consolidating consecutive insertions
           let consolidatedText = item.text || '';
           let j = i + 1;
+          const insertionData = insertionMark.attrs.insertion;
+          const changeId = insertionMark.attrs.changeId;
 
           // Look ahead for consecutive insertions with same user/timestamp
           while (j < content.length) {
@@ -41,7 +43,8 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
               );
 
               if (nextInsertionMark && 
-                  nextInsertionMark.attrs.insertion === insertionMark.attrs.insertion) {
+                  nextInsertionMark.attrs.insertion === insertionData &&
+                  nextInsertionMark.attrs.changeId === changeId) {
                 consolidatedText += nextItem.text || '';
                 j++;
               } else {
@@ -52,14 +55,19 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
             }
           }
 
-          // Create consolidated node
-          const consolidatedNode = {
-            ...item,
-            text: consolidatedText
-          };
-
-          result.push(consolidatedNode);
-          i = j; // Skip the consolidated items
+          // Create consolidated node if we found consecutive insertions
+          if (j > i + 1) {
+            const consolidatedNode = {
+              type: 'text',
+              text: consolidatedText,
+              marks: item.marks
+            };
+            result.push(consolidatedNode);
+            i = j; // Skip the consolidated items
+          } else {
+            result.push(item);
+            i++;
+          }
         } else {
           result.push(item);
           i++;
@@ -77,4 +85,67 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
     ...editorJSON,
     content: processContent(editorJSON.content)
   };
+};
+
+// Helper function to parse change data and extract user info
+export const parseChangeData = (changeDataStr: string) => {
+  try {
+    return JSON.parse(changeDataStr);
+  } catch {
+    return null;
+  }
+};
+
+// Helper function to extract all changes from editor content
+export const extractChangesFromContent = (content: any): any[] => {
+  const changes: any[] = [];
+
+  const processContent = (contentArray: any[]) => {
+    contentArray.forEach((item) => {
+      if (item.content) {
+        processContent(item.content);
+      }
+      
+      if (item.type === 'text' && item.marks) {
+        item.marks.forEach((mark: any) => {
+          if (mark.type === 'textStyle') {
+            if (mark.attrs?.insertion) {
+              const changeData = parseChangeData(mark.attrs.insertion);
+              if (changeData) {
+                changes.push({
+                  id: mark.attrs.changeId || `change-${Date.now()}`,
+                  type: 'insertion',
+                  text: item.text,
+                  user: changeData.userName || 'Unknown',
+                  userId: changeData.userId,
+                  timestamp: changeData.timestamp,
+                  changeData: mark.attrs
+                });
+              }
+            }
+            if (mark.attrs?.deletion) {
+              const changeData = parseChangeData(mark.attrs.deletion);
+              if (changeData) {
+                changes.push({
+                  id: mark.attrs.changeId || `change-${Date.now()}`,
+                  type: 'deletion',
+                  text: changeData.deletedText || item.text,
+                  user: changeData.userName || 'Unknown',
+                  userId: changeData.userId,
+                  timestamp: changeData.timestamp,
+                  changeData: mark.attrs
+                });
+              }
+            }
+          }
+        });
+      }
+    });
+  };
+
+  if (content?.content) {
+    processContent(content.content);
+  }
+
+  return changes;
 };

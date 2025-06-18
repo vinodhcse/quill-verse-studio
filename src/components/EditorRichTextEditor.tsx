@@ -25,7 +25,7 @@ import { cn } from '@/lib/utils';
 import './editor-styles.css';
 import './collaboration-styles.css';
 import { Node } from '@tiptap/core';
-import { consolidateTrackChanges } from '@/utils/trackChangesUtils';
+import { consolidateTrackChanges, extractChangesFromContent } from '@/utils/trackChangesUtils';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -102,6 +102,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   } = useCollaboration();
 
   const [showChangesSidebar, setShowChangesSidebar] = useState(false);
+  const [extractedChanges, setExtractedChanges] = useState<any[]>([]);
   const latestContentRef = useRef<any>(null);
   const initialContentLoaded = useRef(false);
   
@@ -163,6 +164,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       const consolidatedContent = consolidateTrackChanges(updated);
       latestContentRef.current = consolidatedContent;
 
+      // Extract changes for display
+      const changes = extractChangesFromContent(consolidatedContent);
+      setExtractedChanges(changes);
+
       const plainText = editor.getText();
       const totalCharacters = plainText.length;
       const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -203,12 +208,20 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   const handleAcceptChange = (changeId: string) => {
     if (editor) {
       editor.commands.acceptChange(changeId);
+      // Update extracted changes after accepting
+      const updated = editor.getJSON();
+      const changes = extractChangesFromContent(updated);
+      setExtractedChanges(changes);
     }
   };
 
   const handleRejectChange = (changeId: string) => {
     if (editor) {
       editor.commands.rejectChange(changeId);
+      // Update extracted changes after rejecting
+      const updated = editor.getJSON();
+      const changes = extractChangesFromContent(updated);
+      setExtractedChanges(changes);
     }
   };
 
@@ -220,6 +233,11 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       editor.commands.setContent(content);
       latestContentRef.current = content;
       initialContentLoaded.current = true;
+      
+      // Extract initial changes
+      const changes = extractChangesFromContent(content);
+      setExtractedChanges(changes);
+      
       console.log('Editor content set on load.');
     } else {
       editor.commands.clearContent();
@@ -277,6 +295,11 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
                 className="px-3 py-1 text-sm bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors"
               >
                 {showChangesSidebar ? 'Hide' : 'Show'} Changes
+                {extractedChanges.length > 0 && (
+                  <span className="ml-1 bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
+                    {extractedChanges.length}
+                  </span>
+                )}
               </button>
             )}
           </div>
@@ -318,7 +341,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       {showTrackChanges && showChangesSidebar && (
         <div className="w-80 border-l border-border/50 bg-background/80">
           <ChangesSidebar
-            changes={changeLogs}
+            changes={extractedChanges}
             comments={comments}
             onAcceptChange={handleAcceptChange}
             onRejectChange={handleRejectChange}
