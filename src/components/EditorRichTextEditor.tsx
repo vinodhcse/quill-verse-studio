@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -80,6 +81,42 @@ const SceneDivider = Node.create({
     };
   },
 });
+
+// Helper function to convert content format
+const convertContentFormat = (content: any) => {
+  console.log('Converting content format:', content);
+  
+  // If content is already in TipTap format, return as-is
+  if (content?.type === 'doc' && content?.content) {
+    console.log('Content already in TipTap format');
+    return content;
+  }
+  
+  // If content has blocks array (custom format), convert to TipTap format
+  if (content?.blocks && Array.isArray(content.blocks)) {
+    console.log('Converting from blocks format to TipTap format');
+    const tiptapContent = {
+      type: 'doc',
+      content: content.blocks.map((block: any) => {
+        // Convert each block to TipTap node format
+        if (block.type === 'paragraph') {
+          return {
+            type: 'paragraph',
+            attrs: block.attrs || { textAlign: 'left' },
+            content: block.content || []
+          };
+        }
+        return block;
+      })
+    };
+    console.log('Converted content:', tiptapContent);
+    return tiptapContent;
+  }
+  
+  // Return empty document if no valid content
+  console.log('No valid content found, returning empty doc');
+  return { type: 'doc', content: [] };
+};
 
 export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = ({
   content,
@@ -184,10 +221,16 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       transaction.setMeta('editor', editor);
       
       if (editMode !== 'review') {
-        // Consolidate track changes before saving
-        const consolidatedContent = consolidateTrackChanges(updated);
-        console.log('Saving consolidated content:', consolidatedContent);
-        onChange(consolidatedContent, totalCharacters, totalWords);
+        // Convert back to blocks format for saving
+        const blocksContent = {
+          blocks: updated.content || [],
+          metadata: {
+            totalCharacters,
+            totalWords
+          }
+        };
+        console.log('Saving content in blocks format:', blocksContent);
+        onChange(blocksContent, totalCharacters, totalWords);
       }
     },
     editable: editMode !== 'review',
@@ -282,22 +325,21 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   useEffect(() => {
     if (!editor || initialContentLoaded.current) return;
 
-    if (content?.type === 'doc') {
-      editor.commands.setContent(content);
-      latestContentRef.current = content;
-      initialContentLoaded.current = true;
-      
-      // Extract initial changes
-      const changes = extractChangesFromContent(content);
-      setExtractedChanges(changes);
-      if (onExtractedChangesUpdate) {
-        onExtractedChangesUpdate(changes);
-      }
-      
-      console.log('Editor content set on load.');
-    } else {
-      editor.commands.clearContent();
+    const convertedContent = convertContentFormat(content);
+    console.log('Setting converted content in editor:', convertedContent);
+    
+    editor.commands.setContent(convertedContent);
+    latestContentRef.current = convertedContent;
+    initialContentLoaded.current = true;
+    
+    // Extract initial changes
+    const changes = extractChangesFromContent(convertedContent);
+    setExtractedChanges(changes);
+    if (onExtractedChangesUpdate) {
+      onExtractedChangesUpdate(changes);
     }
+    
+    console.log('Editor content set on load.');
   }, [editor, content]);
 
   // Update track changes when showTrackChanges changes
@@ -363,10 +405,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       <div className="flex items-center justify-between px-6 py-3 border-t border-border/50 text-xs text-muted-foreground bg-background/50 z-50">
         <div className="flex items-center space-x-4">
           <span className="px-2 py-1 bg-muted/50 rounded-full">
-            {editor.storage.characterCount.characters()} characters
+            {editor?.storage.characterCount.characters()} characters
           </span>
           <span className="px-2 py-1 bg-muted/50 rounded-full">
-            {editor.storage.characterCount.words()} words
+            {editor?.storage.characterCount.words()} words
           </span>
           <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20">
             {editMode} mode • TipTap
