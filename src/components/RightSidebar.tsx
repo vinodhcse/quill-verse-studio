@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, MessageSquare, Settings, Users } from 'lucide-react';
@@ -70,11 +69,15 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   // Extract changes from the selected chapter content
   useEffect(() => {
     if (state.selectedChapter?.content) {
-      console.log('Extracting changes from chapter content:', state.selectedChapter.content);
+      console.log('RightSidebar: Extracting changes from chapter content');
+      console.log('Chapter content type:', typeof state.selectedChapter.content);
+      console.log('Chapter content:', state.selectedChapter.content);
+      
       const changes = extractChangesFromContent(state.selectedChapter.content);
-      console.log('Extracted changes:', changes);
+      console.log('RightSidebar: Extracted changes:', changes);
       setExtractedChanges(changes);
     } else {
+      console.log('RightSidebar: No chapter content available');
       setExtractedChanges([]);
     }
   }, [state.selectedChapter?.content]);
@@ -184,16 +187,18 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
           <div className="flex-1 overflow-hidden">
             {activeTab === 'changes' && (
-              <ChangesSidebar
-                changes={extractedChanges}
-                comments={blockComments}
-                onAcceptChange={handleAcceptChange}
-                onRejectChange={handleRejectChange}
-                onChangeClick={handleChangeClick}
-                focusedChangeId={focusedChangeId}
-                showChanges={true}
-                onToggleChanges={() => {}}
-              />
+              <div className="h-full">
+                <ChangesSidebar
+                  changes={extractedChanges}
+                  comments={blockComments}
+                  onAcceptChange={handleAcceptChange}
+                  onRejectChange={handleRejectChange}
+                  onChangeClick={handleChangeClick}
+                  focusedChangeId={focusedChangeId}
+                  showChanges={true}
+                  onToggleChanges={() => {}}
+                />
+              </div>
             )}
             {activeTab === 'users' && (
               <div className="p-4 h-full overflow-y-auto">

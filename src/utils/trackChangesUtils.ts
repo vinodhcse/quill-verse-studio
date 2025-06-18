@@ -1,4 +1,3 @@
-
 // Utility function to consolidate character-level insertions into word/sentence level before saving
 export const consolidateTrackChanges = (editorJSON: any): any => {
   if (!editorJSON || !editorJSON.content) {
@@ -168,55 +167,88 @@ export const parseChangeData = (changeDataStr: string) => {
 };
 
 // Helper function to extract all changes from editor content
-export const extractChangesFromContent = (content: any): any[] => {
-  const changes: any[] = [];
-
-  const processContent = (contentArray: any[]) => {
-    contentArray.forEach((item) => {
-      if (item.content) {
-        processContent(item.content);
-      }
-      
-      if (item.type === 'text' && item.marks) {
-        item.marks.forEach((mark: any) => {
-          if (mark.type === 'textStyle') {
-            if (mark.attrs?.insertion) {
-              const changeData = parseChangeData(mark.attrs.insertion);
-              if (changeData) {
-                changes.push({
-                  id: mark.attrs.changeId || `change-${Date.now()}`,
-                  type: 'insertion',
-                  text: item.text,
-                  user: changeData.userName || 'Unknown',
-                  userId: changeData.userId,
-                  timestamp: changeData.timestamp,
-                  changeData: mark.attrs
-                });
-              }
-            }
-            if (mark.attrs?.deletion) {
-              const changeData = parseChangeData(mark.attrs.deletion);
-              if (changeData) {
-                changes.push({
-                  id: mark.attrs.changeId || `change-${Date.now()}`,
-                  type: 'deletion',
-                  text: changeData.deletedText || item.text,
-                  user: changeData.userName || 'Unknown',
-                  userId: changeData.userId,
-                  timestamp: changeData.timestamp,
-                  changeData: mark.attrs
-                });
-              }
-            }
-          }
-        });
-      }
-    });
-  };
-
-  if (content?.content) {
-    processContent(content.content);
+export const extractChangesFromContent = (content: any): Change[] => {
+  const changes: Change[] = [];
+  
+  if (!content || !content.content) {
+    return changes;
   }
 
+  const extractFromNode = (node: any, path: string = '') => {
+    if (node.marks) {
+      node.marks.forEach((mark: any, markIndex: number) => {
+        if (mark.type === 'textStyle' && mark.attrs) {
+          const attrs = mark.attrs;
+          
+          // Handle deep nested structure
+          let changeId, insertion, deletion, userId, userName;
+          
+          if (attrs.changeId) {
+            changeId = typeof attrs.changeId === 'object' && attrs.changeId._type === 'MaxDepthReached' 
+              ? `change_${Date.now()}_${markIndex}` 
+              : attrs.changeId;
+          }
+          
+          if (attrs.insertion) {
+            insertion = typeof attrs.insertion === 'object' && attrs.insertion._type === 'MaxDepthReached' 
+              ? true 
+              : attrs.insertion;
+          }
+          
+          if (attrs.deletion) {
+            deletion = typeof attrs.deletion === 'object' && attrs.deletion._type === 'MaxDepthReached' 
+              ? true 
+              : attrs.deletion;
+          }
+          
+          if (attrs.userId) {
+            userId = typeof attrs.userId === 'object' && attrs.userId._type === 'MaxDepthReached' 
+              ? 'unknown' 
+              : attrs.userId;
+          }
+          
+          if (attrs.userName) {
+            userName = typeof attrs.userName === 'object' && attrs.userName._type === 'MaxDepthReached' 
+              ? 'Unknown User' 
+              : attrs.userName;
+          }
+
+          if ((insertion || deletion) && changeId) {
+            const existingChange = changes.find(c => c.id === changeId);
+            
+            if (!existingChange) {
+              changes.push({
+                id: changeId,
+                type: insertion ? 'insertion' : 'deletion',
+                text: node.text || 'Text change',
+                user: userName || 'Unknown User',
+                userId: userId || 'unknown',
+                timestamp: Date.now(),
+                changeData: {
+                  insertion,
+                  deletion,
+                  userId,
+                  userName
+                }
+              });
+            } else {
+              // Append text to existing change
+              existingChange.text += node.text || '';
+            }
+          }
+        }
+      });
+    }
+
+    if (node.content && Array.isArray(node.content)) {
+      node.content.forEach((child: any, index: number) => {
+        extractFromNode(child, `${path}.${index}`);
+      });
+    }
+  };
+
+  extractFromNode(content);
+  
+  console.log('Extracted changes:', changes);
   return changes;
 };
