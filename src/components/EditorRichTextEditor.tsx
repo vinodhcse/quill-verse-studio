@@ -215,6 +215,34 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     },
   });
 
+  // Listen for sidebar events
+  useEffect(() => {
+    const handleFocusChange = (event: CustomEvent) => {
+      const changeId = event.detail.changeId;
+      handleChangeClick(changeId);
+    };
+
+    const handleAcceptChangeEvent = (event: CustomEvent) => {
+      const changeId = event.detail.changeId;
+      handleAcceptChange(changeId);
+    };
+
+    const handleRejectChangeEvent = (event: CustomEvent) => {
+      const changeId = event.detail.changeId;
+      handleRejectChange(changeId);
+    };
+
+    window.addEventListener('focusChange', handleFocusChange as EventListener);
+    window.addEventListener('acceptChange', handleAcceptChangeEvent as EventListener);
+    window.addEventListener('rejectChange', handleRejectChangeEvent as EventListener);
+
+    return () => {
+      window.removeEventListener('focusChange', handleFocusChange as EventListener);
+      window.removeEventListener('acceptChange', handleAcceptChangeEvent as EventListener);
+      window.removeEventListener('rejectChange', handleRejectChangeEvent as EventListener);
+    };
+  }, [editor]);
+
   // Handle accept/reject changes
   const handleAcceptChange = (changeId: string) => {
     if (editor) {
@@ -268,6 +296,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
             if (element) {
               element.scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
+
+            // Notify sidebar to highlight this change
+            window.dispatchEvent(new CustomEvent('changeFocus', {
+              detail: { changeId }
+            }));
+            
             return false; // Stop searching
           }
         }

@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, MessageSquare, Settings, Users } from 'lucide-react';
 import { ChangesSidebar } from './ChangesSidebar';
 import { useCollaboration } from '@/hooks/useCollaboration';
+import { useBookContext } from '@/lib/BookContextProvider';
 import { Mode } from './ModeNavigation';
+import { extractChangesFromContent } from '@/utils/trackChangesUtils';
 import { cn } from '@/lib/utils';
 
 interface Change {
@@ -30,9 +32,6 @@ interface RightSidebarProps {
   mode: Mode;
   isCollapsed: boolean;
   onToggle: () => void;
-  extractedChanges?: Change[];
-  onAcceptChange?: (changeId: string) => void;
-  onRejectChange?: (changeId: string) => void;
   onChangeClick?: (changeId: string) => void;
 }
 
@@ -40,12 +39,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   mode,
   isCollapsed,
   onToggle,
-  extractedChanges = [],
-  onAcceptChange,
-  onRejectChange,
   onChangeClick,
 }) => {
   const [activeTab, setActiveTab] = useState<'changes' | 'settings' | 'users'>('changes');
+  const [extractedChanges, setExtractedChanges] = useState<Change[]>([]);
+  const [focusedChangeId, setFocusedChangeId] = useState<string | null>(null);
+  
+  const { state } = useBookContext();
   const {
     changeLogs,
     comments,
@@ -54,6 +54,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   } = useCollaboration();
 
   const mockBlockId = "block_001";
+  
   // Fix the type issue by ensuring all required properties exist
   const blockComments: Comment[] = comments
     .filter(comment => comment.block_id === mockBlockId)
@@ -66,10 +67,71 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       block_id: comment.block_id
     }));
 
+  // Extract changes from the selected chapter content
+  useEffect(() => {
+    if (state.selectedChapter?.content) {
+      console.log('Extracting changes from chapter content:', state.selectedChapter.content);
+      const changes = extractChangesFromContent(state.selectedChapter.content);
+      console.log('Extracted changes:', changes);
+      setExtractedChanges(changes);
+    } else {
+      setExtractedChanges([]);
+    }
+  }, [state.selectedChapter?.content]);
+
+  // Listen for change focus events from the editor
+  useEffect(() => {
+    const handleChangeFocus = (event: CustomEvent) => {
+      const changeId = event.detail.changeId;
+      setFocusedChangeId(changeId);
+      // Scroll to the change in the sidebar
+      setTimeout(() => {
+        const changeElement = document.querySelector(`[data-sidebar-change-id="${changeId}"]`);
+        if (changeElement) {
+          changeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 100);
+    };
+
+    window.addEventListener('changeFocus', handleChangeFocus as EventListener);
+    return () => {
+      window.removeEventListener('changeFocus', handleChangeFocus as EventListener);
+    };
+  }, []);
+
+  const handleChangeClick = (changeId: string) => {
+    setFocusedChangeId(changeId);
+    
+    // Dispatch custom event to focus the change in the editor
+    window.dispatchEvent(new CustomEvent('focusChange', {
+      detail: { changeId }
+    }));
+    
+    if (onChangeClick) {
+      onChangeClick(changeId);
+    }
+  };
+
+  const handleAcceptChange = (changeId: string) => {
+    // Dispatch event to editor to handle the change acceptance
+    window.dispatchEvent(new CustomEvent('acceptChange', {
+      detail: { changeId }
+    }));
+    acceptChange(changeId);
+  };
+
+  const handleRejectChange = (changeId: string) => {
+    // Dispatch event to editor to handle the change rejection
+    window.dispatchEvent(new CustomEvent('rejectChange', {
+      detail: { changeId }
+    }));
+    rejectChange(changeId);
+  };
+
   if (isCollapsed) return null;
 
   return (
-    <div className="h-full bg-background/80 backdrop-blur-md border-l border-border/50 overflow-hidden">
+    <div className="h-full bg-background/80 backdrop-blur-md border-l border-border/50 overflow-hidden flex flex-col">
       <div className="p-4 border-b border-border/50 flex items-center justify-between">
         <h3 className="font-semibold text-lg">Tools</h3>
         <Button
@@ -120,20 +182,21 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             </Button>
           </div>
 
-          <div className="flex-1 overflow-hidden h-[calc(100%-113px)]">
+          <div className="flex-1 overflow-hidden">
             {activeTab === 'changes' && (
               <ChangesSidebar
                 changes={extractedChanges}
                 comments={blockComments}
-                onAcceptChange={onAcceptChange || acceptChange}
-                onRejectChange={onRejectChange || rejectChange}
-                onChangeClick={onChangeClick}
+                onAcceptChange={handleAcceptChange}
+                onRejectChange={handleRejectChange}
+                onChangeClick={handleChangeClick}
+                focusedChangeId={focusedChangeId}
                 showChanges={true}
                 onToggleChanges={() => {}}
               />
             )}
             {activeTab === 'users' && (
-              <div className="p-4">
+              <div className="p-4 h-full overflow-y-auto">
                 <h4 className="text-sm font-medium mb-3">Active Users</h4>
                 <div className="space-y-3">
                   <div className="flex items-center space-x-3 p-2 rounded-lg bg-muted/50">
@@ -154,7 +217,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
               </div>
             )}
             {activeTab === 'settings' && (
-              <div className="p-4">
+              <div className="p-4 h-full overflow-y-auto">
                 <h4 className="text-sm font-medium mb-3">Editor Settings</h4>
                 <div className="space-y-3">
                   <div className="p-3 rounded-lg bg-muted/50">
@@ -174,7 +237,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       )}
 
       {mode === 'planning' && (
-        <div className="p-4">
+        <div className="p-4 h-full overflow-y-auto">
           <h4 className="text-sm font-medium mb-2">Planning Tools</h4>
           <p className="text-sm text-muted-foreground">Planning options will appear here.</p>
         </div>
