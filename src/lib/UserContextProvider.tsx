@@ -40,7 +40,7 @@ export const UserContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
           },
         });
         setUser({
-          userId: response.data.userId,
+          userId: response.data.id,
           name: response.data.name,
           email: response.data.email,
           globalRole: response.data.globalRole,

@@ -1,0 +1,24 @@
+.editor-wrapper {
+  padding: 1rem;
+  min-height: 80vh;
+  border: 1px solid #ccc;
+  border-radius: 0.5rem;
+}
+
+.locked-block {
+  position: relative;
+  pointer-events: none;
+  filter: blur(4px);
+  opacity: 0.7;
+}
+
+.locked-block::after {
+  content: 'Restricted Page';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 1.5rem;
+  color: red;
+  opacity: 0.2;
+}

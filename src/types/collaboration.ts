@@ -95,6 +95,7 @@ export interface BookDetails extends Book {
   genre?: string;
   chapters: Chapter[];
   collaborators: User[];
+  collaboratorIds: string[];
   versions: Version[];
   currentVersion: Version;
   settings: {

@@ -13,6 +13,8 @@ import { BookDetails as BookDetailsType, User as UserType, Version } from '@/typ
 import { useForm } from 'react-hook-form';
 import { EditBookModal } from '@/components/EditBookModal';
 import { useToast } from '@/hooks/use-toast';
+import { getLoggedInUserId } from '../lib/authService';
+import { useUserContext } from '../lib/UserContextProvider';
 
 interface InviteFormData {
   email: string;
@@ -30,6 +32,10 @@ const BookDetails = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [isDeletingCollaborator, setIsDeletingCollaborator] = useState<string | null>(null);
+  const [bookUserRole, setBookUserRole] = useState<string | null>(null);
+
+  const { userId: currentUserId } = useUserContext();
+  console.log('Current User ID:', currentUserId);
 
   const form = useForm<InviteFormData>({
     defaultValues: {
@@ -48,8 +54,27 @@ const BookDetails = () => {
           apiClient.get(`/books/${bookId}`),
           apiClient.get(`/books/${bookId}/versions`)
         ]);
-        setBookDetails(bookResponse.data);
+        const bookData = bookResponse.data;
+        setBookDetails(bookData);
         setVersions(versionsResponse.data);
+
+        // Determine user role
+        const loggedInUserId = currentUserId || getLoggedInUserId();
+        console.log('Logged In User ID:', loggedInUserId);
+        console.log('Book Author ID:', bookData.authorId);
+
+        if (bookData.authorId === loggedInUserId) {
+          setBookUserRole('AUTHOR');
+        } else {
+          console.log('Book colloborators:', bookData.collaborators);
+          const collaborator = bookData.collaborators.find(
+            (collab) => collab.user_id === loggedInUserId
+          );
+          console.log('Collaborator:', collaborator);
+          setBookUserRole(collaborator ? collaborator.collaborator_type : null);
+          console.log('Book User Role:', bookUserRole);
+        }
+        
       } catch (error) {
         console.error('Failed to fetch book details:', error);
       } finally {
@@ -82,7 +107,7 @@ const BookDetails = () => {
           user_email: existingUser.email,
           name: existingUser.name,
           collaborator_type: data.role,
-          addedBy: "user_001", // This should come from current user context
+          addedBy: currentUserId || "user_001", // This should come from current user context
           addedAt: new Date().toISOString(),
           expiresAt: null
         };
@@ -159,7 +184,13 @@ const BookDetails = () => {
   };
 
   const handleOpenVersion = (versionId: string) => {
-    navigate(`/write/book/${bookId}/version/${versionId}`);
+    let basePath = '/write';
+    if (bookUserRole === 'EDITOR') {
+      basePath = '/edit';
+    } else if (bookUserRole === 'REVIEWER') {
+      basePath = '/review';
+    }
+    navigate(`${basePath}/book/${bookId}/version/${versionId}`);
   };
 
   const formatDate = (dateString: string) => {
