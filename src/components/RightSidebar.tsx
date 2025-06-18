@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight, MessageSquare, Settings, Users } from 'lucide-react';
 import { ChangesSidebar } from './ChangesSidebar';
@@ -40,18 +40,43 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   mode,
   isCollapsed,
   onToggle,
-  extractedChanges = [],
+  extractedChanges: propExtractedChanges = [],
   onAcceptChange,
   onRejectChange,
   onChangeClick,
 }) => {
   const [activeTab, setActiveTab] = useState<'changes' | 'settings' | 'users'>('changes');
+  const [extractedChanges, setExtractedChanges] = useState<Change[]>(propExtractedChanges);
   const {
     changeLogs,
     comments,
     acceptChange,
     rejectChange,
   } = useCollaboration();
+
+  // Listen for changes from the editor
+  useEffect(() => {
+    const handleEditorChanges = (event: CustomEvent) => {
+      const { changes } = event.detail;
+      console.log('RightSidebar received extractedChanges:', changes);
+      setExtractedChanges(changes);
+    };
+
+    window.addEventListener('editorChangesUpdated', handleEditorChanges as EventListener);
+    
+    return () => {
+      window.removeEventListener('editorChangesUpdated', handleEditorChanges as EventListener);
+    };
+  }, []);
+
+  // Also update from props if provided
+  useEffect(() => {
+    if (propExtractedChanges.length > 0) {
+      setExtractedChanges(propExtractedChanges);
+    }
+  }, [propExtractedChanges]);
+
+  console.log('RightSidebar activeTab:', activeTab);
 
   const mockBlockId = "block_001";
   // Fix the type issue by ensuring all required properties exist

@@ -167,11 +167,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       const updated = editor.getJSON();
       latestContentRef.current = updated;
 
-      // Extract changes for display
+      // Extract changes for display immediately after each update
       const changes = extractChangesFromContent(updated);
+      console.log('Extracted changes:', changes);
       setExtractedChanges(changes);
       
-      // Pass changes to parent component
+      // Pass changes to parent component immediately
       if (onExtractedChangesUpdate) {
         onExtractedChangesUpdate(changes);
       }
@@ -289,6 +290,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       
       // Extract initial changes
       const changes = extractChangesFromContent(content);
+      console.log('Initial extracted changes:', changes);
       setExtractedChanges(changes);
       if (onExtractedChangesUpdate) {
         onExtractedChangesUpdate(changes);
