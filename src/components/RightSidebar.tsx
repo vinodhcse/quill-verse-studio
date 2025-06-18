@@ -17,6 +17,15 @@ interface Change {
   changeData: any;
 }
 
+interface Comment {
+  id: string;
+  content: string;
+  user_id: string;
+  created_at: string;
+  resolved: boolean;
+  block_id: string;
+}
+
 interface RightSidebarProps {
   mode: Mode;
   isCollapsed: boolean;
@@ -45,7 +54,17 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   } = useCollaboration();
 
   const mockBlockId = "block_001";
-  const blockComments = comments.filter(comment => comment.block_id === mockBlockId);
+  // Fix the type issue by ensuring all required properties exist
+  const blockComments: Comment[] = comments
+    .filter(comment => comment.block_id === mockBlockId)
+    .map(comment => ({
+      id: comment.id,
+      content: comment.content,
+      user_id: comment.user_id || 'unknown',
+      created_at: comment.created_at,
+      resolved: comment.resolved || false,
+      block_id: comment.block_id
+    }));
 
   if (isCollapsed) return null;
 

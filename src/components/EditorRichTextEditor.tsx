@@ -18,7 +18,6 @@ import { EditorToolbar } from './EditorToolbar';
 import { EditModeSelector } from './EditModeSelector';
 import { TextContextMenu } from './TextContextMenu';
 import { TrackChangesToggle } from './TrackChangesToggle';
-import { ChangesSidebar } from './ChangesSidebar';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useUserContext } from '@/lib/UserContextProvider';
 import { cn } from '@/lib/utils';
@@ -36,6 +35,10 @@ interface CollaborativeRichTextEditorProps {
   selectedChapter: any;
   showTrackChanges?: boolean;
   onTrackChangesToggle?: (show: boolean) => void;
+  onExtractedChangesUpdate?: (changes: any[]) => void;
+  onAcceptChange?: (changeId: string) => void;
+  onRejectChange?: (changeId: string) => void;
+  onChangeClick?: (changeId: string) => void;
 }
 
 const SceneDivider = Node.create({
@@ -87,6 +90,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   selectedChapter,
   showTrackChanges = false,
   onTrackChangesToggle,
+  onExtractedChangesUpdate,
+  onAcceptChange,
+  onRejectChange,
+  onChangeClick,
 }) => {
   const { userId, name: userName } = useUserContext();
   const {
@@ -163,6 +170,11 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       // Extract changes for display
       const changes = extractChangesFromContent(updated);
       setExtractedChanges(changes);
+      
+      // Pass changes to parent component
+      if (onExtractedChangesUpdate) {
+        onExtractedChangesUpdate(changes);
+      }
 
       const plainText = editor.getText();
       const totalCharacters = plainText.length;
@@ -211,6 +223,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       const updated = editor.getJSON();
       const changes = extractChangesFromContent(updated);
       setExtractedChanges(changes);
+      if (onExtractedChangesUpdate) {
+        onExtractedChangesUpdate(changes);
+      }
+    }
+    if (onAcceptChange) {
+      onAcceptChange(changeId);
     }
   };
 
@@ -221,6 +239,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       const updated = editor.getJSON();
       const changes = extractChangesFromContent(updated);
       setExtractedChanges(changes);
+      if (onExtractedChangesUpdate) {
+        onExtractedChangesUpdate(changes);
+      }
+    }
+    if (onRejectChange) {
+      onRejectChange(changeId);
     }
   };
 
@@ -249,6 +273,9 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         }
       });
     }
+    if (onChangeClick) {
+      onChangeClick(changeId);
+    }
   };
 
   // Load content only once
@@ -263,6 +290,9 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       // Extract initial changes
       const changes = extractChangesFromContent(content);
       setExtractedChanges(changes);
+      if (onExtractedChangesUpdate) {
+        onExtractedChangesUpdate(changes);
+      }
       
       console.log('Editor content set on load.');
     } else {
@@ -306,60 +336,55 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   }, []);
 
   return (
-    <div className="h-full flex bg-background/50 rounded-2xl border border-border/50 shadow-lg backdrop-blur-sm overflow-hidden">
-      <div className="flex-1 flex flex-col">
-        <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/80">
-          <EditModeSelector currentMode={editMode} onModeChange={setEditMode} currentUser={currentUser} />
-          <div className="flex items-center space-x-2">
-            <TrackChangesToggle 
-              showChanges={showTrackChanges} 
-              onToggle={onTrackChangesToggle || (() => {})} 
+    <div className="h-full flex flex-col bg-background/50 rounded-2xl border border-border/50 shadow-lg backdrop-blur-sm overflow-hidden">
+      <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/80">
+        <EditModeSelector currentMode={editMode} onModeChange={setEditMode} currentUser={currentUser} />
+        <div className="flex items-center space-x-2">
+          <TrackChangesToggle 
+            showChanges={showTrackChanges} 
+            onToggle={onTrackChangesToggle || (() => {})} 
+          />
+        </div>
+      </div>
+
+      <EditorToolbar editor={editor} />
+
+      <div className="flex-1 overflow-hidden">
+        <div className="max-h-[calc(100vh-200px)] overflow-y-auto relative">
+          <TextContextMenu editor={editor}>
+            <EditorContent
+              editor={editor}
+              className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent"
             />
-          </div>
+          </TextContextMenu>
         </div>
+      </div>
 
-        <EditorToolbar editor={editor} />
-
-        <div className="flex-1 overflow-hidden">
-          <div className="max-h-[calc(100vh-200px)] overflow-y-auto relative">
-            <TextContextMenu editor={editor}>
-              <EditorContent
-                editor={editor}
-                className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent"
-              />
-            </TextContextMenu>
-          </div>
+      <div className="flex items-center justify-between px-6 py-3 border-t border-border/50 text-xs text-muted-foreground bg-background/50 z-50">
+        <div className="flex items-center space-x-4">
+          <span className="px-2 py-1 bg-muted/50 rounded-full">
+            {editor.storage.characterCount.characters()} characters
+          </span>
+          <span className="px-2 py-1 bg-muted/50 rounded-full">
+            {editor.storage.characterCount.words()} words
+          </span>
+          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20">
+            {editMode} mode • TipTap
+          </span>
         </div>
-
-        <div className="flex items-center justify-between px-6 py-3 border-t border-border/50 text-xs text-muted-foreground bg-background/50 z-50">
-          <div className="flex items-center space-x-4">
-            <span className="px-2 py-1 bg-muted/50 rounded-full">
-              {editor.storage.characterCount.characters()} characters
-            </span>
-            <span className="px-2 py-1 bg-muted/50 rounded-full">
-              {editor.storage.characterCount.words()} words
-            </span>
-            <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20">
-              {editMode} mode • TipTap
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-            <span>Auto-saved</span>
-          </div>
+        <div className="flex items-center space-x-2">
+          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+          <span>Auto-saved</span>
         </div>
       </div>
     </div>
   );
 };
 
-// Add props interface to pass changes to parent
+// Export interface for parent components to use
 export interface EditorRichTextEditorRef {
   extractedChanges: any[];
   handleAcceptChange: (changeId: string) => void;
   handleRejectChange: (changeId: string) => void;
   handleChangeClick: (changeId: string) => void;
 }
-
-// Export the handler functions for parent components
-export { handleAcceptChange, handleRejectChange, handleChangeClick };

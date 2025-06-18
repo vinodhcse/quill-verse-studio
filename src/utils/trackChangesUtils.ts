@@ -31,58 +31,66 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
           let consolidatedText = item.text || '';
           let j = i + 1;
           const insertionData = insertionMark.attrs.insertion;
+          const consecutiveItems = [item];
 
-          // Look ahead for consecutive insertions with same user/timestamp data
-          while (j < content.length) {
-            const nextItem = content[j];
+          try {
+            const currentData = JSON.parse(insertionData);
             
-            if (nextItem.type === 'text' && nextItem.marks) {
-              const nextInsertionMark = nextItem.marks.find((mark: any) => 
-                mark.type === 'textStyle' && mark.attrs?.insertion
-              );
+            // Look ahead for consecutive insertions with same user
+            while (j < content.length) {
+              const nextItem = content[j];
+              
+              if (nextItem.type === 'text' && nextItem.marks) {
+                const nextInsertionMark = nextItem.marks.find((mark: any) => 
+                  mark.type === 'textStyle' && mark.attrs?.insertion
+                );
 
-              // Check if the insertion data matches (same user and close timestamp)
-              if (nextInsertionMark && nextInsertionMark.attrs.insertion) {
-                try {
-                  const currentData = JSON.parse(insertionData);
-                  const nextData = JSON.parse(nextInsertionMark.attrs.insertion);
-                  
-                  // Consider insertions from same user within 1 second as part of same edit
-                  if (currentData.userId === nextData.userId && 
-                      Math.abs(currentData.timestamp - nextData.timestamp) < 1000) {
-                    consolidatedText += nextItem.text || '';
-                    j++;
-                  } else {
+                // Check if the insertion data matches (same user)
+                if (nextInsertionMark && nextInsertionMark.attrs.insertion) {
+                  try {
+                    const nextData = JSON.parse(nextInsertionMark.attrs.insertion);
+                    
+                    // Consolidate insertions from same user (regardless of timestamp)
+                    if (currentData.userId === nextData.userId) {
+                      consolidatedText += nextItem.text || '';
+                      consecutiveItems.push(nextItem);
+                      j++;
+                    } else {
+                      break;
+                    }
+                  } catch (e) {
                     break;
                   }
-                } catch (e) {
+                } else {
                   break;
                 }
               } else {
                 break;
               }
-            } else {
-              break;
             }
-          }
 
-          // Create consolidated node if we found consecutive insertions
-          if (j > i + 1) {
-            console.log(`Consolidating ${j - i} insertion nodes into one:`, consolidatedText);
-            const consolidatedNode = {
-              type: 'text',
-              text: consolidatedText,
-              marks: [{
-                type: 'textStyle',
-                attrs: {
-                  insertion: insertionData,
-                  changeId: `consolidated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                }
-              }]
-            };
-            result.push(consolidatedNode);
-            i = j; // Skip the consolidated items
-          } else {
+            // Create consolidated node if we found consecutive insertions
+            if (j > i + 1) {
+              console.log(`Consolidating ${j - i} insertion nodes from user ${currentData.userName}:`, consolidatedText);
+              const consolidatedNode = {
+                type: 'text',
+                text: consolidatedText,
+                marks: [{
+                  type: 'textStyle',
+                  attrs: {
+                    insertion: insertionData,
+                    changeId: `consolidated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                  }
+                }]
+              };
+              result.push(consolidatedNode);
+              i = j; // Skip the consolidated items
+            } else {
+              result.push(item);
+              i++;
+            }
+          } catch (e) {
+            // If parsing fails, just add the item as-is
             result.push(item);
             i++;
           }
@@ -104,8 +112,8 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
     content: processContent(editorJSON.content)
   };
 
-  console.log('Original content:', editorJSON);
-  console.log('Consolidated content:', consolidated);
+  console.log('Original content nodes:', editorJSON.content?.length || 0);
+  console.log('Consolidated content nodes:', consolidated.content?.length || 0);
   
   return consolidated;
 };
