@@ -6,6 +6,7 @@ import { User, ChangeLog, EditMode, Comment } from '@/types/collaboration';
 const mockCurrentUser: User = {
   id: 'user_001',
   name: 'John Doe',
+  email: 'john.doe@example.com',
   role: 'editor',
   color: '#3b82f6'
 };

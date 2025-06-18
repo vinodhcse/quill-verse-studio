@@ -53,7 +53,7 @@ const SceneDivider = Node.create({
       insertSceneDivider: () => ({ commands }) => {
         return commands.insertContent({ type: 'sceneDivider' });
       },
-    };
+    } as any;
   },
 
   addNodeView() {
@@ -93,7 +93,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
   } = useCollaboration();
 
   const latestContentRef = useRef<any>(null);
-  const initialContentLoaded = useRef(false); // prevent reset on every update
+  const initialContentLoaded = useRef(false);
   console.log('Editor content type:', typeof content);
   console.log("📄 Editor received content:", content);
   
@@ -130,7 +130,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       }),
       CharacterCount,
       Focus.configure({
-        className: '', // Remove the focus class to eliminate border color
+        className: '',
         mode: 'all',
       }),
       CommentExtension,
@@ -141,7 +141,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       FontFamily.configure({ types: ['textStyle'] }),
       FontSize.configure({ types: ['textStyle'] }),
       Color.configure({ types: ['textStyle'] }),
-      SceneDivider, // Ensure SceneDivider is properly registered
+      SceneDivider,
     ],
     content: { type: 'doc', content: [] },
     onUpdate: ({ editor }) => {
@@ -151,7 +151,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
       const totalCharacters = plainText.length;
       const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
       if (editMode !== 'review') {
-        onChange(updated, totalCharacters, totalWords); // push updates to parent
+        onChange(updated, totalCharacters, totalWords);
       }
     },
     editable: editMode !== 'review',
@@ -169,7 +169,7 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         if (event.key === 'Enter') {
           const { selection } = view.state;
           if (selection.empty && selection.$head.pos === view.state.doc.content.size) {
-            event.preventDefault(); // Prevent Enter from going to the last line
+            event.preventDefault();
             return true;
           }
         }

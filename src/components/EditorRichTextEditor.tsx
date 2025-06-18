@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -56,7 +55,7 @@ const SceneDivider = Node.create({
       insertSceneDivider: () => ({ commands }) => {
         return commands.insertContent({ type: 'sceneDivider' });
       },
-    };
+    } as any;
   },
 
   addNodeView() {
