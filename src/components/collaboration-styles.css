@@ -1,15 +1,17 @@
 
 /* Track Changes Styling */
 .track-insertion {
-  background-color: rgba(34, 197, 94, 0.2);
+  background-color: rgba(34, 197, 94, 0.2) !important;
   text-decoration: underline;
   text-decoration-color: rgb(34, 197, 94);
+  border-bottom: 2px solid rgba(34, 197, 94, 0.5);
 }
 
 .track-deletion {
-  background-color: rgba(239, 68, 68, 0.2);
+  background-color: rgba(239, 68, 68, 0.2) !important;
   text-decoration: line-through;
   text-decoration-color: rgb(239, 68, 68);
+  border-bottom: 2px solid rgba(239, 68, 68, 0.5);
 }
 
 .comment-highlight {
@@ -30,14 +32,16 @@
 
 /* Hide track changes when toggle is off */
 .hide-track-changes .track-insertion {
-  background-color: transparent;
-  text-decoration: none;
+  background-color: transparent !important;
+  text-decoration: none !important;
+  border-bottom: none !important;
 }
 
 .hide-track-changes .track-deletion {
-  background-color: transparent;
-  text-decoration: none;
-  display: none;
+  background-color: transparent !important;
+  text-decoration: none !important;
+  border-bottom: none !important;
+  display: none !important;
 }
 
 /* Track changes in different scenarios */
@@ -57,12 +61,25 @@
 }
 
 .hide-track-changes .track-insertion-block {
-  border-left: none;
-  background-color: transparent;
+  border-left: none !important;
+  background-color: transparent !important;
   padding-left: 0;
   margin: 0;
 }
 
 .hide-track-changes .track-deletion-block {
-  display: none;
+  display: none !important;
+}
+
+/* Ensure proper styling for inline elements */
+.ProseMirror [data-insertion] {
+  background-color: rgba(34, 197, 94, 0.2) !important;
+  text-decoration: underline;
+  text-decoration-color: rgb(34, 197, 94);
+}
+
+.ProseMirror [data-deletion] {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+  text-decoration: line-through;
+  text-decoration-color: rgb(239, 68, 68);
 }

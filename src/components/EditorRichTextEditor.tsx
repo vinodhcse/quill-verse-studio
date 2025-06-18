@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -98,7 +99,6 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
 
   const latestContentRef = useRef<any>(null);
   const initialContentLoaded = useRef(false);
-  const [isTrackingChanges, setIsTrackingChanges] = useState(true);
   
   console.log('Editor content type:', typeof content);
   console.log("📄 Editor received content:", content);
@@ -143,6 +143,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       TrackChangesExtension.configure({
         userId: currentUser.id,
         userName: currentUser.name,
+        enabled: showTrackChanges,
       }),
       FontFamily.configure({ types: ['textStyle'] }),
       FontSize.configure({ types: ['textStyle'] }),
@@ -152,24 +153,21 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     content: { type: 'doc', content: [] },
     onUpdate: ({ editor, transaction }) => {
       const updated = editor.getJSON();
-      
-      // Track changes if tracking is enabled
-      if (isTrackingChanges && transaction.docChanged) {
-        const changes = analyzeTransaction(transaction, editor);
-        if (changes.length > 0) {
-          // Apply track changes markup to the content
-          const contentWithChanges = applyTrackChanges(updated, changes);
-          latestContentRef.current = contentWithChanges;
-        } else {
-          latestContentRef.current = updated;
-        }
-      } else {
-        latestContentRef.current = updated;
-      }
+      latestContentRef.current = updated;
 
       const plainText = editor.getText();
       const totalCharacters = plainText.length;
       const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
+      
+      // Auto-mark new insertions when track changes is enabled
+      if (showTrackChanges && transaction.docChanged) {
+        transaction.steps.forEach((step: any) => {
+          if (step.jsonID === 'replace' && step.slice.size > 0) {
+            // Mark new insertions
+            editor.commands.setInsertion(currentUser.id, currentUser.name);
+          }
+        });
+      }
       
       if (editMode !== 'review') {
         onChange(latestContentRef.current, totalCharacters, totalWords);
@@ -200,99 +198,6 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     },
   });
 
-  // Function to analyze transaction for changes
-  const analyzeTransaction = (transaction: any, editor: any) => {
-    const changes: any[] = [];
-    
-    transaction.steps.forEach((step: any, index: number) => {
-      if (step.jsonID === 'replace') {
-        const { from, to, slice } = step;
-        
-        // Deletion
-        if (from < to && slice.size === 0) {
-          changes.push({
-            type: 'deletion',
-            from,
-            to,
-            user: currentUser.id,
-            userName: currentUser.name,
-            timestamp: Date.now(),
-          });
-        }
-        
-        // Insertion
-        if (slice.size > 0) {
-          changes.push({
-            type: 'insertion',
-            from,
-            to: from + slice.size,
-            content: slice.content,
-            user: currentUser.id,
-            userName: currentUser.name,
-            timestamp: Date.now(),
-          });
-        }
-      }
-    });
-    
-    return changes;
-  };
-
-  // Function to apply track changes markup to content
-  const applyTrackChanges = (content: any, changes: any[]) => {
-    if (!content || !content.content) return content;
-
-    const updatedContent = { ...content };
-    
-    changes.forEach(change => {
-      if (change.type === 'insertion') {
-        // Mark inserted content with insertion styling
-        updatedContent.content = markContentWithChange(updatedContent.content, change, 'insertion');
-      } else if (change.type === 'deletion') {
-        // Mark deleted content with deletion styling
-        updatedContent.content = markContentWithChange(updatedContent.content, change, 'deletion');
-      }
-    });
-
-    return updatedContent;
-  };
-
-  // Function to mark content with change information
-  const markContentWithChange = (content: any[], change: any, changeType: string) => {
-    return content.map(block => {
-      if (block.content) {
-        return {
-          ...block,
-          content: block.content.map((textNode: any) => {
-            if (textNode.type === 'text') {
-              const marks = textNode.marks || [];
-              const changeData = JSON.stringify({
-                userId: change.user,
-                userName: change.userName,
-                timestamp: change.timestamp,
-              });
-              
-              return {
-                ...textNode,
-                marks: [
-                  ...marks,
-                  {
-                    type: 'textStyle',
-                    attrs: {
-                      [changeType]: changeData,
-                    },
-                  },
-                ],
-              };
-            }
-            return textNode;
-          }),
-        };
-      }
-      return block;
-    });
-  };
-
   // Load content only once
   useEffect(() => {
     if (!editor || initialContentLoaded.current) return;
@@ -307,9 +212,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     }
   }, [editor, content]);
 
-  // Update CSS classes when showTrackChanges changes
+  // Update track changes when showTrackChanges changes
   useEffect(() => {
     if (editor) {
+      editor.commands.toggleTrackChanges(showTrackChanges);
+      
+      // Update CSS classes
       const editorElement = editor.view.dom;
       if (showTrackChanges) {
         editorElement.classList.remove('hide-track-changes');
