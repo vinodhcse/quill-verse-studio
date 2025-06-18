@@ -1,8 +1,10 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EditorRichTextEditor } from '@/components/EditorRichTextEditor';
+import { TrackChangesToggle } from '@/components/TrackChangesToggle';
 import { Plus, Edit, UploadCloud } from 'lucide-react';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { apiClient } from '@/lib/api';
@@ -16,6 +18,7 @@ export const EditCenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
   const [newTitle, setNewTitle] = useState(selectedChapter?.title || '');
   const [newImage, setNewImage] = useState<File | null>(null);
   const [status, setStatus] = useState('');
+  const [showTrackChanges, setShowTrackChanges] = useState(false);
   const statusRef = useRef('');
 
   const latestContentRef = useRef(selectedChapter?.content?.blocks || []);
@@ -220,6 +223,10 @@ export const EditCenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
                   <span className="text-sm text-muted-foreground">Status: {statusRef.current}</span>
                   <div className="w-4 h-4 rounded-full bg-primary" title={statusRef.current}></div>
                 </div>
+                <TrackChangesToggle
+                  showChanges={showTrackChanges}
+                  onToggle={setShowTrackChanges}
+                />
               </div>
             </div>
 
@@ -235,6 +242,8 @@ export const EditCenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
                 className="h-full"
                 blockId="block_001"
                 selectedChapter={selectedChapter}
+                showTrackChanges={showTrackChanges}
+                onTrackChangesToggle={setShowTrackChanges}
               />
             </div>
           </div>

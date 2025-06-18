@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -30,6 +31,8 @@ interface CollaborativeRichTextEditorProps {
   className?: string;
   blockId: string;
   selectedChapter: any;
+  showTrackChanges?: boolean;
+  onTrackChangesToggle?: (show: boolean) => void;
 }
 
 const SceneDivider = Node.create({
@@ -79,6 +82,8 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   className,
   blockId,
   selectedChapter,
+  showTrackChanges = false,
+  onTrackChangesToggle,
 }) => {
   const {
     currentUser,
@@ -93,7 +98,9 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   } = useCollaboration();
 
   const latestContentRef = useRef<any>(null);
-  const initialContentLoaded = useRef(false); // prevent reset on every update
+  const initialContentLoaded = useRef(false);
+  const [isTrackingChanges, setIsTrackingChanges] = useState(true);
+  
   console.log('Editor content type:', typeof content);
   console.log("📄 Editor received content:", content);
   
@@ -130,7 +137,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       }),
       CharacterCount,
       Focus.configure({
-        className: '', // Remove the focus class to eliminate border color
+        className: '',
         mode: 'all',
       }),
       CommentExtension,
@@ -141,17 +148,32 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       FontFamily.configure({ types: ['textStyle'] }),
       FontSize.configure({ types: ['textStyle'] }),
       Color.configure({ types: ['textStyle'] }),
-      SceneDivider, // Ensure SceneDivider is properly registered
+      SceneDivider,
     ],
     content: { type: 'doc', content: [] },
-    onUpdate: ({ editor }) => {
+    onUpdate: ({ editor, transaction }) => {
       const updated = editor.getJSON();
-      latestContentRef.current = updated;
+      
+      // Track changes if tracking is enabled
+      if (isTrackingChanges && transaction.docChanged) {
+        const changes = analyzeTransaction(transaction, editor);
+        if (changes.length > 0) {
+          // Apply track changes markup to the content
+          const contentWithChanges = applyTrackChanges(updated, changes);
+          latestContentRef.current = contentWithChanges;
+        } else {
+          latestContentRef.current = updated;
+        }
+      } else {
+        latestContentRef.current = updated;
+      }
+
       const plainText = editor.getText();
       const totalCharacters = plainText.length;
       const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
+      
       if (editMode !== 'review') {
-        onChange(updated, totalCharacters, totalWords); // push updates to parent
+        onChange(latestContentRef.current, totalCharacters, totalWords);
       }
     },
     editable: editMode !== 'review',
@@ -162,6 +184,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           'min-h-[calc(100vh-16rem)] p-6 text-base leading-relaxed',
           'bg-background rounded-xl',
           editMode === 'review' && 'cursor-default',
+          !showTrackChanges && 'hide-track-changes',
           className
         ),
       },
@@ -169,7 +192,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         if (event.key === 'Enter') {
           const { selection } = view.state;
           if (selection.empty && selection.$head.pos === view.state.doc.content.size) {
-            event.preventDefault(); // Prevent Enter from going to the last line
+            event.preventDefault();
             return true;
           }
         }
@@ -178,7 +201,100 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     },
   });
 
-  // Load content only once (avoid resetting on every state change)
+  // Function to analyze transaction for changes
+  const analyzeTransaction = (transaction: any, editor: any) => {
+    const changes: any[] = [];
+    
+    transaction.steps.forEach((step: any, index: number) => {
+      if (step.jsonID === 'replace') {
+        const { from, to, slice } = step;
+        
+        // Deletion
+        if (from < to && slice.size === 0) {
+          changes.push({
+            type: 'deletion',
+            from,
+            to,
+            user: currentUser.id,
+            userName: currentUser.name,
+            timestamp: Date.now(),
+          });
+        }
+        
+        // Insertion
+        if (slice.size > 0) {
+          changes.push({
+            type: 'insertion',
+            from,
+            to: from + slice.size,
+            content: slice.content,
+            user: currentUser.id,
+            userName: currentUser.name,
+            timestamp: Date.now(),
+          });
+        }
+      }
+    });
+    
+    return changes;
+  };
+
+  // Function to apply track changes markup to content
+  const applyTrackChanges = (content: any, changes: any[]) => {
+    if (!content || !content.content) return content;
+
+    const updatedContent = { ...content };
+    
+    changes.forEach(change => {
+      if (change.type === 'insertion') {
+        // Mark inserted content with insertion styling
+        updatedContent.content = markContentWithChange(updatedContent.content, change, 'insertion');
+      } else if (change.type === 'deletion') {
+        // Mark deleted content with deletion styling
+        updatedContent.content = markContentWithChange(updatedContent.content, change, 'deletion');
+      }
+    });
+
+    return updatedContent;
+  };
+
+  // Function to mark content with change information
+  const markContentWithChange = (content: any[], change: any, changeType: string) => {
+    return content.map(block => {
+      if (block.content) {
+        return {
+          ...block,
+          content: block.content.map((textNode: any) => {
+            if (textNode.type === 'text') {
+              const marks = textNode.marks || [];
+              const changeData = JSON.stringify({
+                userId: change.user,
+                userName: change.userName,
+                timestamp: change.timestamp,
+              });
+              
+              return {
+                ...textNode,
+                marks: [
+                  ...marks,
+                  {
+                    type: 'textStyle',
+                    attrs: {
+                      [changeType]: changeData,
+                    },
+                  },
+                ],
+              };
+            }
+            return textNode;
+          }),
+        };
+      }
+      return block;
+    });
+  };
+
+  // Load content only once
   useEffect(() => {
     if (!editor || initialContentLoaded.current) return;
 
@@ -192,6 +308,18 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     }
   }, [editor, content]);
 
+  // Update CSS classes when showTrackChanges changes
+  useEffect(() => {
+    if (editor) {
+      const editorElement = editor.view.dom;
+      if (showTrackChanges) {
+        editorElement.classList.remove('hide-track-changes');
+      } else {
+        editorElement.classList.add('hide-track-changes');
+      }
+    }
+  }, [editor, showTrackChanges]);
+
   if (!editor) {
     return (
       <div className="h-full flex items-center justify-center">
@@ -203,14 +331,14 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   }
 
   useEffect(() => {
-  return () => {
-    if (editor) {
-      editor.destroy();
-      initialContentLoaded.current = false; 
-      console.log('Editor destroyed on unmount');
-    }
-  };
-}, []);
+    return () => {
+      if (editor) {
+        editor.destroy();
+        initialContentLoaded.current = false; 
+        console.log('Editor destroyed on unmount');
+      }
+    };
+  }, []);
 
   return (
     <div className="h-full flex flex-col bg-background/50 rounded-2xl border border-border/50 shadow-lg backdrop-blur-sm overflow-hidden">
