@@ -84,7 +84,7 @@ export interface Book {
   bookImage?: string;
   lastModified: string;
   createdAt: string;
-  wordCount?: number;
+  wordCount: number; // Made required to match Dashboard usage
   role?: 'author' | 'editor' | 'reviewer';
   subtitle?: string;
   language?: string;
