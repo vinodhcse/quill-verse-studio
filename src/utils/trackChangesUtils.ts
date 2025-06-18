@@ -5,40 +5,6 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
     return editorJSON;
   }
 
-  // Helper function to compare marks (for preserving styling)
-  const compareMarks = (marks1: any[], marks2: any[]) => {
-    if (!marks1 && !marks2) return true;
-    if (!marks1 || !marks2) return false;
-    if (marks1.length !== marks2.length) return false;
-    
-    // Sort marks by type for consistent comparison
-    const sortedMarks1 = [...marks1].sort((a, b) => a.type.localeCompare(b.type));
-    const sortedMarks2 = [...marks2].sort((a, b) => a.type.localeCompare(b.type));
-    
-    return sortedMarks1.every((mark1, index) => {
-      const mark2 = sortedMarks2[index];
-      if (mark1.type !== mark2.type) return false;
-      
-      // For textStyle marks, only compare non-insertion/deletion attributes
-      if (mark1.type === 'textStyle') {
-        const attrs1 = { ...mark1.attrs };
-        const attrs2 = { ...mark2.attrs };
-        
-        // Remove track changes attributes for comparison
-        delete attrs1.insertion;
-        delete attrs1.deletion;
-        delete attrs1.changeId;
-        delete attrs2.insertion;
-        delete attrs2.deletion;
-        delete attrs2.changeId;
-        
-        return JSON.stringify(attrs1) === JSON.stringify(attrs2);
-      }
-      
-      return JSON.stringify(mark1.attrs) === JSON.stringify(mark2.attrs);
-    });
-  };
-
   const processContent = (content: any[]): any[] => {
     const result: any[] = [];
     let i = 0;
@@ -66,12 +32,11 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
           let j = i + 1;
           const insertionData = insertionMark.attrs.insertion;
           const consecutiveItems = [item];
-          const baseMark = insertionMark;
 
           try {
             const currentData = JSON.parse(insertionData);
             
-            // Look ahead for consecutive insertions with same user AND same styling
+            // Look ahead for consecutive insertions with same user
             while (j < content.length) {
               const nextItem = content[j];
               
@@ -80,14 +45,13 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
                   mark.type === 'textStyle' && mark.attrs?.insertion
                 );
 
-                // Check if the insertion data matches (same user) AND marks match
+                // Check if the insertion data matches (same user)
                 if (nextInsertionMark && nextInsertionMark.attrs.insertion) {
                   try {
                     const nextData = JSON.parse(nextInsertionMark.attrs.insertion);
                     
-                    // Consolidate insertions from same user with same styling
-                    if (currentData.userId === nextData.userId && 
-                        compareMarks(item.marks, nextItem.marks)) {
+                    // Consolidate insertions from same user (regardless of timestamp)
+                    if (currentData.userId === nextData.userId) {
                       consolidatedText += nextItem.text || '';
                       consecutiveItems.push(nextItem);
                       j++;
@@ -105,29 +69,19 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
               }
             }
 
-            // Create consolidated node if we found consecutive insertions with same styling
+            // Create consolidated node if we found consecutive insertions
             if (j > i + 1) {
-              console.log(`Consolidating ${j - i} insertion nodes from user ${currentData.userName} with same styling:`, consolidatedText);
-              
-              // Preserve all marks from the first item, but update the insertion mark
-              const consolidatedMarks = item.marks.map((mark: any) => {
-                if (mark.type === 'textStyle' && mark.attrs?.insertion) {
-                  return {
-                    ...mark,
-                    attrs: {
-                      ...mark.attrs,
-                      insertion: insertionData,
-                      changeId: `consolidated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-                    }
-                  };
-                }
-                return mark;
-              });
-
+              console.log(`Consolidating ${j - i} insertion nodes from user ${currentData.userName}:`, consolidatedText);
               const consolidatedNode = {
                 type: 'text',
                 text: consolidatedText,
-                marks: consolidatedMarks
+                marks: [{
+                  type: 'textStyle',
+                  attrs: {
+                    insertion: insertionData,
+                    changeId: `consolidated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                  }
+                }]
               };
               result.push(consolidatedNode);
               i = j; // Skip the consolidated items

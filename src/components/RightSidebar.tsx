@@ -54,6 +54,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   } = useCollaboration();
 
   const mockBlockId = "block_001";
+  // Fix the type issue by ensuring all required properties exist
   const blockComments: Comment[] = comments
     .filter(comment => comment.block_id === mockBlockId)
     .map(comment => ({
@@ -64,9 +65,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       resolved: comment.resolved || false,
       block_id: comment.block_id
     }));
-
-  console.log('RightSidebar received extractedChanges:', extractedChanges);
-  console.log('RightSidebar activeTab:', activeTab);
 
   if (isCollapsed) return null;
 
