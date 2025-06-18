@@ -99,7 +99,8 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
         ({ editor }) => {
           const plugin = trackChangesPluginKey.get(editor.state);
           if (plugin) {
-            plugin.spec.props.enabled = enabled;
+            // Store enabled state in the plugin's spec
+            (plugin.spec as any).enabled = enabled;
           }
           return true;
         },
@@ -112,24 +113,24 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
     return [
       new Plugin({
         key: trackChangesPluginKey,
-        props: {
-          enabled: this.options.enabled,
-        },
         state: {
           init() {
             return DecorationSet.empty;
           },
           apply(tr, decorationSet, oldState, newState) {
-            // Skip if track changes is disabled
-            if (!this.spec.props.enabled) {
+            // Check if track changes is enabled
+            const plugin = trackChangesPluginKey.get(newState);
+            const enabled = plugin ? (plugin.spec as any).enabled !== false : this.options.enabled;
+            
+            if (!enabled) {
               return DecorationSet.empty;
             }
 
             decorationSet = decorationSet.map(tr.mapping, tr.doc);
 
-            // Detect insertions
+            // Detect insertions and deletions
             if (tr.docChanged) {
-              tr.steps.forEach((step: any, index) => {
+              tr.steps.forEach((step: any) => {
                 if (step.jsonID === 'replace') {
                   const { from, to, slice } = step;
                   
@@ -142,37 +143,28 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
                       type: 'insertion'
                     });
                     
-                    // Apply insertion mark to the inserted content
-                    const insertedContent = slice.content;
-                    insertedContent.descendants((node, pos) => {
-                      if (node.isText) {
-                        const mark = newState.schema.marks.textStyle.create({
-                          insertion: changeData
-                        });
-                        
-                        // Add decoration for visual highlighting
-                        const decoration = Decoration.inline(
-                          from + pos, 
-                          from + pos + node.nodeSize, 
-                          { 
-                            class: 'track-insertion',
-                            'data-insertion': changeData 
-                          }
-                        );
-                        decorationSet = decorationSet.add(tr.doc, [decoration]);
+                    // Add decoration for visual highlighting
+                    const decoration = Decoration.inline(
+                      from, 
+                      from + slice.size, 
+                      { 
+                        class: 'track-insertion',
+                        'data-insertion': changeData 
                       }
-                    });
+                    );
+                    decorationSet = decorationSet.add(tr.doc, [decoration]);
                   }
                   
-                  // Handle deletions (mark content as deleted before removing)
+                  // Handle deletions
                   if (from < to && slice.size === 0) {
                     const deletedContent = oldState.doc.slice(from, to);
+                    const deletedText = oldState.doc.textBetween(from, to);
                     const changeData = JSON.stringify({ 
                       userId, 
                       userName, 
                       timestamp: Date.now(),
                       type: 'deletion',
-                      deletedText: deletedContent.textBetween(0, deletedContent.size)
+                      deletedText: deletedText
                     });
                     
                     // Add decoration to show deleted content
@@ -180,7 +172,7 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
                       const span = document.createElement('span');
                       span.className = 'track-deletion';
                       span.setAttribute('data-deletion', changeData);
-                      span.textContent = deletedContent.textBetween(0, deletedContent.size);
+                      span.textContent = deletedText;
                       return span;
                     });
                     decorationSet = decorationSet.add(tr.doc, [decoration]);
@@ -192,17 +184,14 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
             return decorationSet;
           },
         },
-        view() {
-          return {
-            update: (view, prevState) => {
-              // Re-apply decorations when view updates
-              const plugin = trackChangesPluginKey.get(view.state);
-              if (plugin && this.spec.props.enabled) {
-                view.updateState(view.state);
-              }
-            },
-          };
+        props: {
+          decorations(state) {
+            return this.getState(state);
+          },
         },
+        spec: {
+          enabled: this.options.enabled,
+        } as any,
       }),
     ];
   },
