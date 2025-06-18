@@ -1,17 +1,15 @@
 import React, { useState } from 'react';
 import { ModeNavigation, Mode } from '@/components/ModeNavigation';
 import { EditLeftSidebar } from '@/components/EditLeftSidebar';
-import { RightSidebar } from '@/components/RightSidebar';
 import { EditCenterPanel } from '@/components/EditCenterPanel.tsx';
 import { SidebarToggleButtons } from '@/components/SidebarToggleButtons';
 import { useBookContext } from '@/lib/BookContextProvider';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, ChevronRight } from 'lucide-react';
 
 const Index = () => {
   const { state, loading } = useBookContext();
   const [currentMode, setCurrentMode] = useState<Mode>('writing');
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
-  const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
 
   const handleModeChange = (mode: Mode) => {
     setCurrentMode(mode);
@@ -42,9 +40,9 @@ const Index = () => {
             currentMode={currentMode}
             onModeChange={handleModeChange}
             leftSidebarCollapsed={leftSidebarCollapsed}
-            rightSidebarCollapsed={rightSidebarCollapsed}
+            rightSidebarCollapsed={false} // RightSidebar is now managed within EditCenterPanel
             onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-            onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+            onToggleRightSidebar={() => {}} // No-op since it's managed in EditCenterPanel
           />
         </div>
       </div>
@@ -60,31 +58,25 @@ const Index = () => {
           />
         </div>
         
-        {/* Center Panel */}
+        {/* Center Panel with integrated RightSidebar */}
         <div className="flex-1 px-4 transition-all duration-500 ease-in-out">
           <div className="h-full animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
-            <EditCenterPanel
-              mode={currentMode}
-            />
+            <EditCenterPanel mode={currentMode} />
           </div>
         </div>
-        
-        {/* Right Sidebar */}
-        <div className={`transition-all duration-500 ease-in-out ${rightSidebarCollapsed ? 'w-0' : 'w-80'} flex-shrink-0`}>
-          <RightSidebar
-            mode={currentMode}
-            isCollapsed={rightSidebarCollapsed}
-            onToggle={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
-          />
-        </div>
 
-        {/* Sidebar Toggle Buttons */}
-        <SidebarToggleButtons
-          leftSidebarCollapsed={leftSidebarCollapsed}
-          rightSidebarCollapsed={rightSidebarCollapsed}
-          onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-          onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
-        />
+        {/* Sidebar Toggle Button for left sidebar only */}
+        <div className="fixed left-4 top-1/2 transform -translate-y-1/2 z-40">
+          {leftSidebarCollapsed && (
+            <button
+              onClick={() => setLeftSidebarCollapsed(false)}
+              className="p-2 bg-background/80 border border-border/50 rounded-lg shadow-lg hover:bg-accent/50 transition-colors backdrop-blur-sm"
+              title="Show left sidebar"
+            >
+              <ChevronRight size={16} />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Scroll to Top Button */}
