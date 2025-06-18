@@ -31,9 +31,8 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
           let consolidatedText = item.text || '';
           let j = i + 1;
           const insertionData = insertionMark.attrs.insertion;
-          const changeId = insertionMark.attrs.changeId;
 
-          // Look ahead for consecutive insertions with same user/timestamp
+          // Look ahead for consecutive insertions with same user/timestamp data
           while (j < content.length) {
             const nextItem = content[j];
             
@@ -42,11 +41,23 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
                 mark.type === 'textStyle' && mark.attrs?.insertion
               );
 
-              if (nextInsertionMark && 
-                  nextInsertionMark.attrs.insertion === insertionData &&
-                  nextInsertionMark.attrs.changeId === changeId) {
-                consolidatedText += nextItem.text || '';
-                j++;
+              // Check if the insertion data matches (same user and close timestamp)
+              if (nextInsertionMark && nextInsertionMark.attrs.insertion) {
+                try {
+                  const currentData = JSON.parse(insertionData);
+                  const nextData = JSON.parse(nextInsertionMark.attrs.insertion);
+                  
+                  // Consider insertions from same user within 1 second as part of same edit
+                  if (currentData.userId === nextData.userId && 
+                      Math.abs(currentData.timestamp - nextData.timestamp) < 1000) {
+                    consolidatedText += nextItem.text || '';
+                    j++;
+                  } else {
+                    break;
+                  }
+                } catch (e) {
+                  break;
+                }
               } else {
                 break;
               }
@@ -57,10 +68,17 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
 
           // Create consolidated node if we found consecutive insertions
           if (j > i + 1) {
+            console.log(`Consolidating ${j - i} insertion nodes into one:`, consolidatedText);
             const consolidatedNode = {
               type: 'text',
               text: consolidatedText,
-              marks: item.marks
+              marks: [{
+                type: 'textStyle',
+                attrs: {
+                  insertion: insertionData,
+                  changeId: `consolidated-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+                }
+              }]
             };
             result.push(consolidatedNode);
             i = j; // Skip the consolidated items
@@ -81,10 +99,15 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
     return result;
   };
 
-  return {
+  const consolidated = {
     ...editorJSON,
     content: processContent(editorJSON.content)
   };
+
+  console.log('Original content:', editorJSON);
+  console.log('Consolidated content:', consolidated);
+  
+  return consolidated;
 };
 
 // Helper function to parse change data and extract user info

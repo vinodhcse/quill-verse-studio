@@ -7,16 +7,34 @@ import { useCollaboration } from '@/hooks/useCollaboration';
 import { Mode } from './ModeNavigation';
 import { cn } from '@/lib/utils';
 
+interface Change {
+  id: string;
+  type: 'insertion' | 'deletion';
+  text: string;
+  user: string;
+  userId: string;
+  timestamp: number;
+  changeData: any;
+}
+
 interface RightSidebarProps {
   mode: Mode;
   isCollapsed: boolean;
   onToggle: () => void;
+  extractedChanges?: Change[];
+  onAcceptChange?: (changeId: string) => void;
+  onRejectChange?: (changeId: string) => void;
+  onChangeClick?: (changeId: string) => void;
 }
 
 export const RightSidebar: React.FC<RightSidebarProps> = ({
   mode,
   isCollapsed,
-  onToggle
+  onToggle,
+  extractedChanges = [],
+  onAcceptChange,
+  onRejectChange,
+  onChangeClick,
 }) => {
   const [activeTab, setActiveTab] = useState<'changes' | 'settings' | 'users'>('changes');
   const {
@@ -27,7 +45,6 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   } = useCollaboration();
 
   const mockBlockId = "block_001";
-  const blockChanges = changeLogs.filter(change => change.block_id === mockBlockId);
   const blockComments = comments.filter(comment => comment.block_id === mockBlockId);
 
   if (isCollapsed) return null;
@@ -58,9 +75,9 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             >
               <MessageSquare size={14} className="mr-1" />
               Changes
-              {blockChanges.length > 0 && (
+              {extractedChanges.length > 0 && (
                 <span className="ml-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
-                  {blockChanges.length}
+                  {extractedChanges.length}
                 </span>
               )}
             </Button>
@@ -87,10 +104,11 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           <div className="flex-1 overflow-hidden h-[calc(100%-113px)]">
             {activeTab === 'changes' && (
               <ChangesSidebar
-                changes={blockChanges}
+                changes={extractedChanges}
                 comments={blockComments}
-                onAcceptChange={acceptChange}
-                onRejectChange={rejectChange}
+                onAcceptChange={onAcceptChange || acceptChange}
+                onRejectChange={onRejectChange || rejectChange}
+                onChangeClick={onChangeClick}
                 showChanges={true}
                 onToggleChanges={() => {}}
               />

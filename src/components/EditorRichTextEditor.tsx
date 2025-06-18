@@ -101,7 +101,6 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     addComment,
   } = useCollaboration();
 
-  const [showChangesSidebar, setShowChangesSidebar] = useState(false);
   const [extractedChanges, setExtractedChanges] = useState<any[]>([]);
   const latestContentRef = useRef<any>(null);
   const initialContentLoaded = useRef(false);
@@ -159,13 +158,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     content: { type: 'doc', content: [] },
     onUpdate: ({ editor, transaction }) => {
       const updated = editor.getJSON();
-      
-      // Consolidate track changes before saving
-      const consolidatedContent = consolidateTrackChanges(updated);
-      latestContentRef.current = consolidatedContent;
+      latestContentRef.current = updated;
 
       // Extract changes for display
-      const changes = extractChangesFromContent(consolidatedContent);
+      const changes = extractChangesFromContent(updated);
       setExtractedChanges(changes);
 
       const plainText = editor.getText();
@@ -176,7 +172,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       transaction.setMeta('editor', editor);
       
       if (editMode !== 'review') {
-        onChange(latestContentRef.current, totalCharacters, totalWords);
+        // Consolidate track changes before saving
+        const consolidatedContent = consolidateTrackChanges(updated);
+        console.log('Saving consolidated content:', consolidatedContent);
+        onChange(consolidatedContent, totalCharacters, totalWords);
       }
     },
     editable: editMode !== 'review',
@@ -222,6 +221,33 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       const updated = editor.getJSON();
       const changes = extractChangesFromContent(updated);
       setExtractedChanges(changes);
+    }
+  };
+
+  // Handle clicking on a change to focus it
+  const handleChangeClick = (changeId: string) => {
+    if (editor) {
+      // Find the change in the document and scroll to it
+      const { state } = editor;
+      state.doc.descendants((node, pos) => {
+        if (node.marks) {
+          const trackChangeMark = node.marks.find(mark => 
+            mark.type.name === 'textStyle' && mark.attrs.changeId === changeId
+          );
+          if (trackChangeMark) {
+            // Focus the editor and set selection to this position
+            editor.commands.focus();
+            editor.commands.setTextSelection({ from: pos, to: pos + node.nodeSize });
+            
+            // Scroll the change into view
+            const element = editor.view.dom.querySelector(`[data-change-id="${changeId}"]`);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+            return false; // Stop searching
+          }
+        }
+      });
     }
   };
 
@@ -289,19 +315,6 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
               showChanges={showTrackChanges} 
               onToggle={onTrackChangesToggle || (() => {})} 
             />
-            {showTrackChanges && (
-              <button
-                onClick={() => setShowChangesSidebar(!showChangesSidebar)}
-                className="px-3 py-1 text-sm bg-primary/10 text-primary rounded-md hover:bg-primary/20 transition-colors"
-              >
-                {showChangesSidebar ? 'Hide' : 'Show'} Changes
-                {extractedChanges.length > 0 && (
-                  <span className="ml-1 bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
-                    {extractedChanges.length}
-                  </span>
-                )}
-              </button>
-            )}
           </div>
         </div>
 
@@ -336,20 +349,17 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           </div>
         </div>
       </div>
-
-      {/* Changes Sidebar */}
-      {showTrackChanges && showChangesSidebar && (
-        <div className="w-80 border-l border-border/50 bg-background/80">
-          <ChangesSidebar
-            changes={extractedChanges}
-            comments={comments}
-            onAcceptChange={handleAcceptChange}
-            onRejectChange={handleRejectChange}
-            showChanges={showTrackChanges}
-            onToggleChanges={() => setShowChangesSidebar(!showChangesSidebar)}
-          />
-        </div>
-      )}
     </div>
   );
 };
+
+// Add props interface to pass changes to parent
+export interface EditorRichTextEditorRef {
+  extractedChanges: any[];
+  handleAcceptChange: (changeId: string) => void;
+  handleRejectChange: (changeId: string) => void;
+  handleChangeClick: (changeId: string) => void;
+}
+
+// Export the handler functions for parent components
+export { handleAcceptChange, handleRejectChange, handleChangeClick };

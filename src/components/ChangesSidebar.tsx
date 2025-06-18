@@ -30,6 +30,7 @@ interface ChangesSidebarProps {
   comments: Comment[];
   onAcceptChange: (changeId: string) => void;
   onRejectChange: (changeId: string) => void;
+  onChangeClick?: (changeId: string) => void;
   showChanges: boolean;
   onToggleChanges: () => void;
 }
@@ -39,8 +40,15 @@ export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
   comments,
   onAcceptChange,
   onRejectChange,
+  onChangeClick,
 }) => {
   const unresolvedComments = comments.filter(comment => !comment.resolved);
+
+  const handleChangeClick = (changeId: string) => {
+    if (onChangeClick) {
+      onChangeClick(changeId);
+    }
+  };
 
   return (
     <ScrollArea className="h-full">
@@ -51,7 +59,11 @@ export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
             <h4 className="text-sm font-medium mb-2">Track Changes ({changes.length})</h4>
             <div className="space-y-2">
               {changes.map((change) => (
-                <Card key={change.id} className="text-sm">
+                <Card 
+                  key={change.id} 
+                  className="text-sm cursor-pointer hover:bg-muted/50 transition-colors"
+                  onClick={() => handleChangeClick(change.id)}
+                >
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
                       <Badge 
@@ -68,7 +80,10 @@ export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onAcceptChange(change.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onAcceptChange(change.id);
+                          }}
                           className="h-6 w-6 p-0 text-green-600 hover:bg-green-100"
                           title="Accept change"
                         >
@@ -77,7 +92,10 @@ export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => onRejectChange(change.id)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onRejectChange(change.id);
+                          }}
                           className="h-6 w-6 p-0 text-red-600 hover:bg-red-100"
                           title="Reject change"
                         >
