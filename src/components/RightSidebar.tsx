@@ -88,7 +88,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     }
   }, [state.selectedChapter?.content, state.selectedChapter?.id]);
 
-  // Also listen for changes from the editor directly
+  // Listen for changes from the editor directly and update the list
   useEffect(() => {
     const handleEditorChanges = (event: CustomEvent) => {
       console.log('RightSidebar: Received editor changes event:', event.detail);
@@ -96,9 +96,26 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
       setExtractedChanges(changes);
     };
 
+    const handleChangeAccepted = (event: CustomEvent) => {
+      const changeId = event.detail.changeId;
+      console.log('RightSidebar: Change accepted, removing from list:', changeId);
+      setExtractedChanges(prev => prev.filter(change => change.id !== changeId));
+    };
+
+    const handleChangeRejected = (event: CustomEvent) => {
+      const changeId = event.detail.changeId;
+      console.log('RightSidebar: Change rejected, removing from list:', changeId);
+      setExtractedChanges(prev => prev.filter(change => change.id !== changeId));
+    };
+
     window.addEventListener('editorChangesUpdate', handleEditorChanges as EventListener);
+    window.addEventListener('changeAccepted', handleChangeAccepted as EventListener);
+    window.addEventListener('changeRejected', handleChangeRejected as EventListener);
+    
     return () => {
       window.removeEventListener('editorChangesUpdate', handleEditorChanges as EventListener);
+      window.removeEventListener('changeAccepted', handleChangeAccepted as EventListener);
+      window.removeEventListener('changeRejected', handleChangeRejected as EventListener);
     };
   }, []);
 
@@ -106,6 +123,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   useEffect(() => {
     const handleChangeFocus = (event: CustomEvent) => {
       const changeId = event.detail.changeId;
+      console.log('RightSidebar: Received focus event for change:', changeId);
       setFocusedChangeId(changeId);
       // Scroll to the change in the sidebar
       setTimeout(() => {
@@ -123,6 +141,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   }, []);
 
   const handleChangeClick = (changeId: string) => {
+    console.log('RightSidebar: Change clicked:', changeId);
     setFocusedChangeId(changeId);
     
     // Dispatch custom event to focus the change in the editor
@@ -136,19 +155,27 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   };
 
   const handleAcceptChange = (changeId: string) => {
+    console.log('RightSidebar: Accepting change:', changeId);
     // Dispatch event to editor to handle the change acceptance
     window.dispatchEvent(new CustomEvent('acceptChange', {
       detail: { changeId }
     }));
     acceptChange(changeId);
+    
+    // Remove from local state immediately for better UX
+    setExtractedChanges(prev => prev.filter(change => change.id !== changeId));
   };
 
   const handleRejectChange = (changeId: string) => {
+    console.log('RightSidebar: Rejecting change:', changeId);
     // Dispatch event to editor to handle the change rejection
     window.dispatchEvent(new CustomEvent('rejectChange', {
       detail: { changeId }
     }));
     rejectChange(changeId);
+    
+    // Remove from local state immediately for better UX
+    setExtractedChanges(prev => prev.filter(change => change.id !== changeId));
   };
 
   if (isCollapsed) return null;

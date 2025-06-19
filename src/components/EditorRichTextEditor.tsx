@@ -245,6 +245,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
 
   // Handle accept/reject changes
   const handleAcceptChange = (changeId: string) => {
+    console.log('EditorRichTextEditor: Accepting change:', changeId);
     if (editor) {
       editor.commands.acceptChange(changeId);
       // Update extracted changes after accepting
@@ -254,6 +255,11 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       if (onExtractedChangesUpdate) {
         onExtractedChangesUpdate(changes);
       }
+      
+      // Dispatch event to notify sidebar
+      window.dispatchEvent(new CustomEvent('changeAccepted', {
+        detail: { changeId }
+      }));
     }
     if (onAcceptChange) {
       onAcceptChange(changeId);
@@ -261,6 +267,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   };
 
   const handleRejectChange = (changeId: string) => {
+    console.log('EditorRichTextEditor: Rejecting change:', changeId);
     if (editor) {
       editor.commands.rejectChange(changeId);
       // Update extracted changes after rejecting
@@ -270,6 +277,11 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       if (onExtractedChangesUpdate) {
         onExtractedChangesUpdate(changes);
       }
+      
+      // Dispatch event to notify sidebar
+      window.dispatchEvent(new CustomEvent('changeRejected', {
+        detail: { changeId }
+      }));
     }
     if (onRejectChange) {
       onRejectChange(changeId);
@@ -278,6 +290,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
 
   // Handle clicking on a change to focus it
   const handleChangeClick = (changeId: string) => {
+    console.log('EditorRichTextEditor: Focusing change:', changeId);
     if (editor) {
       // Find the change in the document and scroll to it
       const { state } = editor;

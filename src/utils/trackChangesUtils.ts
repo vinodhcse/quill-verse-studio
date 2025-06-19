@@ -177,14 +177,14 @@ export const extractChangesFromContent = (content: any): Change[] => {
 
   console.log('extractChangesFromContent: Processing content structure:', content);
 
-  // Handle different content structures
+  // Handle different content structures - prioritize blocks structure
   let contentArray: any[] = [];
-  if (content.content && Array.isArray(content.content)) {
-    contentArray = content.content;
-    console.log('extractChangesFromContent: Using content.content structure');
-  } else if (content.blocks && Array.isArray(content.blocks)) {
+  if (content.blocks && Array.isArray(content.blocks)) {
     contentArray = content.blocks;
     console.log('extractChangesFromContent: Using content.blocks structure');
+  } else if (content.content && Array.isArray(content.content)) {
+    contentArray = content.content;
+    console.log('extractChangesFromContent: Using content.content structure');
   } else if (Array.isArray(content)) {
     contentArray = content;
     console.log('extractChangesFromContent: Using direct array structure');
@@ -208,9 +208,7 @@ export const extractChangesFromContent = (content: any): Change[] => {
           
           // Extract changeId
           let changeId = attrs.changeId;
-          if (typeof changeId === 'object' && changeId?._type === 'MaxDepthReached') {
-            changeId = `change_${Date.now()}_${markIndex}`;
-          } else if (!changeId || typeof changeId !== 'string') {
+          if (!changeId || typeof changeId !== 'string') {
             changeId = `change_${Date.now()}_${markIndex}`;
           }
           
@@ -218,8 +216,9 @@ export const extractChangesFromContent = (content: any): Change[] => {
           let insertion = null;
           let userId = 'unknown';
           let userName = 'Unknown User';
+          let timestamp = Date.now();
           
-          if (attrs.insertion) {
+          if (attrs.insertion && attrs.insertion !== null) {
             if (typeof attrs.insertion === 'string') {
               try {
                 const insertionData = JSON.parse(attrs.insertion);
@@ -227,12 +226,11 @@ export const extractChangesFromContent = (content: any): Change[] => {
                 insertion = insertionData;
                 userId = insertionData.userId || 'unknown';
                 userName = insertionData.userName || 'Unknown User';
+                timestamp = insertionData.timestamp || Date.now();
               } catch (e) {
                 console.log('extractFromNode: Failed to parse insertion data:', e);
                 insertion = true;
               }
-            } else if (typeof attrs.insertion === 'object' && attrs.insertion?._type === 'MaxDepthReached') {
-              insertion = true;
             } else {
               insertion = attrs.insertion;
             }
@@ -240,7 +238,7 @@ export const extractChangesFromContent = (content: any): Change[] => {
           
           // Extract deletion data
           let deletion = null;
-          if (attrs.deletion) {
+          if (attrs.deletion && attrs.deletion !== null) {
             if (typeof attrs.deletion === 'string') {
               try {
                 const deletionData = JSON.parse(attrs.deletion);
@@ -248,12 +246,11 @@ export const extractChangesFromContent = (content: any): Change[] => {
                 deletion = deletionData;
                 userId = deletionData.userId || userId;
                 userName = deletionData.userName || userName;
+                timestamp = deletionData.timestamp || timestamp;
               } catch (e) {
                 console.log('extractFromNode: Failed to parse deletion data:', e);
                 deletion = true;
               }
-            } else if (typeof attrs.deletion === 'object' && attrs.deletion?._type === 'MaxDepthReached') {
-              deletion = true;
             } else {
               deletion = attrs.deletion;
             }
@@ -270,7 +267,7 @@ export const extractChangesFromContent = (content: any): Change[] => {
                 text: node.text || 'Text change',
                 user: userName,
                 userId: userId,
-                timestamp: insertion?.timestamp || deletion?.timestamp || Date.now(),
+                timestamp: timestamp,
                 changeData: {
                   insertion,
                   deletion,
