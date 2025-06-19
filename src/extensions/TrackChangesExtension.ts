@@ -1,3 +1,4 @@
+
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -102,7 +103,6 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
 
           const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
-          const deletedText = state.doc.textBetween(from, to);
           
           // Mark the selected text as deleted instead of removing it
           const deletionMark = state.schema.marks.textStyle.create({
@@ -292,8 +292,8 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           init() {
             return DecorationSet.empty;
           },
-          apply(tr, decorationSet) {
-            const plugin = trackChangesPluginKey.get(tr.doc);
+          apply(tr, decorationSet, oldState, newState) {
+            const plugin = trackChangesPluginKey.get(newState);
             const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : this.options.enabled;
             
             if (!enabled) {
