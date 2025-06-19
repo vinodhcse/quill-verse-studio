@@ -96,13 +96,22 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
         },
       setDeletion:
         (userId: string, userName: string) =>
-        ({ commands }) => {
+        ({ tr, state }) => {
+          const { from, to } = state.selection;
+          if (from === to) return false;
+
           const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
-          return commands.setMark('textStyle', { 
+          const deletedText = state.doc.textBetween(from, to);
+          
+          // Mark the selected text as deleted instead of removing it
+          const deletionMark = state.schema.marks.textStyle.create({
             deletion: changeData,
-            changeId: changeId 
+            changeId: changeId
           });
+          
+          tr.addMark(from, to, deletionMark);
+          return true;
         },
       acceptChange:
         (changeId?: string) =>
@@ -118,19 +127,25 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
                 node.marks.forEach(mark => {
                   if (mark.type.name === 'textStyle' && 
                       mark.attrs.changeId === changeId) {
-                    // Remove the track changes marks but keep the text
-                    const newAttrs = { ...mark.attrs };
-                    delete newAttrs.insertion;
-                    delete newAttrs.deletion;
-                    delete newAttrs.changeId;
-                    
-                    if (Object.keys(newAttrs).length === 0) {
-                      tr.removeMark(pos, pos + node.nodeSize, mark.type);
-                    } else {
-                      tr.addMark(pos, pos + node.nodeSize, 
-                        mark.type.create(newAttrs));
+                    // Remove the track changes marks but keep the text for insertions
+                    if (mark.attrs.insertion) {
+                      const newAttrs = { ...mark.attrs };
+                      delete newAttrs.insertion;
+                      delete newAttrs.changeId;
+                      
+                      if (Object.keys(newAttrs).filter(key => newAttrs[key] !== null).length === 0) {
+                        tr.removeMark(pos, pos + node.nodeSize, mark.type);
+                      } else {
+                        tr.addMark(pos, pos + node.nodeSize, 
+                          mark.type.create(newAttrs));
+                      }
+                      modified = true;
                     }
-                    modified = true;
+                    // For deletions: remove the text completely
+                    else if (mark.attrs.deletion) {
+                      tr.delete(pos, pos + node.nodeSize);
+                      modified = true;
+                    }
                   }
                 });
               }
@@ -170,7 +185,7 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
                       delete newAttrs.deletion;
                       delete newAttrs.changeId;
                       
-                      if (Object.keys(newAttrs).length === 0) {
+                      if (Object.keys(newAttrs).filter(key => newAttrs[key] !== null).length === 0) {
                         tr.removeMark(pos, pos + node.nodeSize, mark.type);
                       } else {
                         tr.addMark(pos, pos + node.nodeSize, 
@@ -277,75 +292,15 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           init() {
             return DecorationSet.empty;
           },
-          apply(tr, decorationSet, oldState, newState) {
-            const plugin = trackChangesPluginKey.get(newState);
+          apply(tr, decorationSet) {
+            const plugin = trackChangesPluginKey.get(tr.doc);
             const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : this.options.enabled;
             
             if (!enabled) {
               return DecorationSet.empty;
             }
 
-            decorationSet = decorationSet.map(tr.mapping, tr.doc);
-
-            if (tr.docChanged) {
-              tr.steps.forEach((step: any) => {
-                if (step.jsonID === 'replace') {
-                  const { from, to, slice } = step;
-                  
-                  // Handle selection replacement (selected text + new text)
-                  if (from < to && slice.size > 0) {
-                    // Mark original text as deleted
-                    const deletedText = oldState.doc.textBetween(from, to);
-                    if (deletedText) {
-                      const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                      const changeData = JSON.stringify({ 
-                        userId, 
-                        userName, 
-                        timestamp: Date.now(),
-                        type: 'deletion',
-                        deletedText: deletedText
-                      });
-                      
-                      const decoration = Decoration.widget(from, () => {
-                        const span = document.createElement('span');
-                        span.className = 'track-deletion';
-                        span.setAttribute('data-deletion', changeData);
-                        span.setAttribute('data-change-id', changeId);
-                        span.textContent = deletedText;
-                        return span;
-                      });
-                      decorationSet = decorationSet.add(tr.doc, [decoration]);
-                    }
-                  }
-                  // Handle pure deletions
-                  else if (from < to && slice.size === 0) {
-                    const deletedText = oldState.doc.textBetween(from, to);
-                    if (deletedText) {
-                      const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                      const changeData = JSON.stringify({ 
-                        userId, 
-                        userName, 
-                        timestamp: Date.now(),
-                        type: 'deletion',
-                        deletedText: deletedText
-                      });
-                      
-                      const decoration = Decoration.widget(from, () => {
-                        const span = document.createElement('span');
-                        span.className = 'track-deletion';
-                        span.setAttribute('data-deletion', changeData);
-                        span.setAttribute('data-change-id', changeId);
-                        span.textContent = deletedText;
-                        return span;
-                      });
-                      decorationSet = decorationSet.add(tr.doc, [decoration]);
-                    }
-                  }
-                }
-              });
-            }
-
-            return decorationSet;
+            return decorationSet.map(tr.mapping, tr.doc);
           },
         },
         props: {
@@ -360,23 +315,101 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
               return false;
             }
 
+            // Handle deletions when text is being replaced
+            if (from < to) {
+              const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              const changeData = JSON.stringify({ 
+                userId, 
+                userName, 
+                timestamp: Date.now(),
+                type: 'deletion'
+              });
+              
+              const tr = view.state.tr;
+              
+              // Mark the original text as deleted
+              const deletionMark = view.state.schema.marks.textStyle.create({
+                deletion: changeData,
+                changeId: changeId + '-del'
+              });
+              tr.addMark(from, to, deletionMark);
+            }
+
             // Mark new insertions immediately at character level
-            const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-            const changeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
+            const insertChangeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const insertChangeData = JSON.stringify({ userId, userName, timestamp: Date.now() });
             
             const tr = view.state.tr;
             tr.insertText(text, from, to);
             
             // Apply insertion mark to the new text
             const insertionMark = view.state.schema.marks.textStyle.create({
-              insertion: changeData,
-              changeId: changeId
+              insertion: insertChangeData,
+              changeId: insertChangeId
             });
             
             tr.addMark(from, from + text.length, insertionMark);
             view.dispatch(tr);
             
             return true;
+          },
+          handleKeyDown(view, event) {
+            if (event.key === 'Backspace' || event.key === 'Delete') {
+              const plugin = trackChangesPluginKey.get(view.state);
+              const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : true;
+              
+              if (!enabled) {
+                return false;
+              }
+
+              const { from, to } = view.state.selection;
+              if (from === to) {
+                // Single character deletion
+                const pos = event.key === 'Backspace' ? from - 1 : from;
+                if (pos >= 0 && pos < view.state.doc.content.size) {
+                  const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                  const changeData = JSON.stringify({ 
+                    userId, 
+                    userName, 
+                    timestamp: Date.now(),
+                    type: 'deletion'
+                  });
+                  
+                  const tr = view.state.tr;
+                  const deletionMark = view.state.schema.marks.textStyle.create({
+                    deletion: changeData,
+                    changeId: changeId
+                  });
+                  
+                  const deleteFrom = event.key === 'Backspace' ? from - 1 : from;
+                  const deleteTo = event.key === 'Backspace' ? from : from + 1;
+                  
+                  tr.addMark(deleteFrom, deleteTo, deletionMark);
+                  view.dispatch(tr);
+                  return true;
+                }
+              } else {
+                // Selection deletion - mark as deleted
+                const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const changeData = JSON.stringify({ 
+                  userId, 
+                  userName, 
+                  timestamp: Date.now(),
+                  type: 'deletion'
+                });
+                
+                const tr = view.state.tr;
+                const deletionMark = view.state.schema.marks.textStyle.create({
+                  deletion: changeData,
+                  changeId: changeId
+                });
+                
+                tr.addMark(from, to, deletionMark);
+                view.dispatch(tr);
+                return true;
+              }
+            }
+            return false;
           },
         },
         spec: {

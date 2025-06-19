@@ -217,8 +217,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         const { state } = view;
         const resolvedPos = state.doc.resolve(pos);
         
-        if (resolvedPos.marks) {
-          const trackChangeMark = resolvedPos.marks.find(mark => 
+        // Fix: resolvedPos.marks is a function, need to call it
+        const marks = resolvedPos.marks();
+        if (marks && marks.length > 0) {
+          const trackChangeMark = marks.find(mark => 
             mark.type.name === 'textStyle' && mark.attrs.changeId
           );
           
