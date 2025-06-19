@@ -68,19 +68,39 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
   // Extract changes from the selected chapter content
   useEffect(() => {
+    console.log('RightSidebar: useEffect triggered for chapter content extraction');
+    console.log('Selected chapter:', state.selectedChapter);
+    
     if (state.selectedChapter?.content) {
-      console.log('RightSidebar: Extracting changes from chapter content');
+      console.log('RightSidebar: Chapter content found, extracting changes');
       console.log('Chapter content type:', typeof state.selectedChapter.content);
-      console.log('Chapter content:', state.selectedChapter.content);
+      console.log('Chapter content structure:', JSON.stringify(state.selectedChapter.content, null, 2));
       
       const changes = extractChangesFromContent(state.selectedChapter.content);
       console.log('RightSidebar: Extracted changes:', changes);
+      console.log('RightSidebar: Number of changes found:', changes.length);
+      
       setExtractedChanges(changes);
     } else {
       console.log('RightSidebar: No chapter content available');
+      console.log('Available state:', state);
       setExtractedChanges([]);
     }
-  }, [state.selectedChapter?.content]);
+  }, [state.selectedChapter?.content, state.selectedChapter?.id]);
+
+  // Also listen for changes from the editor directly
+  useEffect(() => {
+    const handleEditorChanges = (event: CustomEvent) => {
+      console.log('RightSidebar: Received editor changes event:', event.detail);
+      const changes = event.detail.changes || [];
+      setExtractedChanges(changes);
+    };
+
+    window.addEventListener('editorChangesUpdate', handleEditorChanges as EventListener);
+    return () => {
+      window.removeEventListener('editorChangesUpdate', handleEditorChanges as EventListener);
+    };
+  }, []);
 
   // Listen for change focus events from the editor
   useEffect(() => {
@@ -187,7 +207,13 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
 
           <div className="flex-1 overflow-hidden">
             {activeTab === 'changes' && (
-              <div className="h-full">
+              <div className="h-full flex flex-col">
+                {extractedChanges.length === 0 && (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    <p>No track changes found in this chapter.</p>
+                    <p className="text-xs mt-1">Make some edits with track changes enabled to see them here.</p>
+                  </div>
+                )}
                 <ChangesSidebar
                   changes={extractedChanges}
                   comments={blockComments}

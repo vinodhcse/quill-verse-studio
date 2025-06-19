@@ -180,39 +180,74 @@ export const extractChangesFromContent = (content: any): Change[] => {
         if (mark.type === 'textStyle' && mark.attrs) {
           const attrs = mark.attrs;
           
-          // Handle deep nested structure
+          // Handle deep nested structure and MaxDepthReached values
           let changeId, insertion, deletion, userId, userName;
           
+          // Extract changeId
           if (attrs.changeId) {
-            changeId = typeof attrs.changeId === 'object' && attrs.changeId._type === 'MaxDepthReached' 
-              ? `change_${Date.now()}_${markIndex}` 
-              : attrs.changeId;
+            if (typeof attrs.changeId === 'object' && attrs.changeId._type === 'MaxDepthReached') {
+              changeId = `change_${Date.now()}_${markIndex}`;
+            } else if (typeof attrs.changeId === 'string') {
+              changeId = attrs.changeId;
+            } else {
+              changeId = `change_${Date.now()}_${markIndex}`;
+            }
           }
           
+          // Extract insertion data
           if (attrs.insertion) {
-            insertion = typeof attrs.insertion === 'object' && attrs.insertion._type === 'MaxDepthReached' 
-              ? true 
-              : attrs.insertion;
+            if (typeof attrs.insertion === 'object' && attrs.insertion._type === 'MaxDepthReached') {
+              insertion = true; // Assume it's an insertion if MaxDepthReached
+            } else if (typeof attrs.insertion === 'string') {
+              try {
+                const insertionData = JSON.parse(attrs.insertion);
+                insertion = insertionData;
+                userId = insertionData.userId || 'unknown';
+                userName = insertionData.userName || 'Unknown User';
+              } catch {
+                insertion = true;
+              }
+            } else {
+              insertion = attrs.insertion;
+            }
           }
           
+          // Extract deletion data
           if (attrs.deletion) {
-            deletion = typeof attrs.deletion === 'object' && attrs.deletion._type === 'MaxDepthReached' 
-              ? true 
-              : attrs.deletion;
+            if (typeof attrs.deletion === 'object' && attrs.deletion._type === 'MaxDepthReached') {
+              deletion = true; // Assume it's a deletion if MaxDepthReached
+            } else if (typeof attrs.deletion === 'string') {
+              try {
+                const deletionData = JSON.parse(attrs.deletion);
+                deletion = deletionData;
+                userId = deletionData.userId || 'unknown';
+                userName = deletionData.userName || 'Unknown User';
+              } catch {
+                deletion = true;
+              }
+            } else {
+              deletion = attrs.deletion;
+            }
           }
           
-          if (attrs.userId) {
-            userId = typeof attrs.userId === 'object' && attrs.userId._type === 'MaxDepthReached' 
-              ? 'unknown' 
-              : attrs.userId;
+          // Extract user info from other attributes if not found in insertion/deletion
+          if (!userId && attrs.userId) {
+            if (typeof attrs.userId === 'object' && attrs.userId._type === 'MaxDepthReached') {
+              userId = 'unknown';
+            } else {
+              userId = attrs.userId;
+            }
           }
           
-          if (attrs.userName) {
-            userName = typeof attrs.userName === 'object' && attrs.userName._type === 'MaxDepthReached' 
-              ? 'Unknown User' 
-              : attrs.userName;
+          if (!userName && attrs.userName) {
+            if (typeof attrs.userName === 'object' && attrs.userName._type === 'MaxDepthReached') {
+              userName = 'Unknown User';
+            } else {
+              userName = attrs.userName;
+            }
           }
 
+          // Create change entry if we have insertion or deletion
           if ((insertion || deletion) && changeId) {
             const existingChange = changes.find(c => c.id === changeId);
             
@@ -249,6 +284,6 @@ export const extractChangesFromContent = (content: any): Change[] => {
 
   extractFromNode(content);
   
-  console.log('Extracted changes:', changes);
+  console.log('Extracted changes from content:', changes);
   return changes;
 };
