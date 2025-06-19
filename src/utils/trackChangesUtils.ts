@@ -157,6 +157,17 @@ export const consolidateTrackChanges = (editorJSON: any): any => {
   return consolidated;
 };
 
+// Import the Change interface from types
+interface Change {
+  id: string;
+  type: 'insertion' | 'deletion';
+  text: string;
+  user: string;
+  userId: string;
+  timestamp: number;
+  changeData: any;
+}
+
 // Helper function to parse change data and extract user info
 export const parseChangeData = (changeDataStr: string) => {
   try {

@@ -212,6 +212,29 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         }
         return false;
       },
+      handleClick(view, pos, event) {
+        // Check if clicked on a tracked change
+        const { state } = view;
+        const resolvedPos = state.doc.resolve(pos);
+        
+        if (resolvedPos.marks) {
+          const trackChangeMark = resolvedPos.marks.find(mark => 
+            mark.type.name === 'textStyle' && mark.attrs.changeId
+          );
+          
+          if (trackChangeMark && trackChangeMark.attrs.changeId) {
+            const changeId = trackChangeMark.attrs.changeId;
+            console.log('Editor: Clicked on tracked change:', changeId);
+            
+            // Notify sidebar to highlight this change
+            window.dispatchEvent(new CustomEvent('changeFocus', {
+              detail: { changeId }
+            }));
+          }
+        }
+        
+        return false;
+      },
     },
   });
 
@@ -249,12 +272,14 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     if (editor) {
       editor.commands.acceptChange(changeId);
       // Update extracted changes after accepting
-      const updated = editor.getJSON();
-      const changes = extractChangesFromContent(updated);
-      setExtractedChanges(changes);
-      if (onExtractedChangesUpdate) {
-        onExtractedChangesUpdate(changes);
-      }
+      setTimeout(() => {
+        const updated = editor.getJSON();
+        const changes = extractChangesFromContent(updated);
+        setExtractedChanges(changes);
+        if (onExtractedChangesUpdate) {
+          onExtractedChangesUpdate(changes);
+        }
+      }, 100);
       
       // Dispatch event to notify sidebar
       window.dispatchEvent(new CustomEvent('changeAccepted', {
@@ -271,12 +296,14 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     if (editor) {
       editor.commands.rejectChange(changeId);
       // Update extracted changes after rejecting
-      const updated = editor.getJSON();
-      const changes = extractChangesFromContent(updated);
-      setExtractedChanges(changes);
-      if (onExtractedChangesUpdate) {
-        onExtractedChangesUpdate(changes);
-      }
+      setTimeout(() => {
+        const updated = editor.getJSON();
+        const changes = extractChangesFromContent(updated);
+        setExtractedChanges(changes);
+        if (onExtractedChangesUpdate) {
+          onExtractedChangesUpdate(changes);
+        }
+      }, 100);
       
       // Dispatch event to notify sidebar
       window.dispatchEvent(new CustomEvent('changeRejected', {
@@ -294,8 +321,10 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     if (editor) {
       // Find the change in the document and scroll to it
       const { state } = editor;
+      let found = false;
+      
       state.doc.descendants((node, pos) => {
-        if (node.marks) {
+        if (!found && node.marks) {
           const trackChangeMark = node.marks.find(mark => 
             mark.type.name === 'textStyle' && mark.attrs.changeId === changeId
           );
@@ -304,17 +333,17 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
             editor.commands.focus();
             editor.commands.setTextSelection({ from: pos, to: pos + node.nodeSize });
             
-            // Scroll the change into view
+            // Add a visual highlight temporarily
             const element = editor.view.dom.querySelector(`[data-change-id="${changeId}"]`);
             if (element) {
               element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              element.classList.add('highlighted-change');
+              setTimeout(() => {
+                element.classList.remove('highlighted-change');
+              }, 2000);
             }
 
-            // Notify sidebar to highlight this change
-            window.dispatchEvent(new CustomEvent('changeFocus', {
-              detail: { changeId }
-            }));
-            
+            found = true;
             return false; // Stop searching
           }
         }
