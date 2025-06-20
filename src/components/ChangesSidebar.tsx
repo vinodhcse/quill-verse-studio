@@ -1,9 +1,10 @@
+
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, X, User, CheckCheck, XCircle } from 'lucide-react';
+import { Check, X, User, CheckCheck, XCircle, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Change {
