@@ -411,10 +411,11 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
             return true;
           },
           handleKeyDown(view, event) {
-            // Only handle if track changes is enabled
+            // Check if track changes is enabled first
             const plugin = trackChangesPluginKey.get(view.state);
-            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : true;
+            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : this.options.enabled;
             
+            // If track changes is disabled, don't intercept any keys
             if (!enabled) {
               return false;
             }
