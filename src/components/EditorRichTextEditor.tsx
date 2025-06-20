@@ -18,6 +18,7 @@ import { EditorToolbar } from './EditorToolbar';
 import { EditModeSelector } from './EditModeSelector';
 import { TextContextMenu } from './TextContextMenu';
 import { TrackChangesToggle } from './TrackChangesToggle';
+import { Button } from '@/components/ui/button';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useUserContext } from '@/lib/UserContextProvider';
 import { cn } from '@/lib/utils';
@@ -25,6 +26,7 @@ import './editor-styles.css';
 import './collaboration-styles.css';
 import { Node } from '@tiptap/core';
 import { consolidateTrackChanges, extractChangesFromContent } from '@/utils/trackChangesUtils';
+import { useLocation } from 'react-router-dom';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -96,6 +98,15 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   onChangeClick,
 }) => {
   const { userId, name: userName } = useUserContext();
+  const location = useLocation();
+  
+  // Determine if we're in edit mode based on the route
+  const isEditMode = location.pathname.includes('/edit');
+  
+  // Local state for track changes functionality
+  const [trackChangesEnabled, setTrackChangesEnabled] = useState(isEditMode); // Always on for edit mode
+  const [showChangesEnabled, setShowChangesEnabled] = useState(showTrackChanges);
+  
   const {
     currentUser,
     editMode,
@@ -155,7 +166,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       TrackChangesExtension.configure({
         userId: userId || '',
         userName: userName || '',
-        enabled: showTrackChanges,
+        enabled: trackChangesEnabled,
       }),
       FontFamily.configure({ types: ['textStyle'] }),
       FontSize.configure({ types: ['textStyle'] }),
@@ -198,7 +209,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           'min-h-[calc(100vh-16rem)] p-6 text-base leading-relaxed',
           'bg-background rounded-xl',
           editMode === 'review' && 'cursor-default',
-          !showTrackChanges && 'hide-track-changes',
+          !showChangesEnabled && 'hide-track-changes',
           className
         ),
       },
@@ -378,20 +389,42 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     }
   }, [editor, content]);
 
-  // Update track changes when showTrackChanges changes
+  // Update track changes when trackChangesEnabled changes
   useEffect(() => {
     if (editor) {
-      editor.commands.toggleTrackChanges(showTrackChanges);
-      
+      editor.commands.toggleTrackChanges(trackChangesEnabled);
+    }
+  }, [editor, trackChangesEnabled]);
+
+  // Update visibility when showChangesEnabled changes
+  useEffect(() => {
+    if (editor) {
       // Update CSS classes
       const editorElement = editor.view.dom;
-      if (showTrackChanges) {
+      if (showChangesEnabled) {
         editorElement.classList.remove('hide-track-changes');
       } else {
         editorElement.classList.add('hide-track-changes');
       }
     }
-  }, [editor, showTrackChanges]);
+    
+    // Also update parent component
+    if (onTrackChangesToggle) {
+      onTrackChangesToggle(showChangesEnabled);
+    }
+  }, [editor, showChangesEnabled]);
+
+  const handleTrackChangesToggle = (enabled: boolean) => {
+    if (isEditMode) {
+      // In edit mode, track changes should always be on
+      return;
+    }
+    setTrackChangesEnabled(enabled);
+  };
+
+  const handleShowChangesToggle = (show: boolean) => {
+    setShowChangesEnabled(show);
+  };
 
   if (!editor) {
     return (
@@ -418,10 +451,23 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/80">
         <EditModeSelector currentMode={editMode} onModeChange={setEditMode} currentUser={currentUser} />
         <div className="flex items-center space-x-2">
-          <TrackChangesToggle 
-            showChanges={showTrackChanges} 
-            onToggle={onTrackChangesToggle || (() => {})} 
-          />
+          <Button
+            variant={trackChangesEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleTrackChangesToggle(!trackChangesEnabled)}
+            disabled={isEditMode} // Disabled in edit mode
+            className="flex items-center space-x-2"
+          >
+            <span>Track Changes</span>
+          </Button>
+          <Button
+            variant={showChangesEnabled ? "default" : "outline"}
+            size="sm"
+            onClick={() => handleShowChangesToggle(!showChangesEnabled)}
+            className="flex items-center space-x-2"
+          >
+            <span>Show Changes</span>
+          </Button>
         </div>
       </div>
 
