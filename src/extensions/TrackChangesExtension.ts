@@ -1,5 +1,4 @@
 
-
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -412,15 +411,17 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
             return true;
           },
           handleKeyDown(view, event) {
-            if (event.key === 'Backspace' || event.key === 'Delete') {
-              const plugin = trackChangesPluginKey.get(view.state);
-              const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : true;
-              
-              if (!enabled) {
-                return false;
-              }
+            // Only handle if track changes is enabled
+            const plugin = trackChangesPluginKey.get(view.state);
+            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : true;
+            
+            if (!enabled) {
+              return false;
+            }
 
+            if (event.key === 'Backspace' || event.key === 'Delete') {
               const { from, to } = view.state.selection;
+              
               if (from === to) {
                 // Single character deletion
                 const pos = event.key === 'Backspace' ? from - 1 : from;
@@ -442,9 +443,12 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
                   const deleteFrom = event.key === 'Backspace' ? from - 1 : from;
                   const deleteTo = event.key === 'Backspace' ? from : from + 1;
                   
-                  tr.addMark(deleteFrom, deleteTo, deletionMark);
-                  view.dispatch(tr);
-                  return true;
+                  // Only add mark if there's actually content to mark
+                  if (deleteFrom >= 0 && deleteTo <= view.state.doc.content.size && deleteFrom < deleteTo) {
+                    tr.addMark(deleteFrom, deleteTo, deletionMark);
+                    view.dispatch(tr);
+                    return true;
+                  }
                 }
               } else {
                 // Selection deletion - mark as deleted
@@ -477,4 +481,3 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
     ];
   },
 });
-
