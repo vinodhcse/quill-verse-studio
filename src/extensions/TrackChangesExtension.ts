@@ -1,4 +1,3 @@
-
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -283,7 +282,7 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
   },
 
   addProseMirrorPlugins() {
-    const { userId, userName } = this.options;
+    const { userId, userName, enabled: defaultEnabled } = this.options;
 
     return [
       new Plugin({
@@ -294,7 +293,7 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           },
           apply(tr, decorationSet, oldState, newState) {
             const plugin = trackChangesPluginKey.get(newState);
-            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : this.options.enabled;
+            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : defaultEnabled;
             
             if (!enabled) {
               return DecorationSet.empty;
@@ -413,7 +412,7 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           handleKeyDown(view, event) {
             // Check if track changes is enabled first
             const plugin = trackChangesPluginKey.get(view.state);
-            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : this.options.enabled;
+            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : defaultEnabled;
             
             // If track changes is disabled, don't intercept any keys
             if (!enabled) {
@@ -476,7 +475,7 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           },
         },
         spec: {
-          trackChangesEnabled: this.options.enabled,
+          trackChangesEnabled: defaultEnabled,
         } as any,
       }),
     ];
