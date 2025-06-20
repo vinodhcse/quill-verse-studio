@@ -1,4 +1,5 @@
 
+
 import { Extension } from '@tiptap/core';
 import { Plugin, PluginKey } from '@tiptap/pm/state';
 import { Decoration, DecorationSet } from '@tiptap/pm/view';
@@ -307,6 +308,63 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
           decorations(state) {
             return this.getState(state);
           },
+          handlePaste(view, event, slice) {
+            const plugin = trackChangesPluginKey.get(view.state);
+            const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : true;
+            
+            if (!enabled) {
+              return false;
+            }
+
+            // Handle paste as insertion
+            const { from, to } = view.state.selection;
+            const pastedText = slice.content.textBetween(0, slice.content.size);
+            
+            if (pastedText) {
+              const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+              const changeData = JSON.stringify({ 
+                userId, 
+                userName, 
+                timestamp: Date.now(),
+                type: 'insertion'
+              });
+              
+              const tr = view.state.tr;
+              
+              // If there's a selection, mark it as deleted first
+              if (from < to) {
+                const deletionChangeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                const deletionChangeData = JSON.stringify({ 
+                  userId, 
+                  userName, 
+                  timestamp: Date.now(),
+                  type: 'deletion'
+                });
+                
+                const deletionMark = view.state.schema.marks.textStyle.create({
+                  deletion: deletionChangeData,
+                  changeId: deletionChangeId
+                });
+                tr.addMark(from, to, deletionMark);
+              }
+              
+              // Insert the pasted content with insertion marks
+              tr.replaceWith(from, to, slice.content);
+              
+              // Apply insertion mark to the new content
+              const insertionMark = view.state.schema.marks.textStyle.create({
+                insertion: changeData,
+                changeId: changeId
+              });
+              
+              tr.addMark(from, from + slice.content.size, insertionMark);
+              view.dispatch(tr);
+              
+              return true;
+            }
+            
+            return false;
+          },
           handleTextInput(view, from, to, text) {
             const plugin = trackChangesPluginKey.get(view.state);
             const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : true;
@@ -419,3 +477,4 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
     ];
   },
 });
+
