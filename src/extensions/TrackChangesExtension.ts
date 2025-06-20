@@ -414,44 +414,21 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
             const plugin = trackChangesPluginKey.get(view.state);
             const enabled = plugin ? (plugin.spec as any).trackChangesEnabled !== false : defaultEnabled;
             
-            // If track changes is disabled, don't intercept any keys
+            // If track changes is disabled, don't intercept any keys - allow normal behavior
             if (!enabled) {
               return false;
             }
 
+            // Only handle backspace and delete when track changes is enabled
             if (event.key === 'Backspace' || event.key === 'Delete') {
               const { from, to } = view.state.selection;
               
               if (from === to) {
-                // Single character deletion
-                const pos = event.key === 'Backspace' ? from - 1 : from;
-                if (pos >= 0 && pos < view.state.doc.content.size) {
-                  const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-                  const changeData = JSON.stringify({ 
-                    userId, 
-                    userName, 
-                    timestamp: Date.now(),
-                    type: 'deletion'
-                  });
-                  
-                  const tr = view.state.tr;
-                  const deletionMark = view.state.schema.marks.textStyle.create({
-                    deletion: changeData,
-                    changeId: changeId
-                  });
-                  
-                  const deleteFrom = event.key === 'Backspace' ? from - 1 : from;
-                  const deleteTo = event.key === 'Backspace' ? from : from + 1;
-                  
-                  // Only add mark if there's actually content to mark
-                  if (deleteFrom >= 0 && deleteTo <= view.state.doc.content.size && deleteFrom < deleteTo) {
-                    tr.addMark(deleteFrom, deleteTo, deletionMark);
-                    view.dispatch(tr);
-                    return true;
-                  }
-                }
+                // Single character deletion - let it happen normally but don't track it
+                // We'll let the normal editor behavior handle single character deletions
+                return false;
               } else {
-                // Selection deletion - mark as deleted
+                // Selection deletion - mark as deleted instead of removing
                 const changeId = `change-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
                 const changeData = JSON.stringify({ 
                   userId, 
@@ -468,9 +445,11 @@ export const TrackChangesExtension = Extension.create<TrackChangesOptions>({
                 
                 tr.addMark(from, to, deletionMark);
                 view.dispatch(tr);
-                return true;
+                return true; // Prevent default behavior for selections
               }
             }
+            
+            // For all other keys, let the editor handle them normally
             return false;
           },
         },
