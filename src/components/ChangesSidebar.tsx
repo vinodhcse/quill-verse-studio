@@ -1,10 +1,9 @@
-
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, X, User } from 'lucide-react';
+import { Check, X, User, CheckCheck, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface Change {
@@ -35,6 +34,8 @@ interface ChangesSidebarProps {
   focusedChangeId?: string | null;
   showChanges: boolean;
   onToggleChanges: () => void;
+  onAcceptAllChanges?: () => void;
+  onRejectAllChanges?: () => void;
 }
 
 export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
@@ -44,6 +45,9 @@ export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
   onRejectChange,
   onChangeClick,
   focusedChangeId,
+  showChanges,
+  onAcceptAllChanges,
+  onRejectAllChanges,
 }) => {
   const unresolvedComments = comments.filter(comment => !comment.resolved);
 
@@ -53,6 +57,19 @@ export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
     }
   };
 
+  // Don't show anything if showChanges is false
+  if (!showChanges) {
+    return (
+      <div className="h-full flex items-center justify-center p-4">
+        <div className="text-center text-muted-foreground text-sm">
+          <EyeOff size={24} className="mx-auto mb-2" />
+          <p>Changes are hidden</p>
+          <p className="text-xs mt-1">Enable "Show Changes" to view tracked changes</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-full flex flex-col">
       <ScrollArea className="flex-1">
@@ -60,7 +77,31 @@ export const ChangesSidebar: React.FC<ChangesSidebarProps> = ({
           {/* Pending Changes */}
           {changes.length > 0 && (
             <div>
-              <h4 className="text-sm font-medium mb-2">Track Changes ({changes.length})</h4>
+              <div className="flex items-center justify-between mb-2">
+                <h4 className="text-sm font-medium">Track Changes ({changes.length})</h4>
+                <div className="flex items-center space-x-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onAcceptAllChanges}
+                    className="h-6 px-2 text-green-600 hover:bg-green-100 text-xs"
+                    title="Accept all changes"
+                  >
+                    <CheckCheck size={12} className="mr-1" />
+                    Accept All
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onRejectAllChanges}
+                    className="h-6 px-2 text-red-600 hover:bg-red-100 text-xs"
+                    title="Reject all changes"
+                  >
+                    <XCircle size={12} className="mr-1" />
+                    Reject All
+                  </Button>
+                </div>
+              </div>
               <div className="space-y-2">
                 {changes.map((change) => (
                   <Card 

@@ -408,10 +408,15 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       }
     }
     
-    // Also update parent component
+    // Also update parent component and control sidebar visibility
     if (onTrackChangesToggle) {
       onTrackChangesToggle(showChangesEnabled);
     }
+
+    // Dispatch event to control sidebar visibility
+    window.dispatchEvent(new CustomEvent('toggleSidebarChanges', {
+      detail: { showChanges: showChangesEnabled }
+    }));
   }, [editor, showChangesEnabled]);
 
   const handleTrackChangesToggle = (enabled: boolean) => {
@@ -449,26 +454,17 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   return (
     <div className="h-full flex flex-col bg-background/50 rounded-2xl border border-border/50 shadow-lg backdrop-blur-sm overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/80">
-        <EditModeSelector currentMode={editMode} onModeChange={setEditMode} currentUser={currentUser} />
-        <div className="flex items-center space-x-2">
-          <Button
-            variant={trackChangesEnabled ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleTrackChangesToggle(!trackChangesEnabled)}
-            disabled={isEditMode} // Disabled in edit mode
-            className="flex items-center space-x-2"
-          >
-            <span>Track Changes</span>
-          </Button>
-          <Button
-            variant={showChangesEnabled ? "default" : "outline"}
-            size="sm"
-            onClick={() => handleShowChangesToggle(!showChangesEnabled)}
-            className="flex items-center space-x-2"
-          >
-            <span>Show Changes</span>
-          </Button>
-        </div>
+        <EditModeSelector 
+          currentMode={editMode} 
+          onModeChange={setEditMode} 
+          currentUser={currentUser}
+          trackChangesEnabled={trackChangesEnabled}
+          showChangesEnabled={showChangesEnabled}
+          onTrackChangesToggle={handleTrackChangesToggle}
+          onShowChangesToggle={handleShowChangesToggle}
+          isEditMode={isEditMode}
+          fileStatus="Auto-saved"
+        />
       </div>
 
       <EditorToolbar editor={editor} />
@@ -495,10 +491,6 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20">
             {editMode} mode • TipTap
           </span>
-        </div>
-        <div className="flex items-center space-x-2">
-          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-          <span>Auto-saved</span>
         </div>
       </div>
     </div>

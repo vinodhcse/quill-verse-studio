@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, MessageSquare, Settings, Users } from 'lucide-react';
+import { ChevronLeft, ChevronRight, MessageSquare, Settings, Users, EyeOff } from 'lucide-react';
 import { ChangesSidebar } from './ChangesSidebar';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useBookContext } from '@/lib/BookContextProvider';
@@ -43,6 +43,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
   const [activeTab, setActiveTab] = useState<'changes' | 'settings' | 'users'>('changes');
   const [extractedChanges, setExtractedChanges] = useState<Change[]>([]);
   const [focusedChangeId, setFocusedChangeId] = useState<string | null>(null);
+  const [showSidebarChanges, setShowSidebarChanges] = useState(true);
   
   const { state } = useBookContext();
   const {
@@ -178,6 +179,46 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
     setExtractedChanges(prev => prev.filter(change => change.id !== changeId));
   };
 
+  const handleAcceptAllChanges = () => {
+    console.log('RightSidebar: Accepting all changes');
+    extractedChanges.forEach(change => {
+      window.dispatchEvent(new CustomEvent('acceptChange', {
+        detail: { changeId: change.id }
+      }));
+      acceptChange(change.id);
+    });
+    
+    // Clear all changes from local state
+    setExtractedChanges([]);
+  };
+
+  const handleRejectAllChanges = () => {
+    console.log('RightSidebar: Rejecting all changes');
+    extractedChanges.forEach(change => {
+      window.dispatchEvent(new CustomEvent('rejectChange', {
+        detail: { changeId: change.id }
+      }));
+      rejectChange(change.id);
+    });
+    
+    // Clear all changes from local state
+    setExtractedChanges([]);
+  };
+
+  // Listen for sidebar visibility toggle
+  useEffect(() => {
+    const handleToggleSidebarChanges = (event: CustomEvent) => {
+      const showChanges = event.detail.showChanges;
+      console.log('RightSidebar: Toggle sidebar changes visibility:', showChanges);
+      setShowSidebarChanges(showChanges);
+    };
+
+    window.addEventListener('toggleSidebarChanges', handleToggleSidebarChanges as EventListener);
+    return () => {
+      window.removeEventListener('toggleSidebarChanges', handleToggleSidebarChanges as EventListener);
+    };
+  }, []);
+
   if (isCollapsed) return null;
 
   return (
@@ -206,7 +247,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
             >
               <MessageSquare size={14} className="mr-1" />
               Changes
-              {extractedChanges.length > 0 && (
+              {showSidebarChanges && extractedChanges.length > 0 && (
                 <span className="ml-1 bg-destructive text-destructive-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
                   {extractedChanges.length}
                 </span>
@@ -235,12 +276,18 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
           <div className="flex-1 overflow-hidden">
             {activeTab === 'changes' && (
               <div className="h-full flex flex-col">
-                {extractedChanges.length === 0 && (
+                {!showSidebarChanges ? (
+                  <div className="p-4 text-center text-muted-foreground text-sm">
+                    <EyeOff size={24} className="mx-auto mb-2" />
+                    <p>Changes are hidden</p>
+                    <p className="text-xs mt-1">Enable "Show Changes" to view tracked changes</p>
+                  </div>
+                ) : extractedChanges.length === 0 ? (
                   <div className="p-4 text-center text-muted-foreground text-sm">
                     <p>No track changes found in this chapter.</p>
                     <p className="text-xs mt-1">Make some edits with track changes enabled to see them here.</p>
                   </div>
-                )}
+                ) : null}
                 <ChangesSidebar
                   changes={extractedChanges}
                   comments={blockComments}
@@ -248,8 +295,10 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({
                   onRejectChange={handleRejectChange}
                   onChangeClick={handleChangeClick}
                   focusedChangeId={focusedChangeId}
-                  showChanges={true}
+                  showChanges={showSidebarChanges}
                   onToggleChanges={() => {}}
+                  onAcceptAllChanges={handleAcceptAllChanges}
+                  onRejectAllChanges={handleRejectAllChanges}
                 />
               </div>
             )}

@@ -2,75 +2,70 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Toggle } from '@/components/ui/toggle';
 import { EditMode, User } from '@/types/collaboration';
-import { Edit, MessageSquare, Eye } from 'lucide-react';
+import { Edit, MessageSquare, Eye, EyeOff, GitBranch, GitBranchPlus } from 'lucide-react';
 
 interface EditModeSelectorProps {
   currentMode: EditMode;
   onModeChange: (mode: EditMode) => void;
   currentUser: User;
+  trackChangesEnabled?: boolean;
+  showChangesEnabled?: boolean;
+  onTrackChangesToggle?: (enabled: boolean) => void;
+  onShowChangesToggle?: (enabled: boolean) => void;
+  isEditMode?: boolean;
+  fileStatus?: string;
 }
 
 export const EditModeSelector: React.FC<EditModeSelectorProps> = ({
   currentMode,
   onModeChange,
-  currentUser
+  currentUser,
+  trackChangesEnabled = false,
+  showChangesEnabled = false,
+  onTrackChangesToggle,
+  onShowChangesToggle,
+  isEditMode = false,
+  fileStatus = 'Auto-saved',
 }) => {
-  const modes = [
-    {
-      key: 'edit' as EditMode,
-      label: 'Edit',
-      icon: Edit,
-      description: 'Save changes directly',
-      allowedRoles: ['author'],
-    },
-    {
-      key: 'suggest' as EditMode,
-      label: 'Suggest',
-      icon: MessageSquare,
-      description: 'Add changes as suggestions',
-      allowedRoles: ['editor', 'author'],
-    },
-    {
-      key: 'review' as EditMode,
-      label: 'Review',
-      icon: Eye,
-      description: 'View and accept/reject changes',
-      allowedRoles: ['author', 'reviewer'],
-    },
-  ];
-
-  const availableModes = modes.filter(mode => 
-    mode.allowedRoles.includes(currentUser.role)
-  );
-
   return (
-    <div className="flex items-center space-x-2 p-2 border rounded-lg bg-background/50">
+    <div className="flex items-center space-x-3 p-2 border rounded-lg bg-background/50">
+      {/* Track Changes Toggle */}
       <div className="flex items-center space-x-1">
-        <Badge variant="outline" className="text-xs">
-          {currentUser.name} ({currentUser.role})
-        </Badge>
+        <Toggle
+          pressed={trackChangesEnabled}
+          onPressedChange={onTrackChangesToggle}
+          disabled={isEditMode}
+          className="h-8 text-xs"
+          title={isEditMode ? "Track changes is always on in edit mode" : "Toggle track changes"}
+        >
+          <GitBranch size={14} className="mr-1" />
+          Track Changes
+        </Toggle>
       </div>
-      
+
       <div className="w-px h-6 bg-border" />
-      
+
+      {/* Show Changes Toggle */}
       <div className="flex items-center space-x-1">
-        {availableModes.map((mode) => {
-          const Icon = mode.icon;
-          return (
-            <Button
-              key={mode.key}
-              variant={currentMode === mode.key ? "default" : "ghost"}
-              size="sm"
-              onClick={() => onModeChange(mode.key)}
-              className="h-8"
-              title={mode.description}
-            >
-              <Icon size={14} className="mr-1" />
-              {mode.label}
-            </Button>
-          );
-        })}
+        <Toggle
+          pressed={showChangesEnabled}
+          onPressedChange={onShowChangesToggle}
+          className="h-8 text-xs"
+          title="Toggle changes visibility"
+        >
+          {showChangesEnabled ? <Eye size={14} className="mr-1" /> : <EyeOff size={14} className="mr-1" />}
+          Show Changes
+        </Toggle>
+      </div>
+
+      <div className="w-px h-6 bg-border" />
+
+      {/* File Status */}
+      <div className="flex items-center space-x-1">
+        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+        <span className="text-xs text-muted-foreground">{fileStatus}</span>
       </div>
     </div>
   );
