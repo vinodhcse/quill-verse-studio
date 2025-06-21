@@ -17,6 +17,7 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      "@tauri-apps/api": path.resolve(__dirname, "node_modules/@tauri-apps/api")
     },
   },
 }));

@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Separator } from '@/components/ui/separator';
 import { Mail, Lock, Eye, EyeOff, PenTool } from 'lucide-react';
 import { login } from '@/lib/api';
+import { invoke } from '@tauri-apps/api/tauri';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -17,13 +18,18 @@ const Login = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault(); // Explicitly prevent default form submission
     try {
-      debugger;
       const data = await login(email, password);
       console.log('Login successful:', data);
+
+      // Set the user role based on login response
+      const userRole = data.role; // Assume the API returns a `role` field
+
+      // Call the Tauri backend to set the user role and assign capabilities
+      await invoke('login_user', { username: email, password });
+
       localStorage.setItem('token', data.token);
       navigate('/dashboard');
     } catch (error) {
-      debugger;
       console.error('Login failed:', error);
       setErrorMessage(error.response?.data?.message || 'Unauthorized access. Please check your credentials.');
     }

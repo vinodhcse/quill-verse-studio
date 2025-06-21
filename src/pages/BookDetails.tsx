@@ -45,6 +45,10 @@ const BookDetails = () => {
   });
 
   useEffect(() => {
+    if (!bookId) {
+      console.error('No book ID provided');
+      return;
+    }
     const fetchBookDetails = async () => {
       if (!bookId) return;
       

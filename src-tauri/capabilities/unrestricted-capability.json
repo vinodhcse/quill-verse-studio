@@ -1,0 +1,13 @@
+{
+  "identifier": "unrestricted-capability",
+  "description": "Capability for users with full clipboard access.",
+  "windows": ["main"],
+  "permissions": [
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text",
+    "clipboard-manager:allow-read-image",
+    "clipboard-manager:allow-write-image",
+    "clipboard-manager:allow-write-html",
+    "clipboard-manager:allow-clear"
+  ]
+}

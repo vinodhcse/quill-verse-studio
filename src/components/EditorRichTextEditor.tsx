@@ -27,6 +27,7 @@ import './collaboration-styles.css';
 import { Node } from '@tiptap/core';
 import { consolidateTrackChanges, extractChangesFromContent } from '@/utils/trackChangesUtils';
 import { useLocation } from 'react-router-dom';
+import { secureCopyText, secureReadText } from '@/lib/clipboard';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -42,6 +43,8 @@ interface CollaborativeRichTextEditorProps {
   onRejectChange?: (changeId: string) => void;
   onChangeClick?: (changeId: string) => void;
 }
+
+
 
 const SceneDivider = Node.create({
   name: 'sceneDivider',
@@ -106,6 +109,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   // Local state for track changes functionality
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(isEditMode); // Always on for edit mode
   const [showChangesEnabled, setShowChangesEnabled] = useState(showTrackChanges);
+  const [clipboardAlert, setClipboardAlert] = useState(false);
   
   const {
     currentUser,
@@ -125,6 +129,8 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   
   console.log('Editor content type:', typeof content);
   console.log("📄 Editor received content:", content);
+
+  
   
   const editor = useEditor({
     extensions: [
@@ -451,6 +457,33 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     };
   }, []);
 
+  // Unified clipboard handling logic
+  useEffect(() => {
+    const handleCopy = async (event: ClipboardEvent) => {
+      event.preventDefault();
+      try {
+        const selectedText = window.getSelection()?.toString() || '';
+
+        if (currentUser?.role === 'editor') {
+          console.warn('Copy operation denied for role: editor');
+          setClipboardAlert(true);
+          setTimeout(() => setClipboardAlert(false), 3000); // Auto-hide alert after 3 seconds
+          return;
+        }
+
+        await secureCopyText(selectedText);
+        console.log('Text copied securely!');
+      } catch (error) {
+        console.error('Failed to copy text:', error);
+      }
+    };
+
+    document.addEventListener('copy', handleCopy);
+    return () => {
+      document.removeEventListener('copy', handleCopy);
+    };
+  }, [currentUser]);
+
   return (
     <div className="h-full flex flex-col bg-background/50 rounded-2xl border border-border/50 shadow-lg backdrop-blur-sm overflow-hidden">
       <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/80">
@@ -493,6 +526,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           </span>
         </div>
       </div>
+
+      {clipboardAlert && (
+        <div className="absolute top-4 right-4 z-50 p-4 bg-red-500 text-white rounded-lg shadow-md">
+          Clipboard functionality is disabled for this application.
+        </div>
+      )}
     </div>
   );
 };

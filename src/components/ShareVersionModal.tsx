@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -27,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Copy, Mail, Users, Trash2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
+import { secureCopyText } from '@/lib/clipboard';
 
 interface ShareVersionModalProps {
   isOpen: boolean;
@@ -102,10 +102,16 @@ export const ShareVersionModal: React.FC<ShareVersionModalProps> = ({
     setCollaborators(collaborators.filter(c => c.id !== collaboratorId));
   };
 
-  const generateShareLink = () => {
+  const generateShareLink = async () => {
     const link = `${window.location.origin}/shared/${versionId}`;
-    navigator.clipboard.writeText(link);
-    // You could add a toast notification here
+    try {
+      await secureCopyText(link);
+      console.log('Link copied securely!');
+      // You could add a toast notification here
+    } catch (error) {
+      console.error('Failed to copy link:', error);
+      alert('Clipboard access denied.');
+    }
   };
 
   const getRoleColor = (role: string) => {

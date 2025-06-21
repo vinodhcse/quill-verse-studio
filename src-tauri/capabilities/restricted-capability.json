@@ -1,0 +1,13 @@
+{
+  "identifier": "restricted-capability",
+  "description": "Capability for users with restricted clipboard access.",
+  "windows": ["main"],
+  "permissions": [
+    "clipboard-manager:deny-read-text",
+    "clipboard-manager:deny-write-text",
+    "clipboard-manager:deny-read-image",
+    "clipboard-manager:deny-write-image",
+    "clipboard-manager:deny-write-html",
+    "clipboard-manager:deny-clear"
+  ]
+}

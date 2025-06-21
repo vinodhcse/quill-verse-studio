@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { ModeNavigation, Mode } from '@/components/ModeNavigation';
 import { EditLeftSidebar } from '@/components/EditLeftSidebar';
 import { RightSidebar } from '@/components/RightSidebar';
@@ -6,16 +7,94 @@ import { EditCenterPanel } from '@/components/EditCenterPanel.tsx';
 import { SidebarToggleButtons } from '@/components/SidebarToggleButtons';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { ArrowUp } from 'lucide-react';
+import { apiClient } from '@/lib/api';
+import { useUserContext } from '../lib/UserContextProvider';
+import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
+import { getLoggedInUserId } from '../lib/authService';
+import { setUserRole } from '@/lib/clipboard';
 
 const Index = () => {
   const { state, loading } = useBookContext();
   const [currentMode, setCurrentMode] = useState<Mode>('writing');
   const [leftSidebarCollapsed, setLeftSidebarCollapsed] = useState(false);
   const [rightSidebarCollapsed, setRightSidebarCollapsed] = useState(false);
-
+  const { bookId } = useParams<{ bookId: string }>();
+  const [isLoading, setIsLoading] = useState(true);
+  const [versions, setVersions] = useState<Version[]>([]);
+  const [bookDetails, setBookDetails] = useState<BookDetailsType | null>(null);
+  const [bookUserRole, setBookUserRole] = useState<string | null>(null);
+  const { userId: currentUserId } = useUserContext();
   const handleModeChange = (mode: Mode) => {
     setCurrentMode(mode);
   };
+
+   useEffect(() => {
+    if (!bookId) {
+      console.error('No book ID provided');
+      return;
+    }
+    const fetchBookDetails = async () => {
+      if (!bookId) return;
+      
+      setIsLoading(true);
+      try {
+        const [bookResponse, versionsResponse] = await Promise.all([
+          apiClient.get(`/books/${bookId}`),
+          apiClient.get(`/books/${bookId}/versions`)
+        ]);
+        const bookData = bookResponse.data;
+        setBookDetails(bookData);
+        setVersions(versionsResponse.data);
+
+        // Determine user role
+        const loggedInUserId = currentUserId || getLoggedInUserId();
+        console.log('Logged In User ID:', loggedInUserId);
+        console.log('Book Author ID:', bookData.authorId);
+
+        if (bookData.authorId === loggedInUserId) {
+          setBookUserRole('AUTHOR');
+        } else {
+          console.log('Book colloborators:', bookData.collaborators);
+          const collaborator = bookData.collaborators.find(
+            (collab) => collab.user_id === loggedInUserId
+          );
+          console.log('Collaborator:', collaborator);
+          setBookUserRole(collaborator ? collaborator.collaborator_type : null);
+          console.log('Book User Role:', bookUserRole);
+        }
+        
+      } catch (error) {
+        console.error('Failed to fetch book details:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchBookDetails();
+  }, [bookId]);
+
+  useEffect(() => {
+    if (bookUserRole) {
+      if (bookUserRole === 'AUTHOR' || bookUserRole === 'CO_WRITER') {
+        setUserRole('unrestricted'); // No clipboard restrictions
+        console.log('User role set to unrestricted for AUTHOR or CO_WRITER', bookUserRole);
+      } else if (bookUserRole === 'EDITOR' || bookUserRole === 'REVIEWER') {
+        setUserRole('restricted'); // Restrict clipboard read (anti-copy)
+        console.log('User role set to unrestricted for EDITOR or REVIEWER', bookUserRole);        
+      }
+    }
+  }, [bookUserRole]);
+
+   if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p>Loading book details for Editting...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
