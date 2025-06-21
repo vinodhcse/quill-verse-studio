@@ -27,6 +27,7 @@ import './collaboration-styles.css';
 import { Node } from '@tiptap/core';
 import { consolidateTrackChanges, extractChangesFromContent } from '@/utils/trackChangesUtils';
 import { useLocation } from 'react-router-dom';
+import { useClipboard } from '@/hooks/useClipboard';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -126,6 +127,8 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   console.log('Editor content type:', typeof content);
   console.log("📄 Editor received content:", content);
   
+  const { copyToClipboard, canCopy } = useClipboard();
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -247,6 +250,28 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         }
         
         return false;
+      },
+      clipboardTextSerializer: (slice) => {
+        return slice.content.textBetween(0, slice.content.size);
+      },
+      transformCopied: (slice) => {
+        // This will be called when user tries to copy
+        const text = slice.content.textBetween(0, slice.content.size);
+        
+        // Use controlled clipboard copy
+        copyToClipboard(text).then((success) => {
+          if (!success) {
+            // Prevent the default copy behavior by returning empty slice
+            console.log('Copy operation was blocked by clipboard control');
+          }
+        });
+        
+        // Always return empty slice to prevent default clipboard behavior in Tauri
+        if (window.__TAURI__) {
+          return slice.content.cut(0, 0);
+        }
+        
+        return slice;
       },
     },
   });
@@ -465,6 +490,17 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           isEditMode={isEditMode}
           fileStatus="Auto-saved"
         />
+        
+        {/* Add clipboard status indicator */}
+        {window.__TAURI__ && (
+          <div className={`text-xs px-2 py-1 rounded-full ${
+            canCopy 
+              ? 'bg-green-100 text-green-800' 
+              : 'bg-red-100 text-red-800'
+          }`}>
+            {canCopy ? 'Copy Enabled' : 'Copy Restricted'}
+          </div>
+        )}
       </div>
 
       <EditorToolbar editor={editor} />

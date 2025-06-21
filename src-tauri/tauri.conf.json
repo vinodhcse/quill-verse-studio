@@ -1,3 +1,4 @@
+
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "authorstudio",
@@ -33,5 +34,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ]
-  }
+  },
+  "permissions": [
+    "clipboard-manager:allow-read-text",
+    "clipboard-manager:allow-write-text"
+  ]
 }
