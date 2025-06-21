@@ -35,8 +35,12 @@
       "icons/icon.ico"
     ]
   },
-  "permissions": [
-    "clipboard-manager:allow-read-text",
-    "clipboard-manager:allow-write-text"
-  ]
+  "plugins": {
+    "clipboard-manager": {
+      "permissions": [
+        "clipboard-manager:allow-read-text",
+        "clipboard-manager:allow-write-text"
+      ]
+    }
+  }
 }
