@@ -24,7 +24,8 @@ export class ClipboardService {
 
   static async canAccessClipboard(): Promise<boolean> {
     try {
-      return await invoke('can_access_clipboard');
+      const result = await invoke('can_access_clipboard');
+      return Boolean(result);
     } catch (error) {
       console.error('Failed to check clipboard access:', error);
       return false;
@@ -37,7 +38,7 @@ export class ClipboardService {
       if (!success) {
         console.warn('Clipboard access denied due to user role restrictions');
       }
-      return success;
+      return Boolean(success);
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
       return false;

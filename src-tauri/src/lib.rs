@@ -1,7 +1,8 @@
 
-use tauri::{ClipboardManager, Manager, State};
+use tauri::State;
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use tauri_plugin_clipboard_manager::ClipboardExt;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserRole {
@@ -57,7 +58,7 @@ async fn controlled_copy_to_clipboard(
     
     if can_copy {
         app_handle
-            .clipboard_manager()
+            .clipboard()
             .write_text(text)
             .map_err(|e| format!("Failed to write to clipboard: {}", e))?;
         Ok(true)
@@ -76,6 +77,7 @@ async fn get_current_user_role(state: State<'_, AppState>) -> Result<Option<User
 pub fn run() {
     tauri::Builder::default()
         .manage(AppState::default())
+        .plugin(tauri_plugin_clipboard_manager::init())
         .invoke_handler(tauri::generate_handler![
             set_user_role,
             can_access_clipboard,

@@ -254,7 +254,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
       clipboardTextSerializer: (slice) => {
         return slice.content.textBetween(0, slice.content.size);
       },
-      transformCopied: (slice) => {
+      transformCopied: (slice, view) => {
         // This will be called when user tries to copy
         const text = slice.content.textBetween(0, slice.content.size);
         
