@@ -266,11 +266,13 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           }
         });
         
-        // Always return empty slice to prevent default clipboard behavior in Tauri
+        // Always return a proper Slice to prevent TypeScript errors
         if (window.__TAURI__) {
+          // Return empty slice for Tauri to prevent default clipboard behavior
           return slice.content.cut(0, 0);
         }
         
+        // Return original slice for web
         return slice;
       },
     },
