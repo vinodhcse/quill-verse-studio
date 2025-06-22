@@ -125,7 +125,7 @@ export class ClipboardService {
     // Show user-friendly message
     window.dispatchEvent(new CustomEvent('clipboardBlocked', {
       detail: { 
-        message: 'Copy operation blocked. Your role does not have clipboard access.',
+        message: 'Copy operation blocked. Your role for this book does not have clipboard access.',
         role: 'EDITOR/REVIEWER'
       }
     }));

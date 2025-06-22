@@ -35,13 +35,34 @@ export const useClipboard = () => {
   // Update user role when book context changes
   useEffect(() => {
     const updateUserRole = async () => {
-      if (userId && bookState.bookId && bookState.bookDetails?.collaborators) {
+      if (userId && bookState?.bookId && bookState.bookDetails) {
         // Find the current user's role for this book
-        const currentUserCollaborator = bookState.bookDetails.collaborators.find(
-          (collab: any) => collab.user_id === userId
-        );
+        console.log('useClipboard: Updating user role for book', {
+          userId,
+          bookId: bookState.bookId,
+          bookDetails: bookState.bookDetails
+        });
+
+        let currentUserCollaborator = null;
+        let role = 'VIEWER'; // Default role
+
+        if (bookState.bookDetails?.authorId) {
+          // If the book has an author, check if the user is the author
+          if (bookState.bookDetails.authorId === userId) {
+            role = 'AUTHOR';        
+          }
+        }
         
-        const role = currentUserCollaborator?.collaborator_type || 'VIEWER';
+
+        if (!role && bookState.bookDetails?.collaborators) {
+          currentUserCollaborator = bookState.bookDetails?.collaborators.find(
+            (collab: any) => collab.user_id === userId
+          );
+          
+          role = currentUserCollaborator?.collaborator_type || 'VIEWER';
+        }
+
+        console.log('useClipboard: Current user role determined:', role);
         
         try {
           // Store role locally for web environment
@@ -83,7 +104,7 @@ export const useClipboard = () => {
         // Show blocked message if copy failed due to role restrictions
         toast({
           title: "Copy Blocked",
-          description: "Your role does not have clipboard access.",
+          description: "Your role for this book does not have clipboard access.",
           variant: "destructive",
         });
       }
