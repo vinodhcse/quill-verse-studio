@@ -10,6 +10,22 @@ export const useClipboard = () => {
   const { userId } = useUserContext();
   const { state: bookState } = useBookContext();
 
+  // Listen for clipboard blocked events
+  useEffect(() => {
+    const handleClipboardBlocked = (event: CustomEvent) => {
+      const { role } = event.detail;
+      console.log(`Clipboard access blocked for role: ${role}`);
+      // You could show a toast notification here
+      // toast.error(`Copy operation blocked. ${role} role does not have clipboard access.`);
+    };
+
+    window.addEventListener('clipboardBlocked', handleClipboardBlocked as EventListener);
+    
+    return () => {
+      window.removeEventListener('clipboardBlocked', handleClipboardBlocked as EventListener);
+    };
+  }, []);
+
   // Update user role when book context changes
   useEffect(() => {
     const updateUserRole = async () => {
@@ -39,14 +55,9 @@ export const useClipboard = () => {
   const copyToClipboard = async (text: string): Promise<boolean> => {
     setIsLoading(true);
     try {
+      console.log('useClipboard: copyToClipboard called');
       const success = await ClipboardService.copyToClipboard(text);
-      if (!success && window.__TAURI__) {
-        // Show user-friendly message when copy is blocked
-        const currentRole = await ClipboardService.getCurrentUserRole();
-        if (currentRole && (currentRole.role === 'EDITOR' || currentRole.role === 'REVIEWER')) {
-          console.warn(`Copy operation blocked. ${currentRole.role} role does not have clipboard access.`);
-        }
-      }
+      console.log('useClipboard: Copy operation result:', success);
       return success;
     } catch (error) {
       console.error('Copy operation failed:', error);
