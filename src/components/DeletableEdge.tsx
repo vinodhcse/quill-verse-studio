@@ -65,9 +65,11 @@ const DeletableEdge: React.FC<DeletableEdgeProps> = ({
           ...node,
           data: {
             ...node.data,
-            linkedNodeIds: node.data.linkedNodeIds?.filter((linkId: string) => 
-              linkId !== sourceId && linkId !== targetId
-            ) || []
+            linkedNodeIds: Array.isArray(node.data?.linkedNodeIds) 
+              ? node.data.linkedNodeIds.filter((linkId: string) => 
+                  linkId !== sourceId && linkId !== targetId
+                ) 
+              : []
           }
         })));
       }

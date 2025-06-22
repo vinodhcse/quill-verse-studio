@@ -181,7 +181,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     setEdges(flowEdges);
   }, [canvasNodes, nodePositions, flowEdges]);
 
-  // Handle node position changes
+  // Handle node position changes with debouncing
   const handleNodesChange = useCallback((changes: any[]) => {
     onNodesChange(changes);
     
@@ -195,6 +195,38 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       }
     });
   }, [onNodesChange]);
+
+  // Handle edge changes - properly handle deletions
+  const handleEdgesChange = useCallback((changes: any[]) => {
+    onEdgesChange(changes);
+    
+    // Handle edge deletions
+    changes.forEach(change => {
+      if (change.type === 'remove') {
+        const edgeId = change.id;
+        
+        if (edgeId.startsWith('link_')) {
+          const edgeParts = edgeId.split('_');
+          if (edgeParts.length >= 3) {
+            const sourceId = edgeParts[1];
+            const targetId = edgeParts[2];
+            
+            setCanvasNodes(prev => prev.map(node => {
+              if (node.id === sourceId || node.id === targetId) {
+                return {
+                  ...node,
+                  linkedNodeIds: (node.linkedNodeIds || []).filter(id => 
+                    id !== sourceId && id !== targetId
+                  )
+                };
+              }
+              return node;
+            }));
+          }
+        }
+      }
+    });
+  }, [onEdgesChange]);
 
   const handleEditNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -431,7 +463,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         nodes={nodes}
         edges={edges}
         onNodesChange={handleNodesChange}
-        onEdgesChange={onEdgesChange}
+        onEdgesChange={handleEdgesChange}
         onConnect={onConnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
