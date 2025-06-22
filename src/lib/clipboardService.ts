@@ -44,6 +44,10 @@ export class ClipboardService {
 
   static async setUserRole(userId: string, bookId: string, role: string): Promise<void> {
     console.log('Setting user role:', { userId, bookId, role });
+     // Initialize if needed
+    if (!this.initialized) {
+      await this.initialize();
+    }
     
     if (!this.isTauriEnvironment) {
       console.log('Not in Tauri environment, skipping role setting');

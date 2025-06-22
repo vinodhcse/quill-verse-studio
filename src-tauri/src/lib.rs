@@ -23,6 +23,10 @@ async fn set_user_role(
     role: String,
 ) -> Result<(), String> {
     let mut current_role = state.current_user_role.lock().unwrap();
+    println!(
+        "Setting user role: user_id={}, book_id={}, role={}",
+        user_id, book_id, role
+    );
     *current_role = Some(UserRole {
         user_id,
         book_id,
@@ -34,7 +38,7 @@ async fn set_user_role(
 #[tauri::command]
 async fn can_access_clipboard(state: State<'_, AppState>) -> Result<bool, String> {
     let current_role = state.current_user_role.lock().unwrap();
-    
+    println!("Current user role: {:?}", current_role);
     match &*current_role {
         Some(role) => {
             match role.role.as_str() {
