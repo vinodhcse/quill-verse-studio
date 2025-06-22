@@ -1,556 +1,374 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import Underline from '@tiptap/extension-underline';
+import TextAlign from '@tiptap/extension-text-align';
+import TextStyle from '@tiptap/extension-text-style';
+import Color from '@tiptap/extension-color';
+import FontFamily from '@tiptap/extension-font-family';
+import Link from '@tiptap/extension-link';
+import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Focus from '@tiptap/extension-focus';
-import TextStyle from '@tiptap/extension-text-style';
-import Underline from '@tiptap/extension-underline';
-import TextAlign from '@tiptap/extension-text-align';
-import Link from '@tiptap/extension-link';
-import Image from '@tiptap/extension-image';
-import FontFamily from '@tiptap/extension-font-family';
-import FontSize from '@tiptap/extension-font-size';
-import Color from '@tiptap/extension-color';
-import { CommentExtension } from '@/extensions/CommentExtension';
-import { TrackChangesExtension } from '@/extensions/TrackChangesExtension';
-import { EditorToolbar } from './EditorToolbar';
-import { EditModeSelector } from './EditModeSelector';
-import { TextContextMenu } from './TextContextMenu';
-import { TrackChangesToggle } from './TrackChangesToggle';
-import { Button } from '@/components/ui/button';
-import { useCollaboration } from '@/hooks/useCollaboration';
+import { useCollaborationContext } from '@/lib/CollaborationContextProvider';
 import { useUserContext } from '@/lib/UserContextProvider';
-import { cn } from '@/lib/utils';
-import './editor-styles.css';
-import './collaboration-styles.css';
-import { Node } from '@tiptap/core';
-import { consolidateTrackChanges, extractChangesFromContent } from '@/utils/trackChangesUtils';
-import { useLocation } from 'react-router-dom';
-import { useClipboard } from '@/hooks/useClipboard';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { Skeleton } from "@/components/ui/skeleton"
+import { Button } from "@/components/ui/button"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { cn } from "@/lib/utils"
+import { ImageIcon, Link as LinkIcon, Bold, Italic, UnderlineIcon, ListOrdered, ListUnordered, Code, AlignLeft, AlignCenter, AlignRight, AlignJustify, History, MessageSquare, ChevronDown } from 'lucide-react';
+import { Chapter } from '@/types/collaboration';
 
-interface CollaborativeRichTextEditorProps {
+interface EditorRichTextEditorProps {
   content: any;
-  onChange: (content: any, totalCharacters: any, totalWords: any) => void;
-  placeholder?: string;
-  className?: string;
+  onChange: (content: any, charCount: any, wordCount: any) => void;
   blockId: string;
-  selectedChapter: any;
+  selectedChapter: Chapter;
+  isReadOnly?: boolean;
   showTrackChanges?: boolean;
-  onTrackChangesToggle?: (show: boolean) => void;
-  onExtractedChangesUpdate?: (changes: any[]) => void;
-  onAcceptChange?: (changeId: string) => void;
-  onRejectChange?: (changeId: string) => void;
-  onChangeClick?: (changeId: string) => void;
+  onTrackChangesToggle?: (value: boolean) => void;
+  showComments?: boolean;
+  onCommentsToggle?: (value: boolean) => void;
 }
 
-const SceneDivider = Node.create({
-  name: 'sceneDivider',
-
-  group: 'block',
-  content: '',
-  parseHTML() {
-    return [
-      {
-        tag: 'hr.scene-divider',
-      },
-    ];
-  },
-  renderHTML() {
-    return ['hr', { class: 'scene-divider border-t-2 border-dashed border-gray-400 my-4' }];
-  },
-
-  addCommands() {
-    return {
-      insertSceneDivider: () => ({ commands }) => {
-        return commands.insertContent({ type: 'sceneDivider' });
-      },
-    } as any;
-  },
-
-  addNodeView() {
-    return ({ node, getPos }) => {
-      const dom = document.createElement('hr');
-      dom.className = 'scene-divider border-t-2 border-dashed border-gray-400 my-4';
-
-      dom.addEventListener('click', () => {
-        console.log('Scene divider clicked at position:', getPos());
-      });
-
-      return {
-        dom,
-      };
-    };
-  },
-});
-
-export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = ({
+export const EditorRichTextEditor: React.FC<EditorRichTextEditorProps> = ({
   content,
   onChange,
-  placeholder = 'Start writing your story...',
-  className,
   blockId,
   selectedChapter,
+  isReadOnly = false,
   showTrackChanges = false,
   onTrackChangesToggle,
-  onExtractedChangesUpdate,
-  onAcceptChange,
-  onRejectChange,
-  onChangeClick,
+  showComments = false,
+  onCommentsToggle,
 }) => {
-  const { userId, name: userName } = useUserContext();
-  const location = useLocation();
-  
-  // Determine if we're in edit mode based on the route
-  const isEditMode = location.pathname.includes('/edit');
-  
-  // Local state for track changes functionality
-  const [trackChangesEnabled, setTrackChangesEnabled] = useState(isEditMode); // Always on for edit mode
-  const [showChangesEnabled, setShowChangesEnabled] = useState(showTrackChanges);
-  
-  const {
-    currentUser,
-    editMode,
-    setEditMode,
-    changeLogs,
-    comments,
-    addChangeLog,
-    acceptChange,
-    rejectChange,
-    addComment,
-  } = useCollaboration();
+  const { ydoc } = useCollaborationContext();
+  const { userId } = useUserContext();
+  const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
+  const [linkURL, setLinkURL] = useState('');
+  const [selectedRange, setSelectedRange] = useState<any>(null);
+  const [comment, setComment] = useState('');
+  const [comments, setComments] = useState<{ id: string; userId: string; text: string; timestamp: Date }[]>([]);
+  const [isCommentPopoverOpen, setIsCommentPopoverOpen] = useState(false);
+  const [isToolbarSticky, setIsToolbarSticky] = useState(false);
 
-  const [extractedChanges, setExtractedChanges] = useState<any[]>([]);
-  const latestContentRef = useRef<any>(null);
-  const initialContentLoaded = useRef(false);
-  
-  console.log('Editor content type:', typeof content);
-  console.log("📄 Editor received content:", content);
-  
-  const { copyToClipboard, canCopy } = useClipboard();
+  useEffect(() => {
+    const handleScroll = () => {
+      const editorElement = document.querySelector('.ProseMirror');
+      if (editorElement) {
+        const rect = editorElement.getBoundingClientRect();
+        setIsToolbarSticky(rect.top <= 0);
+      }
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
+
+  const handleAddComment = () => {
+    if (comment.trim() === '') return;
+
+    const newComment = {
+      id: `comment_${Date.now()}`,
+      userId: userId || 'unknown_user',
+      text: comment,
+      timestamp: new Date(),
+    };
+
+    setComments([...comments, newComment]);
+    setComment('');
+    setIsCommentPopoverOpen(false);
+  };
+
+  const handleKeyDown = useCallback((event: any) => {
+    if ((event.metaKey || event.ctrlKey) && event.key === 'k') {
+      event.preventDefault();
+      if (editor?.isFocused()) {
+        setSelectedRange(editor.state.selection);
+        setIsLinkModalOpen(true);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [handleKeyDown]);
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
-        heading: { levels: [1, 2, 3] },
-        blockquote: {
-          HTMLAttributes: {
-            class: 'bg-gray-100 p-4 rounded-md',
-          },
-        },
+        history: false,
       }),
-      TextStyle,
       Underline,
-      Link.configure({
-        openOnClick: false,
-        HTMLAttributes: { class: 'text-primary underline cursor-pointer' },
-      }),
-      Image.configure({
-        HTMLAttributes: {
-          class: 'max-w-full h-auto rounded-lg my-4',
-        },
-      }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
-        alignments: ['left', 'center', 'right'],
-        defaultAlignment: 'left',
       }),
+      TextStyle,
+      Color,
+      FontFamily,
+      Link.configure({
+        openOnClick: false,
+      }),
+      Image,
       Placeholder.configure({
-        placeholder,
-        showOnlyWhenEditable: true,
-        showOnlyCurrent: false,
+        placeholder: 'Start writing your story...',
       }),
       CharacterCount,
-      Focus.configure({
-        className: '',
-        mode: 'all',
-      }),
-      CommentExtension,
-      TrackChangesExtension.configure({
-        userId: userId || '',
-        userName: userName || '',
-        enabled: trackChangesEnabled,
-      }),
-      FontFamily.configure({ types: ['textStyle'] }),
-      FontSize.configure({ types: ['textStyle'] }),
-      Color.configure({ types: ['textStyle'] }),
-      SceneDivider,
+      Focus,
     ],
-    content: { type: 'doc', content: [] },
-    onUpdate: ({ editor, transaction }) => {
-      const updated = editor.getJSON();
-      latestContentRef.current = updated;
-
-      // Extract changes for display
-      const changes = extractChangesFromContent(updated);
-      setExtractedChanges(changes);
-      
-      // Pass changes to parent component
-      if (onExtractedChangesUpdate) {
-        onExtractedChangesUpdate(changes);
-      }
-
-      const plainText = editor.getText();
-      const totalCharacters = plainText.length;
-      const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
-      
-      // Store editor reference in transaction meta for track changes
-      transaction.setMeta('editor', editor);
-      
-      if (editMode !== 'review') {
-        // Consolidate track changes before saving
-        const consolidatedContent = consolidateTrackChanges(updated);
-        console.log('Saving consolidated content:', consolidatedContent);
-        onChange(consolidatedContent, totalCharacters, totalWords);
-      }
+    content: content,
+    onUpdate: ({ editor }) => {
+      const json = editor.getJSON();
+      const charCount = editor.storage.characterCount.characters();
+      const wordCount = editor.storage.characterCount.words();
+      onChange(json, charCount, wordCount);
     },
-    editable: editMode !== 'review',
-    editorProps: {
-      attributes: {
-        class: cn(
-          'prose prose-sm sm:prose-base lg:prose-lg max-w-none focus:outline-none',
-          'min-h-[calc(100vh-16rem)] p-6 text-base leading-relaxed',
-          'bg-background rounded-xl',
-          editMode === 'review' && 'cursor-default',
-          !showChangesEnabled && 'hide-track-changes',
-          className
-        ),
-      },
-      handleKeyDown(view, event) {
-        // Handle Ctrl+C / Cmd+C
-        if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
-          event.preventDefault();
-          const { state } = view;
-          const { from, to } = state.selection;
-          const selectedText = state.doc.textBetween(from, to);
-          
-          if (selectedText) {
-            copyToClipboard(selectedText).then((success) => {
-              if (!success) {
-                console.log('Copy operation was blocked by clipboard control');
-              }
-            });
-          }
-          return true;
-        }
-        
-        if (event.key === 'Enter') {
-          const { selection } = view.state;
-          if (selection.empty && selection.$head.pos === view.state.doc.content.size) {
-            event.preventDefault();
-            return true;
-          }
-        }
-        return false;
-      },
-      handleClick(view, pos, event) {
-        // Check if clicked on a tracked change
-        const { state } = view;
-        const resolvedPos = state.doc.resolve(pos);
-        
-        // Fix: resolvedPos.marks is a function, need to call it
-        const marks = resolvedPos.marks();
-        if (marks && marks.length > 0) {
-          const trackChangeMark = marks.find(mark => 
-            mark.type.name === 'textStyle' && mark.attrs.changeId
-          );
-          
-          if (trackChangeMark && trackChangeMark.attrs.changeId) {
-            const changeId = trackChangeMark.attrs.changeId;
-            console.log('Editor: Clicked on tracked change:', changeId);
-            
-            // Notify sidebar to highlight this change
-            window.dispatchEvent(new CustomEvent('changeFocus', {
-              detail: { changeId }
-            }));
-          }
-        }
-        
-        return false;
-      },
-      clipboardTextSerializer: () => {
-        // Prevent default text serialization
-        return '';
-      },
-      transformCopied: (slice, view) => {
-        // Prevent default copy behavior by returning an empty slice
-        const text = slice.content.textBetween(0, slice.content.size);
-        
-        // Trigger our controlled copy asynchronously
-        setTimeout(async () => {
-          const success = await copyToClipboard(text);
-          if (!success) {
-            console.log('Copy operation was blocked by clipboard control');
-          }
-        }, 0);
-        
-        // Return an empty slice to prevent default clipboard write
-        return slice.content.cut(slice.content.size, slice.content.size);
-      },
-    },
-  });
+    editable: !isReadOnly,
+  }, [content, isReadOnly]);
 
-  // Listen for sidebar events
-  useEffect(() => {
-    const handleFocusChange = (event: CustomEvent) => {
-      const changeId = event.detail.changeId;
-      handleChangeClick(changeId);
-    };
-
-    const handleAcceptChangeEvent = (event: CustomEvent) => {
-      const changeId = event.detail.changeId;
-      handleAcceptChange(changeId);
-    };
-
-    const handleRejectChangeEvent = (event: CustomEvent) => {
-      const changeId = event.detail.changeId;
-      handleRejectChange(changeId);
-    };
-
-    window.addEventListener('focusChange', handleFocusChange as EventListener);
-    window.addEventListener('acceptChange', handleAcceptChangeEvent as EventListener);
-    window.addEventListener('rejectChange', handleRejectChangeEvent as EventListener);
-
-    return () => {
-      window.removeEventListener('focusChange', handleFocusChange as EventListener);
-      window.removeEventListener('acceptChange', handleAcceptChangeEvent as EventListener);
-      window.removeEventListener('rejectChange', handleRejectChangeEvent as EventListener);
-    };
-  }, [editor]);
-
-  // Handle accept/reject changes
-  const handleAcceptChange = (changeId: string) => {
-    console.log('EditorRichTextEditor: Accepting change:', changeId);
-    if (editor) {
-      editor.commands.acceptChange(changeId);
-      // Update extracted changes after accepting
-      setTimeout(() => {
-        const updated = editor.getJSON();
-        const changes = extractChangesFromContent(updated);
-        setExtractedChanges(changes);
-        if (onExtractedChangesUpdate) {
-          onExtractedChangesUpdate(changes);
-        }
-      }, 100);
-      
-      // Dispatch event to notify sidebar
-      window.dispatchEvent(new CustomEvent('changeAccepted', {
-        detail: { changeId }
-      }));
+  const handleSetLink = () => {
+    if (editor && selectedRange) {
+      editor.chain().focus().deleteRange(selectedRange).setLink({ href: linkURL }).run();
     }
-    if (onAcceptChange) {
-      onAcceptChange(changeId);
-    }
+    setIsLinkModalOpen(false);
+    setLinkURL('');
   };
 
-  const handleRejectChange = (changeId: string) => {
-    console.log('EditorRichTextEditor: Rejecting change:', changeId);
+  const handleUnsetLink = () => {
     if (editor) {
-      editor.commands.rejectChange(changeId);
-      // Update extracted changes after rejecting
-      setTimeout(() => {
-        const updated = editor.getJSON();
-        const changes = extractChangesFromContent(updated);
-        setExtractedChanges(changes);
-        if (onExtractedChangesUpdate) {
-          onExtractedChangesUpdate(changes);
-        }
-      }, 100);
-      
-      // Dispatch event to notify sidebar
-      window.dispatchEvent(new CustomEvent('changeRejected', {
-        detail: { changeId }
-      }));
+      editor.chain().focus().extendMarkRange('link').unsetLink().run();
     }
-    if (onRejectChange) {
-      onRejectChange(changeId);
-    }
-  };
-
-  // Handle clicking on a change to focus it
-  const handleChangeClick = (changeId: string) => {
-    console.log('EditorRichTextEditor: Focusing change:', changeId);
-    if (editor) {
-      // Find the change in the document and scroll to it
-      const { state } = editor;
-      let found = false;
-      
-      state.doc.descendants((node, pos) => {
-        if (!found && node.marks) {
-          const trackChangeMark = node.marks.find(mark => 
-            mark.type.name === 'textStyle' && mark.attrs.changeId === changeId
-          );
-          if (trackChangeMark) {
-            // Focus the editor and set selection to this position
-            editor.commands.focus();
-            editor.commands.setTextSelection({ from: pos, to: pos + node.nodeSize });
-            
-            // Add a visual highlight temporarily
-            const element = editor.view.dom.querySelector(`[data-change-id="${changeId}"]`);
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-              element.classList.add('highlighted-change');
-              setTimeout(() => {
-                element.classList.remove('highlighted-change');
-              }, 2000);
-            }
-
-            found = true;
-            return false; // Stop searching
-          }
-        }
-      });
-    }
-    if (onChangeClick) {
-      onChangeClick(changeId);
-    }
-  };
-
-  // Load content only once
-  useEffect(() => {
-    if (!editor || initialContentLoaded.current) return;
-
-    if (content?.type === 'doc') {
-      editor.commands.setContent(content);
-      latestContentRef.current = content;
-      initialContentLoaded.current = true;
-      
-      // Extract initial changes
-      const changes = extractChangesFromContent(content);
-      setExtractedChanges(changes);
-      if (onExtractedChangesUpdate) {
-        onExtractedChangesUpdate(changes);
-      }
-      
-      console.log('Editor content set on load.');
-    } else {
-      editor.commands.clearContent();
-    }
-  }, [editor, content]);
-
-  // Update track changes when trackChangesEnabled changes
-  useEffect(() => {
-    if (editor) {
-      editor.commands.toggleTrackChanges(trackChangesEnabled);
-    }
-  }, [editor, trackChangesEnabled]);
-
-  // Update visibility when showChangesEnabled changes
-  useEffect(() => {
-    if (editor) {
-      // Update CSS classes
-      const editorElement = editor.view.dom;
-      if (showChangesEnabled) {
-        editorElement.classList.remove('hide-track-changes');
-      } else {
-        editorElement.classList.add('hide-track-changes');
-      }
-    }
-    
-    // Also update parent component and control sidebar visibility
-    if (onTrackChangesToggle) {
-      onTrackChangesToggle(showChangesEnabled);
-    }
-
-    // Dispatch event to control sidebar visibility
-    window.dispatchEvent(new CustomEvent('toggleSidebarChanges', {
-      detail: { showChanges: showChangesEnabled }
-    }));
-  }, [editor, showChangesEnabled]);
-
-  const handleTrackChangesToggle = (enabled: boolean) => {
-    if (isEditMode) {
-      // In edit mode, track changes should always be on
-      return;
-    }
-    setTrackChangesEnabled(enabled);
-  };
-
-  const handleShowChangesToggle = (show: boolean) => {
-    setShowChangesEnabled(show);
   };
 
   if (!editor) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="relative inline-block w-12 h-12">
-          <span className="absolute inline-block w-full h-full border-4 border-t-primary border-b-secondary rounded-full animate-spin"></span>
-        </div>
+      <div className="prose prose-sm m-5">
+        <Skeleton className="h-[300px] w-full" />
       </div>
-    );
+    )
   }
 
-  useEffect(() => {
-    return () => {
-      if (editor) {
-        editor.destroy();
-        initialContentLoaded.current = false; 
-        console.log('Editor destroyed on unmount');
-      }
-    };
-  }, []);
-
   return (
-    <div className="h-full flex flex-col bg-background/50 rounded-2xl border border-border/50 shadow-lg backdrop-blur-sm overflow-hidden">
-      <div className="flex items-center justify-between p-4 border-b border-border/50 bg-background/80">
-        <EditModeSelector 
-          currentMode={editMode} 
-          onModeChange={setEditMode} 
-          currentUser={currentUser}
-          trackChangesEnabled={trackChangesEnabled}
-          showChangesEnabled={showChangesEnabled}
-          onTrackChangesToggle={handleTrackChangesToggle}
-          onShowChangesToggle={handleShowChangesToggle}
-          isEditMode={isEditMode}
-          fileStatus="Auto-saved"
-        />
-        
-        {/* Add clipboard status indicator */}
-        {window.__TAURI__ && (
-          <div className={`text-xs px-2 py-1 rounded-full ${
-            canCopy 
-              ? 'bg-green-100 text-green-800' 
-              : 'bg-red-100 text-red-800'
-          }`}>
-            {canCopy ? 'Copy Enabled' : 'Copy Restricted'}
-          </div>
-        )}
-      </div>
+    <div className="flex flex-col">
+      <div className={cn(
+        "sticky top-0 z-10 bg-background border-b",
+        isToolbarSticky ? 'shadow-md' : ''
+      )}>
+        <div className="flex flex-wrap items-center gap-2 p-2">
+          <Button
+            type="button"
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            disabled={isReadOnly}
+            variant={editor.isActive('bold') ? 'default' : 'ghost'}
+            size="sm"
+          >
+            <Bold className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            disabled={isReadOnly}
+            variant={editor.isActive('italic') ? 'default' : 'ghost'}
+            size="sm"
+          >
+            <Italic className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            disabled={isReadOnly}
+            variant={editor.isActive('underline') ? 'default' : 'ghost'}
+            size="sm"
+          >
+            <UnderlineIcon className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            disabled={isReadOnly}
+            variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
+            size="sm"
+          >
+            <ListUnordered className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            disabled={isReadOnly}
+            variant={editor.isActive('orderedList') ? 'default' : 'ghost'}
+            size="sm"
+          >
+            <ListOrdered className="h-4 w-4" />
+          </Button>
+          <Button
+            type="button"
+            onClick={() => editor.chain().focus().toggleCode().run()}
+            disabled={isReadOnly}
+            variant={editor.isActive('code') ? 'default' : 'ghost'}
+            size="sm"
+          >
+            <Code className="h-4 w-4" />
+          </Button>
 
-      <EditorToolbar editor={editor} />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm">
+                <AlignLeft className="mr-2 h-4 w-4" />
+                Alignment
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuLabel>Text alignment</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('left').run()}>
+                <AlignLeft className="mr-2 h-4 w-4" />
+                Left
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('center').run()}>
+                <AlignCenter className="mr-2 h-4 w-4" />
+                Center
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('right').run()}>
+                <AlignRight className="mr-2 h-4 w-4" />
+                Right
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => editor.chain().focus().setTextAlign('justify').run()}>
+                <AlignJustify className="mr-2 h-4 w-4" />
+                Justify
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-      <div className="flex-1 overflow-hidden">
-        <div className="max-h-[calc(100vh-200px)] overflow-y-auto relative">
-          <TextContextMenu editor={editor}>
-            <EditorContent
-              editor={editor}
-              className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent"
-            />
-          </TextContextMenu>
+          <Popover open={isLinkModalOpen} onOpenChange={setIsLinkModalOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant={editor.isActive('link') ? 'default' : 'ghost'}
+                size="sm"
+                disabled={isReadOnly}
+                onClick={() => {
+                  if (editor?.isFocused()) {
+                    setSelectedRange(editor.state.selection);
+                  }
+                }}
+              >
+                <LinkIcon className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="link">Link</Label>
+                  <Input id="link" placeholder="Enter URL..." value={linkURL} onChange={(e) => setLinkURL(e.target.value)} />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    setIsLinkModalOpen(false)
+                    setLinkURL('')
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleSetLink}>
+                    Set Link
+                  </Button>
+                </div>
+                {editor.isActive('link') && (
+                  <div className="flex justify-end">
+                    <Button type="button" variant="ghost" size="sm" onClick={handleUnsetLink}>
+                      Remove Link
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Button
+            type="button"
+            onClick={() => {
+              const url = prompt('Enter the image URL');
+              if (url) {
+                editor.chain().focus().setImage({ src: url }).run();
+              }
+            }}
+            disabled={isReadOnly}
+            variant="ghost"
+            size="sm"
+          >
+            <ImageIcon className="h-4 w-4" />
+          </Button>
+
+          {onTrackChangesToggle && (
+            <Button
+              type="button"
+              onClick={() => onTrackChangesToggle(!showTrackChanges)}
+              variant={showTrackChanges ? 'default' : 'ghost'}
+              size="sm"
+            >
+              <History className="h-4 w-4" />
+            </Button>
+          )}
+
+          <Popover open={isCommentPopoverOpen} onOpenChange={setIsCommentPopoverOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault()
+                }}
+                variant={showComments ? 'default' : 'ghost'}
+                size="sm"
+              >
+                <MessageSquare className="h-4 w-4" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80">
+              <div className="grid gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="comment">Add Comment</Label>
+                  <Textarea id="comment" placeholder="Enter your comment..." value={comment} onChange={(e) => setComment(e.target.value)} />
+                </div>
+                <div className="flex justify-end space-x-2">
+                  <Button type="button" variant="outline" size="sm" onClick={() => {
+                    setIsCommentPopoverOpen(false)
+                    setComment('')
+                  }}>
+                    Cancel
+                  </Button>
+                  <Button type="button" size="sm" onClick={handleAddComment}>
+                    Add Comment
+                  </Button>
+                </div>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
 
-      <div className="flex items-center justify-between px-6 py-3 border-t border-border/50 text-xs text-muted-foreground bg-background/50 z-50">
-        <div className="flex items-center space-x-4">
-          <span className="px-2 py-1 bg-muted/50 rounded-full">
-            {editor.storage.characterCount.characters()} characters
-          </span>
-          <span className="px-2 py-1 bg-muted/50 rounded-full">
-            {editor.storage.characterCount.words()} words
-          </span>
-          <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full border border-primary/20">
-            {editMode} mode • TipTap
-          </span>
-        </div>
-      </div>
+      <EditorContent editor={editor} className="prose prose-sm sm:prose-base lg:prose-lg xl:prose-xl 2xl:prose-2xl m-5 focus:outline-none" />
     </div>
-  );
-};
-
-// Export interface for parent components to use
-export interface EditorRichTextEditorRef {
-  extractedChanges: any[];
-  handleAcceptChange: (changeId: string) => void;
-  handleRejectChange: (changeId: string) => void;
-  handleChangeClick: (changeId: string) => void;
+  )
 }
