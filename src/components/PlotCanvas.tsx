@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
@@ -51,19 +50,19 @@ const getBestHandles = (sourcePos: { x: number; y: number }, targetPos: { x: num
     // Horizontal connection is primary
     if (deltaX > 0) {
       // Target is to the right of source
-      return { sourceHandle: 'right', targetHandle: 'right' };
+      return { sourceHandle: 'right', targetHandle: 'left' };
     } else {
       // Target is to the left of source
-      return { sourceHandle: 'left', targetHandle: 'left' };
+      return { sourceHandle: 'left', targetHandle: 'right' };
     }
   } else {
     // Vertical connection is primary
     if (deltaY > 0) {
       // Target is below source
-      return { sourceHandle: 'bottom', targetHandle: 'bottom' };
+      return { sourceHandle: 'bottom', targetHandle: 'top' };
     } else {
       // Target is above source
-      return { sourceHandle: 'top', targetHandle: 'top' };
+      return { sourceHandle: 'top', targetHandle: 'bottom' };
     }
   }
 };
