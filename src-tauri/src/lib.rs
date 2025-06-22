@@ -1,5 +1,5 @@
 
-use tauri::State;
+use tauri::{State, Emitter};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
