@@ -85,124 +85,70 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
         </div>
       </CardContent>
 
-      {/* Four handles per side - Top */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top-target-1"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ top: -6, left: '20%' }}
-      />
+      {/* Single handle on each side - acts as both source and target */}
       <Handle
         type="source"
         position={Position.Top}
-        id="top-source-1" 
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ top: -6, left: '40%' }}
-      />
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top-target-2"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ top: -6, left: '60%' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Top}
-        id="top-source-2" 
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ top: -6, left: '80%' }}
+        id="top"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
+        style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
       />
       
-      {/* Four handles per side - Right */}
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right-target-1"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ right: -6, top: '20%' }}
-      />
       <Handle
         type="source"
         position={Position.Right}
-        id="right-source-1"
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ right: -6, top: '40%' }}
-      />
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right-target-2"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ right: -6, top: '60%' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right-source-2"
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ right: -6, top: '80%' }}
+        id="right"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
+        style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
       />
       
-      {/* Four handles per side - Bottom */}
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom-target-1"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ bottom: -6, left: '20%' }}
-      />
       <Handle
         type="source"
         position={Position.Bottom}
-        id="bottom-source-1"
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ bottom: -6, left: '40%' }}
-      />
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom-target-2"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ bottom: -6, left: '60%' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom-source-2"
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ bottom: -6, left: '80%' }}
+        id="bottom"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
+        style={{ bottom: -8, left: '50%', transform: 'translateX(-50%)' }}
       />
       
-      {/* Four handles per side - Left */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left-target-1"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ left: -6, top: '20%' }}
-      />
       <Handle
         type="source"
         position={Position.Left}
-        id="left-source-1"
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ left: -6, top: '40%' }}
+        id="left"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
+        style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
       />
+
+      {/* Target handles at the same positions */}
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top-target"
+        className="w-4 h-4 !bg-gray-400 !border-gray-600"
+        style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
+      />
+      
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right-target"
+        className="w-4 h-4 !bg-gray-400 !border-gray-600"
+        style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
+      />
+      
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-target"
+        className="w-4 h-4 !bg-gray-400 !border-gray-600"
+        style={{ bottom: -8, left: '50%', transform: 'translateX(-50%)' }}
+      />
+      
       <Handle
         type="target"
         position={Position.Left}
-        id="left-target-2"
-        className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ left: -6, top: '60%' }}
-      />
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left-source-2"
-        className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ left: -6, top: '80%' }}
+        id="left-target"
+        className="w-4 h-4 !bg-gray-400 !border-gray-600"
+        style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
       />
     </Card>
   );

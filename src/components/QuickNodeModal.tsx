@@ -38,7 +38,8 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
       goal: '',
       status: 'Not Completed',
       timelineEventIds: [],
-      childIds: []
+      childIds: [],
+      linkedNodeIds: []
     };
 
     onSave(nodeData, position);

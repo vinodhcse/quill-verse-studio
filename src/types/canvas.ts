@@ -18,10 +18,13 @@ export interface CanvasNode {
   timelineEventIds: string[];
   parentId?: string;
   childIds: string[];
+  linkedNodeIds?: string[]; // For same-level connections
+  position?: { x: number; y: number }; // Save node positions
 }
 
 export interface CanvasData {
   nodes: CanvasNode[];
   timelineEvents: TimelineEvent[];
+  nodePositions?: Record<string, { x: number; y: number }>; // Separate position storage
   lastUpdated: string;
 }

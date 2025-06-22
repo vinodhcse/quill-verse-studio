@@ -14,7 +14,8 @@ import {
   NodeOrigin,
   Panel,
   OnConnectStartParams,
-  ReactFlowInstance
+  ReactFlowInstance,
+  MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -44,6 +45,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
+  const [nodePositions, setNodePositions] = useState<Record<string, { x: number; y: number }>>({});
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
@@ -62,6 +64,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         const data: CanvasData = JSON.parse(savedData);
         setCanvasNodes(data.nodes || []);
         setTimelineEvents(data.timelineEvents || []);
+        setNodePositions(data.nodePositions || {});
       } catch (error) {
         console.error('Failed to load canvas data:', error);
       }
@@ -70,16 +73,22 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
 
   // Convert canvas nodes to React Flow nodes
   useEffect(() => {
-    const flowNodes: Node[] = canvasNodes.map((canvasNode, index) => ({
-      id: canvasNode.id,
-      type: 'plotNode',
-      position: { x: (index % 4) * 300, y: Math.floor(index / 4) * 200 },
-      data: {
-        ...canvasNode,
-        onEdit: handleEditNode,
-        onAddChild: handleAddChild,
-      },
-    }));
+    const flowNodes: Node[] = canvasNodes.map((canvasNode, index) => {
+      // Use saved position or calculate default position
+      const savedPosition = nodePositions[canvasNode.id] || canvasNode.position;
+      const defaultPosition = { x: (index % 4) * 300, y: Math.floor(index / 4) * 200 };
+      
+      return {
+        id: canvasNode.id,
+        type: 'plotNode',
+        position: savedPosition || defaultPosition,
+        data: {
+          ...canvasNode,
+          onEdit: handleEditNode,
+          onAddChild: handleAddChild,
+        },
+      };
+    });
 
     const flowEdges: Edge[] = [];
     
@@ -94,15 +103,55 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           type: 'deletable',
           style: { stroke: '#10b981', strokeWidth: 2 },
           markerEnd: {
-            type: 'arrowclosed',
+            type: MarkerType.ArrowClosed,
             color: '#10b981',
           },
         });
       });
 
+    // Add linked node edges (same-level connections)
+    canvasNodes.forEach(node => {
+      if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
+        node.linkedNodeIds.forEach(linkedId => {
+          // Only create edge if it doesn't already exist (to avoid duplicates)
+          const edgeId = `link_${node.id}_${linkedId}`;
+          const reverseEdgeId = `link_${linkedId}_${node.id}`;
+          
+          if (!flowEdges.find(e => e.id === edgeId || e.id === reverseEdgeId)) {
+            flowEdges.push({
+              id: edgeId,
+              source: node.id,
+              target: linkedId,
+              type: 'deletable',
+              style: { stroke: '#6366f1', strokeWidth: 2 },
+              markerEnd: {
+                type: MarkerType.ArrowClosed,
+                color: '#6366f1',
+              },
+            });
+          }
+        });
+      }
+    });
+
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [canvasNodes]);
+  }, [canvasNodes, nodePositions]);
+
+  // Save node positions when they change
+  const handleNodesChange = useCallback((changes: any[]) => {
+    onNodesChange(changes);
+    
+    // Update positions when nodes are dragged
+    changes.forEach(change => {
+      if (change.type === 'position' && change.position) {
+        setNodePositions(prev => ({
+          ...prev,
+          [change.id]: change.position
+        }));
+      }
+    });
+  }, [onNodesChange]);
 
   const handleEditNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -131,9 +180,11 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       if (existingIndex >= 0) {
         // Update existing node
         updatedNodes = [...prev];
-        updatedNodes[existingIndex] = nodeData;
+        updatedNodes[existingIndex] = { ...nodeData, linkedNodeIds: nodeData.linkedNodeIds || [] };
       } else {
         // Add new node
+        nodeData.linkedNodeIds = nodeData.linkedNodeIds || [];
+        
         if (parentNodeForNew) {
           nodeData.parentId = parentNodeForNew;
           // Update parent's childIds
@@ -163,57 +214,78 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   }, [parentNodeForNew]);
 
   const handleQuickNodeSave = useCallback((nodeData: CanvasNode, position: { x: number; y: number }) => {
-    // Add the new node
+    // Add the new node with position
+    nodeData.linkedNodeIds = [];
     setCanvasNodes(prev => [...prev, nodeData]);
+    setNodePositions(prev => ({ ...prev, [nodeData.id]: position }));
 
-    // If there was a connection being made, create the edge
-    if (connectStartParams && reactFlowInstance) {
-      const newEdge: Edge = {
-        id: `edge_${connectStartParams.nodeId}_${nodeData.id}`,
-        source: connectStartParams.nodeId!,
-        sourceHandle: connectStartParams.handleId,
-        target: nodeData.id,
-        targetHandle: 'top-target-1',
-        type: 'deletable',
-        style: { stroke: '#6366f1', strokeWidth: 2 },
-        markerEnd: {
-          type: 'arrowclosed',
-          color: '#6366f1',
-        },
-      };
+    // If there was a connection being made, create the link
+    if (connectStartParams) {
+      setCanvasNodes(prev => prev.map(node => {
+        if (node.id === connectStartParams.nodeId) {
+          return {
+            ...node,
+            linkedNodeIds: [...(node.linkedNodeIds || []), nodeData.id]
+          };
+        }
+        return node;
+      }));
 
-      setEdges(edges => [...edges, newEdge]);
+      // Also add reverse link
+      setTimeout(() => {
+        setCanvasNodes(prev => prev.map(node => {
+          if (node.id === nodeData.id) {
+            return {
+              ...node,
+              linkedNodeIds: [...(node.linkedNodeIds || []), connectStartParams.nodeId!]
+            };
+          }
+          return node;
+        }));
+      }, 100);
     }
 
-    // Add the new node to the flow
-    const newFlowNode: Node = {
-      id: nodeData.id,
-      type: 'plotNode',
-      position: position,
-      data: {
-        ...nodeData,
-        onEdit: handleEditNode,
-        onAddChild: handleAddChild,
-      },
-    };
-
-    setNodes(nodes => [...nodes, newFlowNode]);
     setConnectStartParams(null);
 
     toast({
       title: "Node created",
       description: `${nodeData.name} has been created and connected.`,
     });
-  }, [connectStartParams, reactFlowInstance, handleEditNode, handleAddChild]);
+  }, [connectStartParams]);
 
   const onConnect = useCallback(
     (params: Connection) => {
+      // Add the connection as a linked relationship
+      if (params.source && params.target) {
+        setCanvasNodes(prev => prev.map(node => {
+          if (node.id === params.source) {
+            const linkedNodeIds = node.linkedNodeIds || [];
+            if (!linkedNodeIds.includes(params.target!)) {
+              return {
+                ...node,
+                linkedNodeIds: [...linkedNodeIds, params.target!]
+              };
+            }
+          }
+          if (node.id === params.target) {
+            const linkedNodeIds = node.linkedNodeIds || [];
+            if (!linkedNodeIds.includes(params.source!)) {
+              return {
+                ...node,
+                linkedNodeIds: [...linkedNodeIds, params.source!]
+              };
+            }
+          }
+          return node;
+        }));
+      }
+
       const newEdge = {
         ...params,
         type: 'deletable',
         style: { stroke: '#6366f1', strokeWidth: 2 },
         markerEnd: {
-          type: 'arrowclosed',
+          type: MarkerType.ArrowClosed,
           color: '#6366f1',
         },
       };
@@ -244,10 +316,15 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     }
   }, [connectStartParams, reactFlowInstance]);
 
+  const onInit = useCallback((reactFlowInstance: ReactFlowInstance) => {
+    setReactFlowInstance(reactFlowInstance);
+  }, []);
+
   const saveToLocalStorage = useCallback(() => {
     const data: CanvasData = {
       nodes: canvasNodes,
       timelineEvents,
+      nodePositions,
       lastUpdated: new Date().toISOString()
     };
 
@@ -257,12 +334,13 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       title: "Canvas saved",
       description: "Your plot canvas has been saved locally.",
     });
-  }, [canvasNodes, timelineEvents, bookId]);
+  }, [canvasNodes, timelineEvents, nodePositions, bookId]);
 
   const exportCanvas = useCallback(() => {
     const data: CanvasData = {
       nodes: canvasNodes,
       timelineEvents,
+      nodePositions,
       lastUpdated: new Date().toISOString()
     };
 
@@ -273,7 +351,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     a.download = `plot-canvas-${bookId || 'default'}.json`;
     a.click();
     URL.revokeObjectURL(url);
-  }, [canvasNodes, timelineEvents, bookId]);
+  }, [canvasNodes, timelineEvents, nodePositions, bookId]);
 
   const importCanvas = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -285,6 +363,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         const data: CanvasData = JSON.parse(e.target?.result as string);
         setCanvasNodes(data.nodes || []);
         setTimelineEvents(data.timelineEvents || []);
+        setNodePositions(data.nodePositions || {});
         
         toast({
           title: "Canvas imported",
@@ -309,12 +388,12 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onConnectStart={onConnectStart}
         onConnectEnd={onConnectEnd}
-        onInit={setReactFlowInstance}
+        onInit={onInit}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         nodeOrigin={nodeOrigin}
@@ -327,7 +406,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         defaultEdgeOptions={{ 
           type: 'deletable',
           style: { stroke: '#6366f1', strokeWidth: 2 },
-          markerEnd: { type: 'arrowclosed', color: '#6366f1' }
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' }
         }}
       >
         <Panel position="top-left" className="space-x-2">

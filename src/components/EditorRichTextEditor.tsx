@@ -119,7 +119,6 @@ export const EditorRichTextEditor: React.FC<EditorRichTextEditorProps> = ({
     <div className={`border rounded-lg ${className}`}>
       <EditorToolbar 
         editor={editor} 
-        showTrackChanges={showTrackChanges}
         isTrackingChanges={isTrackingChanges}
         onTrackChangesToggle={handleTrackChangesToggle}
       />
