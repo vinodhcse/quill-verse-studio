@@ -11,14 +11,18 @@ export interface UserRole {
 export class ClipboardService {
   private static clipboardEventListener: (() => void) | null = null;
   private static initialized = false;
+  private static isTauriEnvironment = false;
 
   static async initialize() {
     if (this.initialized) return;
     
     console.log('ClipboardService initializing...');
-    console.log('Is Tauri environment?', !!window.__TAURI__);
     
-    if (window.__TAURI__) {
+    // Better Tauri environment detection
+    this.isTauriEnvironment = !!(window as any).__TAURI_INTERNALS__ || !!(window as any).__TAURI__ || typeof (window as any).__TAURI_INVOKE__ !== 'undefined';
+    console.log('Is Tauri environment?', this.isTauriEnvironment);
+    
+    if (this.isTauriEnvironment) {
       try {
         // Listen for clipboard-write events from Rust
         const unlisten = await listen('clipboard-write', (event) => {
@@ -30,6 +34,8 @@ export class ClipboardService {
         console.log('Tauri clipboard listener established');
       } catch (error) {
         console.error('Failed to setup Tauri clipboard listener:', error);
+        // If Tauri setup fails, fall back to web mode
+        this.isTauriEnvironment = false;
       }
     }
     
@@ -39,7 +45,7 @@ export class ClipboardService {
   static async setUserRole(userId: string, bookId: string, role: string): Promise<void> {
     console.log('Setting user role:', { userId, bookId, role });
     
-    if (!window.__TAURI__) {
+    if (!this.isTauriEnvironment) {
       console.log('Not in Tauri environment, skipping role setting');
       return;
     }
@@ -58,9 +64,22 @@ export class ClipboardService {
   }
 
   static async canAccessClipboard(): Promise<boolean> {
-    if (!window.__TAURI__) {
-      console.log('Not in Tauri environment, allowing clipboard access');
-      return true;
+    if (!this.isTauriEnvironment) {
+      console.log('Not in Tauri environment, checking role locally');
+      // In web environment, we need to check role locally
+      // This should be set by the useClipboard hook
+      const roleData = localStorage.getItem('current_user_role');
+      if (roleData) {
+        try {
+          const role = JSON.parse(roleData);
+          console.log('Local role check:', role);
+          return role.role === 'AUTHOR' || role.role === 'CO_WRITER';
+        } catch (error) {
+          console.error('Failed to parse local role data:', error);
+          return false;
+        }
+      }
+      return false;
     }
 
     try {
@@ -74,8 +93,14 @@ export class ClipboardService {
   }
 
   static async controlledCopyToClipboard(text: string): Promise<boolean> {
-    if (!window.__TAURI__) {
-      console.log('Not in Tauri environment, using fallback');
+    if (!this.isTauriEnvironment) {
+      console.log('Not in Tauri environment, checking access locally');
+      const canAccess = await this.canAccessClipboard();
+      if (!canAccess) {
+        console.warn('Clipboard access denied due to user role restrictions');
+        this.showAccessDeniedMessage();
+        return false;
+      }
       return await this.performActualClipboardWrite(text);
     }
 
@@ -86,15 +111,7 @@ export class ClipboardService {
       
       if (!success) {
         console.warn('Clipboard access denied due to user role restrictions');
-        // Show user-friendly message
-        const currentRole = await this.getCurrentUserRole();
-        if (currentRole && (currentRole.role === 'EDITOR' || currentRole.role === 'REVIEWER')) {
-          console.warn(`Copy operation blocked. ${currentRole.role} role does not have clipboard access.`);
-          // You could dispatch a custom event here to show a toast notification
-          window.dispatchEvent(new CustomEvent('clipboardBlocked', {
-            detail: { role: currentRole.role }
-          }));
-        }
+        this.showAccessDeniedMessage();
       }
       
       return Boolean(success);
@@ -104,8 +121,27 @@ export class ClipboardService {
     }
   }
 
+  static showAccessDeniedMessage() {
+    // Show user-friendly message
+    window.dispatchEvent(new CustomEvent('clipboardBlocked', {
+      detail: { 
+        message: 'Copy operation blocked. Your role does not have clipboard access.',
+        role: 'EDITOR/REVIEWER'
+      }
+    }));
+  }
+
   static async getCurrentUserRole(): Promise<UserRole | null> {
-    if (!window.__TAURI__) {
+    if (!this.isTauriEnvironment) {
+      const roleData = localStorage.getItem('current_user_role');
+      if (roleData) {
+        try {
+          return JSON.parse(roleData);
+        } catch (error) {
+          console.error('Failed to parse local role data:', error);
+          return null;
+        }
+      }
       return null;
     }
 
@@ -184,15 +220,8 @@ export class ClipboardService {
       await this.initialize();
     }
     
-    // Check if we're in a Tauri environment
-    if (window.__TAURI__) {
-      console.log('Using Tauri controlled clipboard');
-      return await this.controlledCopyToClipboard(text);
-    } else {
-      console.log('Using web clipboard fallback');
-      // For web environment, directly perform clipboard write
-      return await this.performActualClipboardWrite(text);
-    }
+    // Always use controlled copy to enforce access control
+    return await this.controlledCopyToClipboard(text);
   }
 
   // Cleanup method

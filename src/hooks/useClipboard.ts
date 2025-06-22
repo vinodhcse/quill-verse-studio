@@ -5,7 +5,7 @@ import { useUserContext } from '@/lib/UserContextProvider';
 import { useBookContext } from '@/lib/BookContextProvider';
 
 export const useClipboard = () => {
-  const [canCopy, setCanCopy] = useState<boolean>(true);
+  const [canCopy, setCanCopy] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { userId } = useUserContext();
   const { state: bookState } = useBookContext();
@@ -13,10 +13,10 @@ export const useClipboard = () => {
   // Listen for clipboard blocked events
   useEffect(() => {
     const handleClipboardBlocked = (event: CustomEvent) => {
-      const { role } = event.detail;
-      console.log(`Clipboard access blocked for role: ${role}`);
+      const { message, role } = event.detail;
+      console.log(`Clipboard access blocked: ${message}`);
       // You could show a toast notification here
-      // toast.error(`Copy operation blocked. ${role} role does not have clipboard access.`);
+      // toast.error(message);
     };
 
     window.addEventListener('clipboardBlocked', handleClipboardBlocked as EventListener);
@@ -38,7 +38,17 @@ export const useClipboard = () => {
         const role = currentUserCollaborator?.collaborator_type || 'VIEWER';
         
         try {
+          // Store role locally for web environment
+          const roleData = {
+            user_id: userId,
+            book_id: bookState.bookId,
+            role: role
+          };
+          localStorage.setItem('current_user_role', JSON.stringify(roleData));
+          
+          // Also set in Tauri if available
           await ClipboardService.setUserRole(userId, bookState.bookId, role);
+          
           const canAccess = await ClipboardService.canAccessClipboard();
           setCanCopy(canAccess);
           console.log('Clipboard access updated:', { userId, bookId: bookState.bookId, role, canAccess });
@@ -46,6 +56,10 @@ export const useClipboard = () => {
           console.error('Failed to update clipboard permissions:', error);
           setCanCopy(false);
         }
+      } else {
+        // No role data available, deny access
+        setCanCopy(false);
+        localStorage.removeItem('current_user_role');
       }
     };
 
