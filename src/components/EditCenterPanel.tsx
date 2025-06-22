@@ -1,15 +1,16 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CollaborativeRichTextEditor } from '@/components/CollaborativeRichTextEditor';
 import { EditorRichTextEditor } from '@/components/EditorRichTextEditor';
+import { TrackChangesToggle } from '@/components/TrackChangesToggle';
 import { Plus, Edit, UploadCloud } from 'lucide-react';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { apiClient } from '@/lib/api';
 import { debounce } from 'lodash';
 
-export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
+export const EditCenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
   const { state, dispatch } = useBookContext();
   const { selectedChapter, bookId, versionId } = state;
 
@@ -18,7 +19,6 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
   const [newImage, setNewImage] = useState<File | null>(null);
   const [status, setStatus] = useState('');
   const [showTrackChanges, setShowTrackChanges] = useState(false);
-  const [extractedChanges, setExtractedChanges] = useState<any[]>([]);
   const statusRef = useRef('');
 
   const latestContentRef = useRef(selectedChapter?.content?.blocks || []);
@@ -157,30 +157,6 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
     }
   };
 
-  const handleTrackChangesToggle = (show: boolean) => {
-    setShowTrackChanges(show);
-  };
-
-  const handleExtractedChangesUpdate = (changes: any[]) => {
-    setExtractedChanges(changes);
-    // Dispatch event to notify sidebar
-    window.dispatchEvent(new CustomEvent('editorChangesUpdate', {
-      detail: { changes }
-    }));
-  };
-
-  const handleAcceptChange = (changeId: string) => {
-    console.log('CenterPanel: Accepting change:', changeId);
-  };
-
-  const handleRejectChange = (changeId: string) => {
-    console.log('CenterPanel: Rejecting change:', changeId);
-  };
-
-  const handleChangeClick = (changeId: string) => {
-    console.log('CenterPanel: Change clicked:', changeId);
-  };
-
   const renderContent = () => {
     switch (mode) {
       case 'writing':
@@ -247,6 +223,10 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
                   <span className="text-sm text-muted-foreground">Status: {statusRef.current}</span>
                   <div className="w-4 h-4 rounded-full bg-primary" title={statusRef.current}></div>
                 </div>
+                <TrackChangesToggle
+                  showChanges={showTrackChanges}
+                  onToggle={setShowTrackChanges}
+                />
               </div>
             </div>
 
@@ -263,11 +243,7 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
                 blockId="block_001"
                 selectedChapter={selectedChapter}
                 showTrackChanges={showTrackChanges}
-                onTrackChangesToggle={handleTrackChangesToggle}
-                onExtractedChangesUpdate={handleExtractedChangesUpdate}
-                onAcceptChange={handleAcceptChange}
-                onRejectChange={handleRejectChange}
-                onChangeClick={handleChangeClick}
+                onTrackChangesToggle={setShowTrackChanges}
               />
             </div>
           </div>

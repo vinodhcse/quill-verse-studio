@@ -1,29 +1,129 @@
-
-/* Track Changes Styling */
+/* Track Changes Styles */
 .track-insertion {
   background-color: rgba(34, 197, 94, 0.2);
-  text-decoration: underline;
-  text-decoration-color: rgb(34, 197, 94);
+  border-bottom: 2px solid rgba(34, 197, 94, 0.5);
+  cursor: pointer;
+  padding: 1px 2px;
+  border-radius: 2px;
+  position: relative;
+}
+
+.track-insertion:hover {
+  background-color: rgba(34, 197, 94, 0.3);
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.3);
 }
 
 .track-deletion {
   background-color: rgba(239, 68, 68, 0.2);
+  border-bottom: 2px solid rgba(239, 68, 68, 0.5);
   text-decoration: line-through;
-  text-decoration-color: rgb(239, 68, 68);
-}
-
-.comment-highlight {
-  background-color: rgba(59, 130, 246, 0.2);
-  border-bottom: 2px solid rgb(59, 130, 246);
   cursor: pointer;
+  padding: 1px 2px;
+  border-radius: 2px;
+  position: relative;
 }
 
-.comment-highlight:hover {
-  background-color: rgba(59, 130, 246, 0.3);
+.track-deletion:hover {
+  background-color: rgba(239, 68, 68, 0.3);
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.3);
 }
 
-/* Editor collaborative styling */
-.ProseMirror .has-focus {
-  outline: 2px solid rgb(59, 130, 246);
-  outline-offset: 2px;
+/* Hide track changes when disabled */
+.hide-track-changes .track-insertion {
+  background-color: transparent;
+  border-bottom: none;
+  cursor: text;
+  padding: 0;
+}
+
+.hide-track-changes .track-deletion {
+  display: none;
+}
+
+/* Change tooltip on hover */
+.track-insertion::after,
+.track-deletion::after {
+  content: attr(title);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 1000;
+}
+
+.track-insertion:hover::after,
+.track-deletion:hover::after {
+  opacity: 1;
+}
+
+/* Focused change styling */
+.track-insertion.focused,
+.track-deletion.focused {
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+  z-index: 10;
+}
+
+/* Right-click context menu enhancement */
+.track-change-menu {
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  padding: 4px;
+  min-width: 120px;
+}
+
+.track-change-menu button {
+  width: 100%;
+  text-align: left;
+  padding: 6px 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.track-change-menu button:hover {
+  background-color: #f3f4f6;
+}
+
+.track-change-menu button.accept {
+  color: #059669;
+}
+
+.track-change-menu button.reject {
+  color: #dc2626;
+}
+
+.highlighted-change {
+  background-color: #fef3c7 !important;
+  transition: background-color 0.3s ease;
+}
+
+.highlighted-change::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  border: 2px solid #f59e0b;
+  border-radius: 4px;
+  pointer-events: none;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

@@ -84,7 +84,7 @@ export interface Book {
   bookImage?: string;
   lastModified: string;
   createdAt: string;
-  wordCount?: number;
+  wordCount: number; // Made required to match Dashboard usage
   role?: 'author' | 'editor' | 'reviewer';
   subtitle?: string;
   language?: string;
@@ -94,7 +94,8 @@ export interface BookDetails extends Book {
   description?: string;
   genre?: string;
   chapters: Chapter[];
-  collaborators: User[];
+  collaborators: CollaboratorInfo[];
+  collaboratorIds: string[];
   versions: Version[];
   currentVersion: Version;
   settings: {
@@ -102,6 +103,17 @@ export interface BookDetails extends Book {
     allowComments: boolean;
     autoSave: boolean;
   };
+}
+
+export interface CollaboratorInfo {
+  id: string;
+  user_id: string;
+  user_email: string;
+  name: string;
+  collaborator_type: string;
+  addedBy: string;
+  addedAt: string;
+  expiresAt: string | null;
 }
 
 export interface CollaborationSession {

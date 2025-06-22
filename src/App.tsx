@@ -14,6 +14,7 @@ import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
 import { BookProvider } from '@/lib/BookContextProvider';
 import { UserContextProvider } from '@/lib/UserContextProvider';
+import EditPage from "./pages/EditPage";
 
 const queryClient = new QueryClient();
 
@@ -41,6 +42,16 @@ const App = () => (
                   <Route path="/write/book/:bookId/version/:versionId" element={
                     <BookProvider>
                       <Index />
+                    </BookProvider>
+                  } />
+                  <Route path="/edit" element={
+                    <BookProvider>
+                      <EditPage />
+                    </BookProvider>
+                  } />
+                  <Route path="/edit/book/:bookId/version/:versionId" element={
+                    <BookProvider>
+                      <EditPage />
                     </BookProvider>
                   } />
                   <Route path="/dashboard" element={<Dashboard />} />

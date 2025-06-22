@@ -1,13 +1,18 @@
+
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { fetchChapters, fetchSelectedChapter } from './bookService';
+import { apiClient } from './api';
 
 const initialState = {
   bookId: null,
   versionId: null,
   chapterId: null,
   chapters: [],
+  authorId: null,
   selectedChapter: null,
+  bookDetails: null,
+  collaborators: [],
 };
 
 const BookContext = createContext(null);
@@ -24,6 +29,12 @@ const bookReducer = (state, action) => {
       return { ...state, chapters: action.payload };
     case 'SET_SELECTED_CHAPTER':
       return { ...state, selectedChapter: action.payload };
+    case 'SET_AUTHOR_ID':
+      return { ...state, authorId: action.payload };
+    case 'SET_BOOK_DETAILS':
+      return { ...state, bookDetails: action.payload };
+    case 'SET_COLLABORATORS':
+      return { ...state, collaborators: action.payload };
     default:
       return state;
   }
@@ -48,6 +59,18 @@ export const BookProvider = ({ children }) => {
     }
   };
 
+  const fetchBookDetails = async () => {
+    if (state.bookId) {
+      try {
+        const response = await apiClient.get(`/books/${state.bookId}`);
+        dispatch({ type: 'SET_BOOK_DETAILS', payload: response.data });
+        dispatch({ type: 'SET_COLLABORATORS', payload: response.data.collaborators || [] });
+      } catch (error) {
+        console.error('Failed to fetch book details:', error);
+      }
+    }
+  };
+
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const chapterIdFromQuery = queryParams.get('chapterId');
@@ -55,6 +78,7 @@ export const BookProvider = ({ children }) => {
     console.log('Extracted bookId:', bookId);
     console.log('Extracted versionId:', versionId);
     console.log('Extracted chapterId:', chapterIdFromQuery);
+    
 
     if (bookId) dispatch({ type: 'SET_BOOK', payload: bookId });
     if (versionId) dispatch({ type: 'SET_VERSION', payload: versionId });
@@ -89,13 +113,16 @@ export const BookProvider = ({ children }) => {
           setLoading(false);
         }
       }
+
+      // Fetch book details including collaborators
+      await fetchBookDetails();
     };
 
     fetchData();
   }, [state.bookId, state.versionId, state.chapterId]);
 
   return (
-    <BookContext.Provider value={{ state, dispatch, refetchChapters, loading }}>
+    <BookContext.Provider value={{ state, dispatch, refetchChapters, fetchBookDetails, loading }}>
       {children}
     </BookContext.Provider>
   );

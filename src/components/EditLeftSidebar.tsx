@@ -9,11 +9,11 @@ import { useNavigate } from 'react-router-dom';
 
 interface LeftSidebarProps {
   mode: Mode;
-  isCollapsed: boolean; 
+  isCollapsed: boolean;
   onToggle: () => void;
 }
 
-export const LeftSidebar: React.FC<LeftSidebarProps> = ({
+export const EditLeftSidebar: React.FC<LeftSidebarProps> = ({
   mode,
   isCollapsed,
   onToggle,
@@ -43,7 +43,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       const newChapter = response.data;
 
       // Update the URL to load the new chapter
-      window.location.href = `/write/book/${bookId}/version/${versionId}?Chapter=${newChapter.id}`;
+      window.location.href = `/edit/book/${bookId}/version/${versionId}?Chapter=${newChapter.id}`;
     } catch (error) {
       console.error('Failed to create chapter:', error);
       alert('Failed to create chapter. Please try again.');
@@ -173,7 +173,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
 
   const handleChapterClick = (chapterId: string) => {
     console.log('Chapter clicked:', chapterId);
-    navigate(`/write/book/${bookId}/version/${versionId}?chapterId=${chapterId}`);
+    navigate(`/edit/book/${bookId}/version/${versionId}?chapterId=${chapterId}`);
   };
 
   const handleDeleteChapter = async (chapterId: string) => {
@@ -190,7 +190,7 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
       if (state.chapterId === chapterId && updatedChapters.length > 0) {
         const firstChapter = updatedChapters[0];
         dispatch({ type: 'SET_SELECTED_CHAPTER', payload: firstChapter });
-        navigate(`/write/book/${bookId}/version/${versionId}?chapterId=${firstChapter.id}`);
+        navigate(`/edit/book/${bookId}/version/${versionId}?chapterId=${firstChapter.id}`);
       }
     } catch (error) {
       console.error('Failed to delete chapter:', error);
