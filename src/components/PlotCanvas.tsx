@@ -14,8 +14,7 @@ import {
   Panel,
   OnConnectStartParams,
   ReactFlowInstance,
-  MarkerType,
-  NodeTypes
+  MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ import { QuickNodeModal } from './QuickNodeModal';
 import { Plus, Save, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-const nodeTypes: NodeTypes = {
+const nodeTypes = {
   plotNode: PlotNode,
 };
 
@@ -105,7 +104,15 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     if (newTypeOrDelete === 'delete') {
       console.log('Handling edge deletion for:', edgeId);
       
-      // Handle edge deletion
+      // First remove from React Flow edges
+      setEdges(prev => {
+        console.log('Current edges before deletion:', prev);
+        const filtered = prev.filter(edge => edge.id !== edgeId);
+        console.log('Edges after deletion:', filtered);
+        return filtered;
+      });
+      
+      // Handle edge deletion in canvas nodes
       if (edgeId.startsWith('parent_')) {
         // Handle parent-child edge deletion
         const parts = edgeId.split('_');
@@ -117,9 +124,11 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           
           setCanvasNodes(prev => prev.map(node => {
             if (node.id === childId) {
+              console.log('Removing parent from child:', childId);
               return { ...node, parentId: undefined };
             }
             if (node.id === parentId) {
+              console.log('Removing child from parent:', parentId);
               return {
                 ...node,
                 childIds: node.childIds.filter(id => id !== childId)
@@ -139,12 +148,14 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           
           setCanvasNodes(prev => prev.map(node => {
             if (node.id === sourceId) {
+              console.log('Removing link from source:', sourceId);
               return {
                 ...node,
                 linkedNodeIds: (node.linkedNodeIds || []).filter(id => id !== targetId)
               };
             }
             if (node.id === targetId) {
+              console.log('Removing link from target:', targetId);
               return {
                 ...node,
                 linkedNodeIds: (node.linkedNodeIds || []).filter(id => id !== sourceId)
@@ -154,9 +165,6 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           }));
         }
       }
-      
-      // Also remove from React Flow edges
-      setEdges(prev => prev.filter(edge => edge.id !== edgeId));
       
     } else {
       // Handle edge type conversion
@@ -168,6 +176,8 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         if (parts.length >= 3) {
           const parentId = parts[1];
           const childId = parts[2];
+          
+          console.log('Converting parent-child to linked:', { parentId, childId });
           
           setCanvasNodes(prev => prev.map(node => {
             if (node.id === childId) {
@@ -194,6 +204,8 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           const sourceId = parts[1];
           const targetId = parts[2];
           
+          console.log('Converting linked to parent-child:', { sourceId, targetId });
+          
           setCanvasNodes(prev => prev.map(node => {
             if (node.id === targetId) {
               return { 
@@ -214,7 +226,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         }
       }
     }
-  }, []);
+  }, [setEdges]);
 
   const handleEditNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -294,7 +306,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       }
     });
 
-    console.log('Generated edges:', edges);
+    console.log('Generated edges with conversion handlers:', edges);
     return edges;
   }, [canvasNodes, nodePositions, handleEdgeConversion]);
 

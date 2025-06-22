@@ -24,7 +24,7 @@ interface DeletableEdgeProps {
   markerEnd?: string;
   data?: {
     type?: 'parent-child' | 'linked';
-    onConvertEdge?: (edgeId: string, currentType: string) => void;
+    onConvertEdge?: (edgeId: string, action: string) => void;
   };
 }
 
@@ -42,7 +42,6 @@ const DeletableEdge: React.FC<DeletableEdgeProps> = ({
   markerEnd,
   data,
 }) => {
-  const { setEdges } = useReactFlow();
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -55,9 +54,6 @@ const DeletableEdge: React.FC<DeletableEdgeProps> = ({
   const onEdgeDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
     console.log('Delete button clicked for edge:', id);
-    
-    // Remove the edge from React Flow
-    setEdges((edges) => edges.filter((edge) => edge.id !== id));
     
     // Notify parent component about the deletion
     if (data?.onConvertEdge) {
