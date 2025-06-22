@@ -1,5 +1,6 @@
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen } from '@tauri-apps/api/event';
 
 export interface UserRole {
   user_id: string;
@@ -8,6 +9,19 @@ export interface UserRole {
 }
 
 export class ClipboardService {
+  private static clipboardEventListener: (() => void) | null = null;
+
+  static async initialize() {
+    if (window.__TAURI__ && !this.clipboardEventListener) {
+      // Listen for clipboard-write events from Rust
+      const unlisten = await listen('clipboard-write', (event) => {
+        const text = event.payload as string;
+        this.fallbackCopyToClipboard(text);
+      });
+      this.clipboardEventListener = unlisten;
+    }
+  }
+
   static async setUserRole(userId: string, bookId: string, role: string): Promise<void> {
     try {
       await invoke('set_user_role', {
@@ -79,6 +93,9 @@ export class ClipboardService {
 
   // Main copy method that handles both Tauri and web environments
   static async copyToClipboard(text: string): Promise<boolean> {
+    // Initialize listener if needed
+    await this.initialize();
+    
     // Check if we're in a Tauri environment
     if (window.__TAURI__) {
       return await this.controlledCopyToClipboard(text);

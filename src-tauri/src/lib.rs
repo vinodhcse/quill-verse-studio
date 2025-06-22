@@ -56,11 +56,11 @@ async fn controlled_copy_to_clipboard(
     let can_copy = can_access_clipboard(state).await?;
     
     if can_copy {
-        // Use Tauri's clipboard API
-        match app_handle.clipboard_manager().write_text(text) {
+        // Use Tauri's invoke API to call the frontend clipboard API
+        match app_handle.emit("clipboard-write", &text) {
             Ok(_) => Ok(true),
             Err(e) => {
-                eprintln!("Failed to write to clipboard: {}", e);
+                eprintln!("Failed to emit clipboard event: {}", e);
                 Ok(false)
             }
         }
