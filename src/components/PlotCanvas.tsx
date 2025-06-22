@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
@@ -50,19 +51,19 @@ const getBestHandles = (sourcePos: { x: number; y: number }, targetPos: { x: num
     // Horizontal connection is primary
     if (deltaX > 0) {
       // Target is to the right of source
-      return { sourceHandle: 'right', targetHandle: 'left-target' };
+      return { sourceHandle: 'right', targetHandle: 'right' };
     } else {
       // Target is to the left of source
-      return { sourceHandle: 'left', targetHandle: 'right-target' };
+      return { sourceHandle: 'left', targetHandle: 'left' };
     }
   } else {
     // Vertical connection is primary
     if (deltaY > 0) {
       // Target is below source
-      return { sourceHandle: 'bottom', targetHandle: 'top-target' };
+      return { sourceHandle: 'bottom', targetHandle: 'bottom' };
     } else {
       // Target is above source
-      return { sourceHandle: 'top', targetHandle: 'bottom-target' };
+      return { sourceHandle: 'top', targetHandle: 'top' };
     }
   }
 };
@@ -192,6 +193,11 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           ...prev,
           [change.id]: change.position
         }));
+      }
+      
+      // Handle node deletion
+      if (change.type === 'remove') {
+        setCanvasNodes(prev => prev.filter(node => node.id !== change.id));
       }
     });
   }, [onNodesChange]);
