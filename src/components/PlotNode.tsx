@@ -85,65 +85,124 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
         </div>
       </CardContent>
 
-      {/* Multiple handles for all directions */}
+      {/* Four handles per side - Top */}
       <Handle
         type="target"
         position={Position.Top}
-        id="top-target"
+        id="top-target-1"
         className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ top: -6 }}
+        style={{ top: -6, left: '20%' }}
       />
       <Handle
         type="source"
         position={Position.Top}
-        id="top-source" 
+        id="top-source-1" 
         className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ top: -6, left: 20 }}
+        style={{ top: -6, left: '40%' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top-target-2"
+        className="w-3 h-3 !bg-gray-400 !border-gray-600"
+        style={{ top: -6, left: '60%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top-source-2" 
+        className="w-3 h-3 !bg-blue-400 !border-blue-600"
+        style={{ top: -6, left: '80%' }}
       />
       
+      {/* Four handles per side - Right */}
       <Handle
         type="target"
         position={Position.Right}
-        id="right-target"
+        id="right-target-1"
         className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ right: -6 }}
+        style={{ right: -6, top: '20%' }}
       />
       <Handle
         type="source"
         position={Position.Right}
-        id="right-source"
+        id="right-source-1"
         className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ right: -6, top: 20 }}
+        style={{ right: -6, top: '40%' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Right}
+        id="right-target-2"
+        className="w-3 h-3 !bg-gray-400 !border-gray-600"
+        style={{ right: -6, top: '60%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right-source-2"
+        className="w-3 h-3 !bg-blue-400 !border-blue-600"
+        style={{ right: -6, top: '80%' }}
       />
       
+      {/* Four handles per side - Bottom */}
       <Handle
         type="target"
         position={Position.Bottom}
-        id="bottom-target"
+        id="bottom-target-1"
         className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ bottom: -6 }}
+        style={{ bottom: -6, left: '20%' }}
       />
       <Handle
         type="source"
         position={Position.Bottom}
-        id="bottom-source"
+        id="bottom-source-1"
         className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ bottom: -6, left: 20 }}
+        style={{ bottom: -6, left: '40%' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-target-2"
+        className="w-3 h-3 !bg-gray-400 !border-gray-600"
+        style={{ bottom: -6, left: '60%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom-source-2"
+        className="w-3 h-3 !bg-blue-400 !border-blue-600"
+        style={{ bottom: -6, left: '80%' }}
       />
       
+      {/* Four handles per side - Left */}
       <Handle
         type="target"
         position={Position.Left}
-        id="left-target"
+        id="left-target-1"
         className="w-3 h-3 !bg-gray-400 !border-gray-600"
-        style={{ left: -6 }}
+        style={{ left: -6, top: '20%' }}
       />
       <Handle
         type="source"
         position={Position.Left}
-        id="left-source"
+        id="left-source-1"
         className="w-3 h-3 !bg-blue-400 !border-blue-600"
-        style={{ left: -6, top: 20 }}
+        style={{ left: -6, top: '40%' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left-target-2"
+        className="w-3 h-3 !bg-gray-400 !border-gray-600"
+        style={{ left: -6, top: '60%' }}
+      />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left-source-2"
+        className="w-3 h-3 !bg-blue-400 !border-blue-600"
+        style={{ left: -6, top: '80%' }}
       />
     </Card>
   );

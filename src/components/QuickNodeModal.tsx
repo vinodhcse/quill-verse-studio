@@ -46,6 +46,12 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
     onClose();
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSave();
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
@@ -80,7 +86,8 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Enter name..."
-              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              onKeyDown={handleKeyDown}
+              autoFocus
             />
           </div>
 

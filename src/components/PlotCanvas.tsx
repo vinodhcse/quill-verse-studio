@@ -14,7 +14,6 @@ import {
   NodeOrigin,
   Panel,
   OnConnectStartParams,
-  useReactFlow,
   ReactFlowInstance
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -95,7 +94,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           type: 'deletable',
           style: { stroke: '#10b981', strokeWidth: 2 },
           markerEnd: {
-            type: 'arrowclosed' as any,
+            type: 'arrowclosed',
             color: '#10b981',
           },
         });
@@ -174,11 +173,11 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         source: connectStartParams.nodeId!,
         sourceHandle: connectStartParams.handleId,
         target: nodeData.id,
-        targetHandle: 'top-target',
+        targetHandle: 'top-target-1',
         type: 'deletable',
         style: { stroke: '#6366f1', strokeWidth: 2 },
         markerEnd: {
-          type: 'arrowclosed' as any,
+          type: 'arrowclosed',
           color: '#6366f1',
         },
       };
@@ -214,7 +213,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         type: 'deletable',
         style: { stroke: '#6366f1', strokeWidth: 2 },
         markerEnd: {
-          type: 'arrowclosed' as any,
+          type: 'arrowclosed',
           color: '#6366f1',
         },
       };
@@ -235,7 +234,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     if (targetIsPane) {
       // Get mouse position relative to the flow
       const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
-      const position = reactFlowInstance.project({
+      const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX - reactFlowBounds.left,
         y: event.clientY - reactFlowBounds.top,
       });
@@ -322,6 +321,14 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         fitView
         snapToGrid={true}
         snapGrid={[15, 15]}
+        deleteKeyCode={["Backspace", "Delete"]}
+        multiSelectionKeyCode={["Meta", "Ctrl"]}
+        connectionLineStyle={{ stroke: '#6366f1', strokeWidth: 2 }}
+        defaultEdgeOptions={{ 
+          type: 'deletable',
+          style: { stroke: '#6366f1', strokeWidth: 2 },
+          markerEnd: { type: 'arrowclosed', color: '#6366f1' }
+        }}
       >
         <Panel position="top-left" className="space-x-2">
           <Button onClick={handleCreateRootNode} size="sm">
