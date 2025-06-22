@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   ReactFlow,
   Node,
@@ -12,18 +12,27 @@ import {
   MiniMap,
   Connection,
   NodeOrigin,
-  Panel
+  Panel,
+  OnConnectStartParams,
+  useReactFlow,
+  ReactFlowInstance
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
 import { CanvasNode, CanvasData, TimelineEvent } from '@/types/canvas';
 import PlotNode from './PlotNode';
+import DeletableEdge from './DeletableEdge';
 import { NodeEditModal } from './NodeEditModal';
+import { QuickNodeModal } from './QuickNodeModal';
 import { Plus, Save, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const nodeTypes = {
   plotNode: PlotNode,
+};
+
+const edgeTypes = {
+  deletable: DeletableEdge,
 };
 
 const nodeOrigin: NodeOrigin = [0.5, 0];
@@ -38,8 +47,13 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
   const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
   const [editingNode, setEditingNode] = useState<CanvasNode | undefined>();
   const [parentNodeForNew, setParentNodeForNew] = useState<string | undefined>();
+  const [connectStartParams, setConnectStartParams] = useState<OnConnectStartParams | null>(null);
+  const [quickNodePosition, setQuickNodePosition] = useState({ x: 0, y: 0 });
+  const reactFlowWrapper = useRef<HTMLDivElement>(null);
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -68,14 +82,24 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       },
     }));
 
-    const flowEdges: Edge[] = canvasNodes
+    const flowEdges: Edge[] = [];
+    
+    // Add parent-child edges
+    canvasNodes
       .filter(node => node.parentId)
-      .map(node => ({
-        id: `edge_${node.parentId}_${node.id}`,
-        source: node.parentId!,
-        target: node.id,
-        type: 'smoothstep',
-      }));
+      .forEach(node => {
+        flowEdges.push({
+          id: `parent_${node.parentId}_${node.id}`,
+          source: node.parentId!,
+          target: node.id,
+          type: 'deletable',
+          style: { stroke: '#10b981', strokeWidth: 2 },
+          markerEnd: {
+            type: 'arrowclosed' as any,
+            color: '#10b981',
+          },
+        });
+      });
 
     setNodes(flowNodes);
     setEdges(flowEdges);
@@ -139,10 +163,87 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     });
   }, [parentNodeForNew]);
 
+  const handleQuickNodeSave = useCallback((nodeData: CanvasNode, position: { x: number; y: number }) => {
+    // Add the new node
+    setCanvasNodes(prev => [...prev, nodeData]);
+
+    // If there was a connection being made, create the edge
+    if (connectStartParams && reactFlowInstance) {
+      const newEdge: Edge = {
+        id: `edge_${connectStartParams.nodeId}_${nodeData.id}`,
+        source: connectStartParams.nodeId!,
+        sourceHandle: connectStartParams.handleId,
+        target: nodeData.id,
+        targetHandle: 'top-target',
+        type: 'deletable',
+        style: { stroke: '#6366f1', strokeWidth: 2 },
+        markerEnd: {
+          type: 'arrowclosed' as any,
+          color: '#6366f1',
+        },
+      };
+
+      setEdges(edges => [...edges, newEdge]);
+    }
+
+    // Add the new node to the flow
+    const newFlowNode: Node = {
+      id: nodeData.id,
+      type: 'plotNode',
+      position: position,
+      data: {
+        ...nodeData,
+        onEdit: handleEditNode,
+        onAddChild: handleAddChild,
+      },
+    };
+
+    setNodes(nodes => [...nodes, newFlowNode]);
+    setConnectStartParams(null);
+
+    toast({
+      title: "Node created",
+      description: `${nodeData.name} has been created and connected.`,
+    });
+  }, [connectStartParams, reactFlowInstance, handleEditNode, handleAddChild]);
+
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
+    (params: Connection) => {
+      const newEdge = {
+        ...params,
+        type: 'deletable',
+        style: { stroke: '#6366f1', strokeWidth: 2 },
+        markerEnd: {
+          type: 'arrowclosed' as any,
+          color: '#6366f1',
+        },
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+    },
     [setEdges]
   );
+
+  const onConnectStart = useCallback((event: any, params: OnConnectStartParams) => {
+    setConnectStartParams(params);
+  }, []);
+
+  const onConnectEnd = useCallback((event: any) => {
+    if (!connectStartParams || !reactFlowInstance || !reactFlowWrapper.current) return;
+
+    const targetIsPane = event.target.classList.contains('react-flow__pane');
+    
+    if (targetIsPane) {
+      // Get mouse position relative to the flow
+      const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
+      const position = reactFlowInstance.project({
+        x: event.clientX - reactFlowBounds.left,
+        y: event.clientY - reactFlowBounds.top,
+      });
+
+      setQuickNodePosition(position);
+      setIsQuickModalOpen(true);
+    }
+  }, [connectStartParams, reactFlowInstance]);
 
   const saveToLocalStorage = useCallback(() => {
     const data: CanvasData = {
@@ -205,16 +306,22 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const parentNode = parentNodeForNew ? canvasNodes.find(n => n.id === parentNodeForNew) : undefined;
 
   return (
-    <div className="w-full h-full">
+    <div className="w-full h-full" ref={reactFlowWrapper}>
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onConnectStart={onConnectStart}
+        onConnectEnd={onConnectEnd}
+        onInit={setReactFlowInstance}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         nodeOrigin={nodeOrigin}
         fitView
+        snapToGrid={true}
+        snapGrid={[15, 15]}
       >
         <Panel position="top-left" className="space-x-2">
           <Button onClick={handleCreateRootNode} size="sm">
@@ -258,6 +365,17 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         timelineEvents={timelineEvents}
         onTimelineEventsChange={setTimelineEvents}
         parentType={parentNode?.type}
+      />
+
+      <QuickNodeModal
+        isOpen={isQuickModalOpen}
+        onClose={() => {
+          setIsQuickModalOpen(false);
+          setConnectStartParams(null);
+        }}
+        onSave={handleQuickNodeSave}
+        position={quickNodePosition}
+        sourceNodeId={connectStartParams?.nodeId}
       />
     </div>
   );
