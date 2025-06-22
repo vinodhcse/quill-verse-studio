@@ -14,7 +14,8 @@ import {
   Panel,
   OnConnectStartParams,
   ReactFlowInstance,
-  MarkerType
+  MarkerType,
+  NodeTypes
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -26,7 +27,7 @@ import { QuickNodeModal } from './QuickNodeModal';
 import { Plus, Save, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-const nodeTypes = {
+const nodeTypes: NodeTypes = {
   plotNode: PlotNode,
 };
 
