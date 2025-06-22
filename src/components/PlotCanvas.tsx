@@ -14,8 +14,7 @@ import {
   Panel,
   OnConnectStartParams,
   ReactFlowInstance,
-  MarkerType,
-  NodeTypes
+  MarkerType
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -27,7 +26,7 @@ import { QuickNodeModal } from './QuickNodeModal';
 import { Plus, Save, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-const nodeTypes: NodeTypes = {
+const nodeTypes = {
   plotNode: PlotNode,
 };
 
@@ -105,15 +104,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     if (newTypeOrDelete === 'delete') {
       console.log('Handling edge deletion for:', edgeId);
       
-      // First remove from React Flow edges
-      setEdges(prev => {
-        console.log('Current edges before deletion:', prev);
-        const filtered = prev.filter(edge => edge.id !== edgeId);
-        console.log('Edges after deletion:', filtered);
-        return filtered;
-      });
-      
-      // Handle edge deletion in canvas nodes
+      // Handle edge deletion in canvas nodes first
       if (edgeId.startsWith('parent_')) {
         // Handle parent-child edge deletion
         const parts = edgeId.split('_');
@@ -227,7 +218,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         }
       }
     }
-  }, [setEdges]);
+  }, []);
 
   const handleEditNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -311,7 +302,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     return edges;
   }, [canvasNodes, nodePositions, handleEdgeConversion]);
 
-  // Convert canvas nodes to React Flow nodes
+  // Convert canvas nodes to React Flow nodes and update edges
   useEffect(() => {
     const flowNodes: Node[] = canvasNodes.map((canvasNode, index) => {
       const savedPosition = nodePositions[canvasNode.id] || canvasNode.position;
@@ -330,8 +321,9 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     });
 
     setNodes(flowNodes);
+    // Update edges whenever canvas nodes change
     setEdges(flowEdges);
-  }, [canvasNodes, nodePositions, flowEdges, handleEditNode, handleAddChild]);
+  }, [canvasNodes, nodePositions, flowEdges, handleEditNode, handleAddChild, setNodes, setEdges]);
 
   // Handle node position changes with debouncing
   const handleNodesChange = useCallback((changes: any[]) => {
