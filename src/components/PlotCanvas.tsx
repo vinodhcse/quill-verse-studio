@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
@@ -15,7 +14,8 @@ import {
   Panel,
   OnConnectStartParams,
   ReactFlowInstance,
-  MarkerType
+  MarkerType,
+  NodeTypes
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from '@/components/ui/button';
@@ -27,7 +27,7 @@ import { QuickNodeModal } from './QuickNodeModal';
 import { Plus, Save, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
-const nodeTypes = {
+const nodeTypes: NodeTypes = {
   plotNode: PlotNode,
 };
 
@@ -103,6 +103,8 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     console.log('handleEdgeConversion called:', { edgeId, newTypeOrDelete });
     
     if (newTypeOrDelete === 'delete') {
+      console.log('Handling edge deletion for:', edgeId);
+      
       // Handle edge deletion
       if (edgeId.startsWith('parent_')) {
         // Handle parent-child edge deletion
@@ -152,6 +154,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           }));
         }
       }
+      
+      // Also remove from React Flow edges
+      setEdges(prev => prev.filter(edge => edge.id !== edgeId));
+      
     } else {
       // Handle edge type conversion
       console.log('Converting edge type:', { edgeId, newType: newTypeOrDelete });
@@ -472,11 +478,11 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           type: MarkerType.ArrowClosed,
           color: '#6366f1',
         },
-        data: { type: 'linked' },
+        data: { type: 'linked', onConvertEdge: handleEdgeConversion },
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
-    [setEdges, nodePositions]
+    [setEdges, nodePositions, handleEdgeConversion]
   );
 
   const onConnectStart = useCallback((event: any, params: OnConnectStartParams) => {
