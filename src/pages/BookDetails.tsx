@@ -65,17 +65,24 @@ const BookDetails = () => {
         console.log('Logged In User ID:', loggedInUserId);
         console.log('Book Author ID:', bookData.authorId);
 
+        let userRole = null;
+        
+        // Check if user is the author first
         if (bookData.authorId === loggedInUserId) {
-          setBookUserRole('AUTHOR');
+          userRole = 'AUTHOR';
+          console.log('User is the AUTHOR of this book');
         } else {
-          console.log('Book colloborators:', bookData.collaborators);
-          const collaborator = bookData.collaborators.find(
+          // Check if user is a collaborator
+          console.log('Book collaborators:', bookData.collaborators);
+          const collaborator = bookData.collaborators?.find(
             (collab) => collab.user_id === loggedInUserId
           );
-          console.log('Collaborator:', collaborator);
-          setBookUserRole(collaborator ? collaborator.collaborator_type : null);
-          console.log('Book User Role:', bookUserRole);
+          console.log('Found collaborator:', collaborator);
+          userRole = collaborator ? collaborator.collaborator_type : 'VIEWER';
         }
+        
+        console.log('Final determined role:', userRole);
+        setBookUserRole(userRole);
         
       } catch (error) {
         console.error('Failed to fetch book details:', error);
@@ -85,7 +92,7 @@ const BookDetails = () => {
     };
 
     fetchBookDetails();
-  }, [bookId]);
+  }, [bookId, currentUserId]);
 
   const handleInviteCollaborator = async (data: InviteFormData) => {
     setIsInviting(true);

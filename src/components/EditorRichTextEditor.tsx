@@ -268,13 +268,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         
         return false;
       },
-      clipboardTextSerializer: (slice) => {
-        // Return empty string to prevent default clipboard behavior
+      clipboardTextSerializer: () => {
+        // Prevent default text serialization
         return '';
       },
       transformCopied: (slice, view) => {
-        // Always prevent the default copy behavior
-        // We handle copy through our controlled system
+        // Prevent default copy behavior by returning an empty slice
         const text = slice.content.textBetween(0, slice.content.size);
         
         // Trigger our controlled copy asynchronously
@@ -285,7 +284,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           }
         }, 0);
         
-        // Return empty slice to prevent default clipboard write
+        // Return an empty slice to prevent default clipboard write
         return slice.content.cut(slice.content.size, slice.content.size);
       },
     },
