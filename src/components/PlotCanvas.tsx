@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
   Node,
@@ -81,6 +81,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const [quickNodePosition, setQuickNodePosition] = useState({ x: 0, y: 0 });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
+  const positionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -97,28 +98,11 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     }
   }, [bookId]);
 
-  // Convert canvas nodes to React Flow nodes
-  useEffect(() => {
-    const flowNodes: Node[] = canvasNodes.map((canvasNode, index) => {
-      // Use saved position or calculate default position
-      const savedPosition = nodePositions[canvasNode.id] || canvasNode.position;
-      const defaultPosition = { x: (index % 4) * 300, y: Math.floor(index / 4) * 200 };
-      
-      return {
-        id: canvasNode.id,
-        type: 'plotNode',
-        position: savedPosition || defaultPosition,
-        data: {
-          ...canvasNode,
-          onEdit: handleEditNode,
-          onAddChild: handleAddChild,
-        },
-      };
-    });
-
-    const flowEdges: Edge[] = [];
+  // Memoize flow edges to prevent unnecessary recalculations
+  const flowEdges = useMemo(() => {
+    const edges: Edge[] = [];
     
-    // Add parent-child edges with smart handle positioning
+    // Add parent-child edges
     canvasNodes
       .filter(node => node.parentId)
       .forEach(node => {
@@ -126,7 +110,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         const childPos = nodePositions[node.id] || { x: 0, y: 0 };
         const handles = getBestHandles(parentPos, childPos);
         
-        flowEdges.push({
+        edges.push({
           id: `parent_${node.parentId}_${node.id}`,
           source: node.parentId!,
           target: node.id,
@@ -141,20 +125,19 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         });
       });
 
-    // Add linked node edges (same-level connections) with smart handle positioning
+    // Add linked node edges
     canvasNodes.forEach(node => {
       if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
         node.linkedNodeIds.forEach(linkedId => {
-          // Only create edge if it doesn't already exist (to avoid duplicates)
           const edgeId = `link_${node.id}_${linkedId}`;
           const reverseEdgeId = `link_${linkedId}_${node.id}`;
           
-          if (!flowEdges.find(e => e.id === edgeId || e.id === reverseEdgeId)) {
+          if (!edges.find(e => e.id === edgeId || e.id === reverseEdgeId)) {
             const sourcePos = nodePositions[node.id] || { x: 0, y: 0 };
             const targetPos = nodePositions[linkedId] || { x: 0, y: 0 };
             const handles = getBestHandles(sourcePos, targetPos);
             
-            flowEdges.push({
+            edges.push({
               id: edgeId,
               source: node.id,
               target: linkedId,
@@ -172,51 +155,55 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       }
     });
 
-    setNodes(flowNodes);
-    setEdges(flowEdges);
+    return edges;
   }, [canvasNodes, nodePositions]);
 
-  // Save node positions when they change
+  // Convert canvas nodes to React Flow nodes
+  useEffect(() => {
+    const flowNodes: Node[] = canvasNodes.map((canvasNode, index) => {
+      const savedPosition = nodePositions[canvasNode.id] || canvasNode.position;
+      const defaultPosition = { x: (index % 4) * 300, y: Math.floor(index / 4) * 200 };
+      
+      return {
+        id: canvasNode.id,
+        type: 'plotNode',
+        position: savedPosition || defaultPosition,
+        data: {
+          ...canvasNode,
+          onEdit: handleEditNode,
+          onAddChild: handleAddChild,
+        },
+      };
+    });
+
+    setNodes(flowNodes);
+    setEdges(flowEdges);
+  }, [canvasNodes, nodePositions, flowEdges]);
+
+  // Debounced position update to reduce stuttering
+  const debouncedPositionUpdate = useCallback((nodeId: string, position: { x: number; y: number }) => {
+    if (positionUpdateTimeoutRef.current) {
+      clearTimeout(positionUpdateTimeoutRef.current);
+    }
+    
+    positionUpdateTimeoutRef.current = setTimeout(() => {
+      setNodePositions(prev => ({
+        ...prev,
+        [nodeId]: position
+      }));
+    }, 16); // ~60fps
+  }, []);
+
   const handleNodesChange = useCallback((changes: any[]) => {
     onNodesChange(changes);
     
-    // Update positions when nodes are dragged
+    // Update positions when nodes are dragged with debouncing
     changes.forEach(change => {
-      if (change.type === 'position' && change.position) {
-        setNodePositions(prev => ({
-          ...prev,
-          [change.id]: change.position
-        }));
+      if (change.type === 'position' && change.position && !change.dragging) {
+        debouncedPositionUpdate(change.id, change.position);
       }
     });
-  }, [onNodesChange]);
-
-  // Update edges when positions change
-  useEffect(() => {
-    if (edges.length > 0) {
-      const updatedEdges = edges.map(edge => {
-        const sourcePos = nodePositions[edge.source] || { x: 0, y: 0 };
-        const targetPos = nodePositions[edge.target] || { x: 0, y: 0 };
-        const handles = getBestHandles(sourcePos, targetPos);
-        
-        return {
-          ...edge,
-          sourceHandle: handles.sourceHandle,
-          targetHandle: handles.targetHandle,
-        };
-      });
-      
-      // Only update if handles have actually changed
-      const hasChanged = updatedEdges.some((edge, index) => 
-        edge.sourceHandle !== edges[index].sourceHandle || 
-        edge.targetHandle !== edges[index].targetHandle
-      );
-      
-      if (hasChanged) {
-        setEdges(updatedEdges);
-      }
-    }
-  }, [nodePositions, edges]);
+  }, [onNodesChange, debouncedPositionUpdate]);
 
   const handleEditNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -243,16 +230,13 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       let updatedNodes;
 
       if (existingIndex >= 0) {
-        // Update existing node
         updatedNodes = [...prev];
         updatedNodes[existingIndex] = { ...nodeData, linkedNodeIds: nodeData.linkedNodeIds || [] };
       } else {
-        // Add new node
         nodeData.linkedNodeIds = nodeData.linkedNodeIds || [];
         
         if (parentNodeForNew) {
           nodeData.parentId = parentNodeForNew;
-          // Update parent's childIds
           const parentIndex = prev.findIndex(n => n.id === parentNodeForNew);
           if (parentIndex >= 0) {
             updatedNodes = [...prev];
@@ -279,12 +263,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   }, [parentNodeForNew]);
 
   const handleQuickNodeSave = useCallback((nodeData: CanvasNode, position: { x: number; y: number }) => {
-    // Add the new node with position
     nodeData.linkedNodeIds = [];
     setCanvasNodes(prev => [...prev, nodeData]);
     setNodePositions(prev => ({ ...prev, [nodeData.id]: position }));
 
-    // If there was a connection being made, create the link
     if (connectStartParams) {
       setCanvasNodes(prev => prev.map(node => {
         if (node.id === connectStartParams.nodeId) {
@@ -296,7 +278,6 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         return node;
       }));
 
-      // Also add reverse link
       setTimeout(() => {
         setCanvasNodes(prev => prev.map(node => {
           if (node.id === nodeData.id) {
@@ -320,7 +301,6 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
 
   const onConnect = useCallback(
     (params: Connection) => {
-      // Add the connection as a linked relationship
       if (params.source && params.target) {
         setCanvasNodes(prev => prev.map(node => {
           if (node.id === params.source) {
@@ -345,7 +325,6 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         }));
       }
 
-      // Get positions for smart handle selection
       const sourcePos = nodePositions[params.source!] || { x: 0, y: 0 };
       const targetPos = nodePositions[params.target!] || { x: 0, y: 0 };
       const handles = getBestHandles(sourcePos, targetPos);
@@ -376,7 +355,6 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     const targetIsPane = event.target.classList.contains('react-flow__pane');
     
     if (targetIsPane) {
-      // Get mouse position relative to the flow
       const reactFlowBounds = reactFlowWrapper.current.getBoundingClientRect();
       const position = reactFlowInstance.screenToFlowPosition({
         x: event.clientX - reactFlowBounds.left,

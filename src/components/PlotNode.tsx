@@ -8,12 +8,12 @@ import { Button } from '@/components/ui/button';
 import { Plus, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface PlotNodeData extends CanvasNode {
+interface PlotNodeData {
   onEdit: (nodeId: string) => void;
   onAddChild: (parentId: string) => void;
 }
 
-const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
+const PlotNode = memo(({ data }: NodeProps<CanvasNode & PlotNodeData>) => {
   const getNodeColor = (type: string) => {
     switch (type) {
       case 'Outline':
@@ -97,7 +97,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
       <Handle
         type="target"
         position={Position.Top}
-        id="top-target"
+        id="top"
         className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
       />
@@ -113,7 +113,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
       <Handle
         type="target"
         position={Position.Right}
-        id="right-target"
+        id="right"
         className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
       />
@@ -129,7 +129,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
       <Handle
         type="target"
         position={Position.Bottom}
-        id="bottom-target"
+        id="bottom"
         className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ bottom: -8, left: '50%', transform: 'translateX(-50%)' }}
       />
@@ -145,7 +145,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
       <Handle
         type="target"
         position={Position.Left}
-        id="left-target"
+        id="left"
         className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
       />
