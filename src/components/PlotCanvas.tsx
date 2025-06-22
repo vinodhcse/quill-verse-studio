@@ -99,6 +99,8 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
 
   // Handle edge conversion and deletion
   const handleEdgeConversion = useCallback((edgeId: string, newTypeOrDelete: string) => {
+    console.log('handleEdgeConversion called:', { edgeId, newTypeOrDelete });
+    
     if (newTypeOrDelete === 'delete') {
       // Handle edge deletion
       if (edgeId.startsWith('parent_')) {
@@ -107,6 +109,8 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         if (parts.length >= 3) {
           const parentId = parts[1];
           const childId = parts[2];
+          
+          console.log('Deleting parent-child edge:', { parentId, childId });
           
           setCanvasNodes(prev => prev.map(node => {
             if (node.id === childId) {
@@ -128,13 +132,19 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           const sourceId = parts[1];
           const targetId = parts[2];
           
+          console.log('Deleting linked edge:', { sourceId, targetId });
+          
           setCanvasNodes(prev => prev.map(node => {
-            if (node.id === sourceId || node.id === targetId) {
+            if (node.id === sourceId) {
               return {
                 ...node,
-                linkedNodeIds: (node.linkedNodeIds || []).filter(id => 
-                  id !== sourceId && id !== targetId
-                )
+                linkedNodeIds: (node.linkedNodeIds || []).filter(id => id !== targetId)
+              };
+            }
+            if (node.id === targetId) {
+              return {
+                ...node,
+                linkedNodeIds: (node.linkedNodeIds || []).filter(id => id !== sourceId)
               };
             }
             return node;
@@ -143,6 +153,8 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       }
     } else {
       // Handle edge type conversion
+      console.log('Converting edge type:', { edgeId, newType: newTypeOrDelete });
+      
       if (edgeId.startsWith('parent_') && newTypeOrDelete === 'linked') {
         // Convert parent-child to linked
         const parts = edgeId.split('_');
@@ -262,6 +274,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       }
     });
 
+    console.log('Generated edges:', edges);
     return edges;
   }, [canvasNodes, nodePositions, handleEdgeConversion]);
 
@@ -285,7 +298,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
 
     setNodes(flowNodes);
     setEdges(flowEdges);
-  }, [canvasNodes, nodePositions, flowEdges]);
+  }, [canvasNodes, nodePositions, flowEdges, handleEditNode, handleAddChild]);
 
   // Handle node position changes with debouncing
   const handleNodesChange = useCallback((changes: any[]) => {

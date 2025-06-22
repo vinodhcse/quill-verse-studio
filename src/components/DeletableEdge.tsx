@@ -54,23 +54,26 @@ const DeletableEdge: React.FC<DeletableEdgeProps> = ({
 
   const onEdgeDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
+    console.log('Delete button clicked for edge:', id);
     
-    // Remove the edge
+    // Remove the edge from React Flow
     setEdges((edges) => edges.filter((edge) => edge.id !== id));
     
     // Notify parent component about the deletion
     if (data?.onConvertEdge) {
-      // Use the conversion callback to handle the deletion in the parent
+      console.log('Calling onConvertEdge for deletion');
       data.onConvertEdge(id, 'delete');
     }
   };
 
   const onConvertEdge = (event: React.MouseEvent) => {
     event.stopPropagation();
+    console.log('Convert button clicked for edge:', id, 'current type:', data?.type);
     
     if (data?.onConvertEdge) {
       const currentType = data?.type || 'linked';
       const newType = currentType === 'parent-child' ? 'linked' : 'parent-child';
+      console.log('Converting to:', newType);
       data.onConvertEdge(id, newType);
     }
   };
