@@ -217,6 +217,23 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         ),
       },
       handleKeyDown(view, event) {
+        // Handle Ctrl+C / Cmd+C
+        if ((event.ctrlKey || event.metaKey) && event.key === 'c') {
+          event.preventDefault();
+          const { state } = view;
+          const { from, to } = state.selection;
+          const selectedText = state.doc.textBetween(from, to);
+          
+          if (selectedText) {
+            copyToClipboard(selectedText).then((success) => {
+              if (!success) {
+                console.log('Copy operation was blocked by clipboard control');
+              }
+            });
+          }
+          return true;
+        }
+        
         if (event.key === 'Enter') {
           const { selection } = view.state;
           if (selection.empty && selection.$head.pos === view.state.doc.content.size) {
@@ -252,22 +269,24 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         return false;
       },
       clipboardTextSerializer: (slice) => {
-        return slice.content.textBetween(0, slice.content.size);
+        // Return empty string to prevent default clipboard behavior
+        return '';
       },
       transformCopied: (slice, view) => {
-        // This will be called when user tries to copy
+        // Always prevent the default copy behavior
+        // We handle copy through our controlled system
         const text = slice.content.textBetween(0, slice.content.size);
         
-        // Use controlled clipboard copy
-        copyToClipboard(text).then((success) => {
+        // Trigger our controlled copy asynchronously
+        setTimeout(async () => {
+          const success = await copyToClipboard(text);
           if (!success) {
-            // Prevent the default copy behavior by returning empty slice
             console.log('Copy operation was blocked by clipboard control');
           }
-        });
+        }, 0);
         
-        // Always return the original slice to maintain proper typing
-        return slice;
+        // Return empty slice to prevent default clipboard write
+        return slice.content.cut(slice.content.size, slice.content.size);
       },
     },
   });

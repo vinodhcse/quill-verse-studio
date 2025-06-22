@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ClipboardService } from '@/lib/clipboardService';
 import { useUserContext } from '@/lib/UserContextProvider';
 import { useBookContext } from '@/lib/BookContextProvider';
+import { toast } from '@/hooks/use-toast';
 
 export const useClipboard = () => {
   const [canCopy, setCanCopy] = useState<boolean>(false);
@@ -15,8 +16,13 @@ export const useClipboard = () => {
     const handleClipboardBlocked = (event: CustomEvent) => {
       const { message, role } = event.detail;
       console.log(`Clipboard access blocked: ${message}`);
-      // You could show a toast notification here
-      // toast.error(message);
+      
+      // Show toast notification
+      toast({
+        title: "Copy Blocked",
+        description: message,
+        variant: "destructive",
+      });
     };
 
     window.addEventListener('clipboardBlocked', handleClipboardBlocked as EventListener);
@@ -72,9 +78,24 @@ export const useClipboard = () => {
       console.log('useClipboard: copyToClipboard called');
       const success = await ClipboardService.copyToClipboard(text);
       console.log('useClipboard: Copy operation result:', success);
+      
+      if (!success) {
+        // Show blocked message if copy failed due to role restrictions
+        toast({
+          title: "Copy Blocked",
+          description: "Your role does not have clipboard access.",
+          variant: "destructive",
+        });
+      }
+      
       return success;
     } catch (error) {
       console.error('Copy operation failed:', error);
+      toast({
+        title: "Copy Failed",
+        description: "An error occurred while copying to clipboard.",
+        variant: "destructive",
+      });
       return false;
     } finally {
       setIsLoading(false);
