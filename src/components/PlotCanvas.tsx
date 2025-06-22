@@ -81,7 +81,6 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const [quickNodePosition, setQuickNodePosition] = useState({ x: 0, y: 0 });
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
-  const positionUpdateTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load data from localStorage on mount
   useEffect(() => {
@@ -122,6 +121,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
             type: MarkerType.ArrowClosed,
             color: '#10b981',
           },
+          data: { type: 'parent-child' },
         });
       });
 
@@ -149,6 +149,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
                 type: MarkerType.ArrowClosed,
                 color: '#6366f1',
               },
+              data: { type: 'linked' },
             });
           }
         });
@@ -180,30 +181,20 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     setEdges(flowEdges);
   }, [canvasNodes, nodePositions, flowEdges]);
 
-  // Debounced position update to reduce stuttering
-  const debouncedPositionUpdate = useCallback((nodeId: string, position: { x: number; y: number }) => {
-    if (positionUpdateTimeoutRef.current) {
-      clearTimeout(positionUpdateTimeoutRef.current);
-    }
-    
-    positionUpdateTimeoutRef.current = setTimeout(() => {
-      setNodePositions(prev => ({
-        ...prev,
-        [nodeId]: position
-      }));
-    }, 16); // ~60fps
-  }, []);
-
+  // Handle node position changes
   const handleNodesChange = useCallback((changes: any[]) => {
     onNodesChange(changes);
     
-    // Update positions when nodes are dragged with debouncing
+    // Update positions when nodes are dragged
     changes.forEach(change => {
       if (change.type === 'position' && change.position && !change.dragging) {
-        debouncedPositionUpdate(change.id, change.position);
+        setNodePositions(prev => ({
+          ...prev,
+          [change.id]: change.position
+        }));
       }
     });
-  }, [onNodesChange, debouncedPositionUpdate]);
+  }, [onNodesChange]);
 
   const handleEditNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -339,6 +330,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           type: MarkerType.ArrowClosed,
           color: '#6366f1',
         },
+        data: { type: 'linked' },
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
@@ -456,7 +448,8 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         defaultEdgeOptions={{ 
           type: 'deletable',
           style: { stroke: '#6366f1', strokeWidth: 2 },
-          markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' }
+          markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
+          data: { type: 'linked' }
         }}
       >
         <Panel position="top-left" className="space-x-2">
