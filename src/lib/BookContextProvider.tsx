@@ -9,6 +9,7 @@ const initialState = {
   versionId: null,
   chapterId: null,
   chapters: [],
+  authorId: null,
   selectedChapter: null,
   bookDetails: null,
   collaborators: [],
@@ -28,6 +29,8 @@ const bookReducer = (state, action) => {
       return { ...state, chapters: action.payload };
     case 'SET_SELECTED_CHAPTER':
       return { ...state, selectedChapter: action.payload };
+    case 'SET_AUTHOR_ID':
+      return { ...state, authorId: action.payload };
     case 'SET_BOOK_DETAILS':
       return { ...state, bookDetails: action.payload };
     case 'SET_COLLABORATORS':
@@ -75,6 +78,7 @@ export const BookProvider = ({ children }) => {
     console.log('Extracted bookId:', bookId);
     console.log('Extracted versionId:', versionId);
     console.log('Extracted chapterId:', chapterIdFromQuery);
+    
 
     if (bookId) dispatch({ type: 'SET_BOOK', payload: bookId });
     if (versionId) dispatch({ type: 'SET_VERSION', payload: versionId });
