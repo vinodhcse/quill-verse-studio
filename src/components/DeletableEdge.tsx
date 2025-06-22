@@ -5,10 +5,9 @@ import {
   EdgeLabelRenderer,
   getBezierPath,
   useReactFlow,
-  Edge,
 } from '@xyflow/react';
 import { Button } from '@/components/ui/button';
-import { X } from 'lucide-react';
+import { X, ArrowUpDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 interface DeletableEdgeProps {
@@ -19,10 +18,13 @@ interface DeletableEdgeProps {
   targetY: number;
   sourcePosition: any;
   targetPosition: any;
+  source: string;
+  target: string;
   style?: React.CSSProperties;
   markerEnd?: string;
   data?: {
     type?: 'parent-child' | 'linked';
+    onConvertEdge?: (edgeId: string, currentType: string) => void;
   };
 }
 
@@ -34,11 +36,13 @@ const DeletableEdge: React.FC<DeletableEdgeProps> = ({
   targetY,
   sourcePosition,
   targetPosition,
+  source,
+  target,
   style = {},
   markerEnd,
   data,
 }) => {
-  const { setEdges, setNodes } = useReactFlow();
+  const { setEdges } = useReactFlow();
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -48,31 +52,26 @@ const DeletableEdge: React.FC<DeletableEdgeProps> = ({
     targetPosition,
   });
 
-  const onEdgeClick = (event: React.MouseEvent) => {
+  const onEdgeDelete = (event: React.MouseEvent) => {
     event.stopPropagation();
     
     // Remove the edge
     setEdges((edges) => edges.filter((edge) => edge.id !== id));
     
-    // Update nodes to remove linked relationships
-    if (data?.type === 'linked') {
-      const edgeParts = id.split('_');
-      if (edgeParts.length >= 3) {
-        const sourceId = edgeParts[1];
-        const targetId = edgeParts[2];
-        
-        setNodes((nodes) => nodes.map(node => ({
-          ...node,
-          data: {
-            ...node.data,
-            linkedNodeIds: Array.isArray(node.data?.linkedNodeIds) 
-              ? node.data.linkedNodeIds.filter((linkId: string) => 
-                  linkId !== sourceId && linkId !== targetId
-                ) 
-              : []
-          }
-        })));
-      }
+    // Notify parent component about the deletion
+    if (data?.onConvertEdge) {
+      // Use the conversion callback to handle the deletion in the parent
+      data.onConvertEdge(id, 'delete');
+    }
+  };
+
+  const onConvertEdge = (event: React.MouseEvent) => {
+    event.stopPropagation();
+    
+    if (data?.onConvertEdge) {
+      const currentType = data?.type || 'linked';
+      const newType = currentType === 'parent-child' ? 'linked' : 'parent-child';
+      data.onConvertEdge(id, newType);
     }
   };
 
@@ -98,9 +97,19 @@ const DeletableEdge: React.FC<DeletableEdgeProps> = ({
           </Badge>
           <Button
             size="sm"
+            variant="outline"
+            className="h-6 w-6 p-0 rounded-full opacity-70 hover:opacity-100"
+            onClick={onConvertEdge}
+            title={`Convert to ${edgeType === 'parent-child' ? 'Link' : 'Child'}`}
+          >
+            <ArrowUpDown size={10} />
+          </Button>
+          <Button
+            size="sm"
             variant="destructive"
             className="h-6 w-6 p-0 rounded-full opacity-70 hover:opacity-100"
-            onClick={onEdgeClick}
+            onClick={onEdgeDelete}
+            title="Delete edge"
           >
             <X size={12} />
           </Button>

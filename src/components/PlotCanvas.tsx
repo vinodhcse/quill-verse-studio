@@ -97,6 +97,106 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     }
   }, [bookId]);
 
+  // Handle edge conversion and deletion
+  const handleEdgeConversion = useCallback((edgeId: string, newTypeOrDelete: string) => {
+    if (newTypeOrDelete === 'delete') {
+      // Handle edge deletion
+      if (edgeId.startsWith('parent_')) {
+        // Handle parent-child edge deletion
+        const parts = edgeId.split('_');
+        if (parts.length >= 3) {
+          const parentId = parts[1];
+          const childId = parts[2];
+          
+          setCanvasNodes(prev => prev.map(node => {
+            if (node.id === childId) {
+              return { ...node, parentId: undefined };
+            }
+            if (node.id === parentId) {
+              return {
+                ...node,
+                childIds: node.childIds.filter(id => id !== childId)
+              };
+            }
+            return node;
+          }));
+        }
+      } else if (edgeId.startsWith('link_')) {
+        // Handle linked edge deletion
+        const parts = edgeId.split('_');
+        if (parts.length >= 3) {
+          const sourceId = parts[1];
+          const targetId = parts[2];
+          
+          setCanvasNodes(prev => prev.map(node => {
+            if (node.id === sourceId || node.id === targetId) {
+              return {
+                ...node,
+                linkedNodeIds: (node.linkedNodeIds || []).filter(id => 
+                  id !== sourceId && id !== targetId
+                )
+              };
+            }
+            return node;
+          }));
+        }
+      }
+    } else {
+      // Handle edge type conversion
+      if (edgeId.startsWith('parent_') && newTypeOrDelete === 'linked') {
+        // Convert parent-child to linked
+        const parts = edgeId.split('_');
+        if (parts.length >= 3) {
+          const parentId = parts[1];
+          const childId = parts[2];
+          
+          setCanvasNodes(prev => prev.map(node => {
+            if (node.id === childId) {
+              return { 
+                ...node, 
+                parentId: undefined,
+                linkedNodeIds: [...(node.linkedNodeIds || []), parentId]
+              };
+            }
+            if (node.id === parentId) {
+              return {
+                ...node,
+                childIds: node.childIds.filter(id => id !== childId),
+                linkedNodeIds: [...(node.linkedNodeIds || []), childId]
+              };
+            }
+            return node;
+          }));
+        }
+      } else if (edgeId.startsWith('link_') && newTypeOrDelete === 'parent-child') {
+        // Convert linked to parent-child
+        const parts = edgeId.split('_');
+        if (parts.length >= 3) {
+          const sourceId = parts[1];
+          const targetId = parts[2];
+          
+          setCanvasNodes(prev => prev.map(node => {
+            if (node.id === targetId) {
+              return { 
+                ...node, 
+                parentId: sourceId,
+                linkedNodeIds: (node.linkedNodeIds || []).filter(id => id !== sourceId)
+              };
+            }
+            if (node.id === sourceId) {
+              return {
+                ...node,
+                childIds: [...node.childIds, targetId],
+                linkedNodeIds: (node.linkedNodeIds || []).filter(id => id !== targetId)
+              };
+            }
+            return node;
+          }));
+        }
+      }
+    }
+  }, []);
+
   // Memoize flow edges to prevent unnecessary recalculations
   const flowEdges = useMemo(() => {
     const edges: Edge[] = [];
@@ -121,7 +221,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
             type: MarkerType.ArrowClosed,
             color: '#10b981',
           },
-          data: { type: 'parent-child' },
+          data: { 
+            type: 'parent-child',
+            onConvertEdge: handleEdgeConversion
+          },
         });
       });
 
@@ -149,7 +252,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
                 type: MarkerType.ArrowClosed,
                 color: '#6366f1',
               },
-              data: { type: 'linked' },
+              data: { 
+                type: 'linked',
+                onConvertEdge: handleEdgeConversion
+              },
             });
           }
         });
@@ -157,7 +263,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     });
 
     return edges;
-  }, [canvasNodes, nodePositions]);
+  }, [canvasNodes, nodePositions, handleEdgeConversion]);
 
   // Convert canvas nodes to React Flow nodes
   useEffect(() => {
@@ -196,41 +302,26 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       
       // Handle node deletion
       if (change.type === 'remove') {
-        setCanvasNodes(prev => prev.filter(node => node.id !== change.id));
+        setCanvasNodes(prev => {
+          const nodeToDelete = prev.find(node => node.id === change.id);
+          if (!nodeToDelete) return prev;
+
+          return prev
+            .filter(node => node.id !== change.id)
+            .map(node => ({
+              ...node,
+              childIds: node.childIds.filter(id => id !== change.id),
+              linkedNodeIds: (node.linkedNodeIds || []).filter(id => id !== change.id),
+              parentId: node.parentId === change.id ? undefined : node.parentId
+            }));
+        });
       }
     });
   }, [onNodesChange]);
 
-  // Handle edge changes - properly handle deletions
+  // Handle edge changes - use the existing edge deletion logic
   const handleEdgesChange = useCallback((changes: any[]) => {
     onEdgesChange(changes);
-    
-    // Handle edge deletions
-    changes.forEach(change => {
-      if (change.type === 'remove') {
-        const edgeId = change.id;
-        
-        if (edgeId.startsWith('link_')) {
-          const edgeParts = edgeId.split('_');
-          if (edgeParts.length >= 3) {
-            const sourceId = edgeParts[1];
-            const targetId = edgeParts[2];
-            
-            setCanvasNodes(prev => prev.map(node => {
-              if (node.id === sourceId || node.id === targetId) {
-                return {
-                  ...node,
-                  linkedNodeIds: (node.linkedNodeIds || []).filter(id => 
-                    id !== sourceId && id !== targetId
-                  )
-                };
-              }
-              return node;
-            }));
-          }
-        }
-      }
-    });
   }, [onEdgesChange]);
 
   const handleEditNode = useCallback((nodeId: string) => {
@@ -486,7 +577,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           type: 'deletable',
           style: { stroke: '#6366f1', strokeWidth: 2 },
           markerEnd: { type: MarkerType.ArrowClosed, color: '#6366f1' },
-          data: { type: 'linked' }
+          data: { type: 'linked', onConvertEdge: handleEdgeConversion }
         }}
       >
         <Panel position="top-left" className="space-x-2">
