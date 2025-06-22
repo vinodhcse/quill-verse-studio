@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,12 +23,21 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
   sourceNodeId
 }) => {
   const [formData, setFormData] = useState({
-    type: 'Outline' as any,
-    name: '',
+    type: 'Outline' as CanvasNode['type'],
+    name: ''
   });
 
+  useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        type: 'Outline',
+        name: ''
+      });
+    }
+  }, [isOpen]);
+
   const handleSave = () => {
-    if (!formData.name?.trim()) return;
+    if (!formData.name.trim()) return;
 
     const nodeData: CanvasNode = {
       id: `node_${Date.now()}`,
@@ -43,13 +52,14 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
     };
 
     onSave(nodeData, position);
-    setFormData({ type: 'Outline', name: '' });
     onClose();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') {
       handleSave();
+    } else if (e.key === 'Escape') {
+      onClose();
     }
   };
 
@@ -57,7 +67,7 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Create New Node</DialogTitle>
+          <DialogTitle>Quick Add Node</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -65,7 +75,7 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
             <Label htmlFor="type">Type</Label>
             <Select
               value={formData.type}
-              onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as any }))}
+              onValueChange={(value) => setFormData(prev => ({ ...prev, type: value as CanvasNode['type'] }))}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -98,7 +108,7 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
             </Button>
             <Button 
               onClick={handleSave} 
-              disabled={!formData.name?.trim()}
+              disabled={!formData.name.trim()}
             >
               Create & Connect
             </Button>

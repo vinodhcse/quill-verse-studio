@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   ReactFlow,
@@ -40,6 +39,33 @@ const nodeOrigin: NodeOrigin = [0.5, 0];
 interface PlotCanvasProps {
   bookId?: string;
 }
+
+// Helper function to determine the best handles based on node positions
+const getBestHandles = (sourcePos: { x: number; y: number }, targetPos: { x: number; y: number }) => {
+  const deltaX = targetPos.x - sourcePos.x;
+  const deltaY = targetPos.y - sourcePos.y;
+  
+  // Determine primary direction based on the larger absolute difference
+  if (Math.abs(deltaX) > Math.abs(deltaY)) {
+    // Horizontal connection is primary
+    if (deltaX > 0) {
+      // Target is to the right of source
+      return { sourceHandle: 'right', targetHandle: 'left-target' };
+    } else {
+      // Target is to the left of source
+      return { sourceHandle: 'left', targetHandle: 'right-target' };
+    }
+  } else {
+    // Vertical connection is primary
+    if (deltaY > 0) {
+      // Target is below source
+      return { sourceHandle: 'bottom', targetHandle: 'top-target' };
+    } else {
+      // Target is above source
+      return { sourceHandle: 'top', targetHandle: 'bottom-target' };
+    }
+  }
+};
 
 export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -92,14 +118,20 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
 
     const flowEdges: Edge[] = [];
     
-    // Add parent-child edges
+    // Add parent-child edges with smart handle positioning
     canvasNodes
       .filter(node => node.parentId)
       .forEach(node => {
+        const parentPos = nodePositions[node.parentId!] || { x: 0, y: 0 };
+        const childPos = nodePositions[node.id] || { x: 0, y: 0 };
+        const handles = getBestHandles(parentPos, childPos);
+        
         flowEdges.push({
           id: `parent_${node.parentId}_${node.id}`,
           source: node.parentId!,
           target: node.id,
+          sourceHandle: handles.sourceHandle,
+          targetHandle: handles.targetHandle,
           type: 'deletable',
           style: { stroke: '#10b981', strokeWidth: 2 },
           markerEnd: {
@@ -109,7 +141,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         });
       });
 
-    // Add linked node edges (same-level connections)
+    // Add linked node edges (same-level connections) with smart handle positioning
     canvasNodes.forEach(node => {
       if (node.linkedNodeIds && node.linkedNodeIds.length > 0) {
         node.linkedNodeIds.forEach(linkedId => {
@@ -118,10 +150,16 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           const reverseEdgeId = `link_${linkedId}_${node.id}`;
           
           if (!flowEdges.find(e => e.id === edgeId || e.id === reverseEdgeId)) {
+            const sourcePos = nodePositions[node.id] || { x: 0, y: 0 };
+            const targetPos = nodePositions[linkedId] || { x: 0, y: 0 };
+            const handles = getBestHandles(sourcePos, targetPos);
+            
             flowEdges.push({
               id: edgeId,
               source: node.id,
               target: linkedId,
+              sourceHandle: handles.sourceHandle,
+              targetHandle: handles.targetHandle,
               type: 'deletable',
               style: { stroke: '#6366f1', strokeWidth: 2 },
               markerEnd: {
@@ -152,6 +190,33 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       }
     });
   }, [onNodesChange]);
+
+  // Update edges when positions change
+  useEffect(() => {
+    if (edges.length > 0) {
+      const updatedEdges = edges.map(edge => {
+        const sourcePos = nodePositions[edge.source] || { x: 0, y: 0 };
+        const targetPos = nodePositions[edge.target] || { x: 0, y: 0 };
+        const handles = getBestHandles(sourcePos, targetPos);
+        
+        return {
+          ...edge,
+          sourceHandle: handles.sourceHandle,
+          targetHandle: handles.targetHandle,
+        };
+      });
+      
+      // Only update if handles have actually changed
+      const hasChanged = updatedEdges.some((edge, index) => 
+        edge.sourceHandle !== edges[index].sourceHandle || 
+        edge.targetHandle !== edges[index].targetHandle
+      );
+      
+      if (hasChanged) {
+        setEdges(updatedEdges);
+      }
+    }
+  }, [nodePositions, edges]);
 
   const handleEditNode = useCallback((nodeId: string) => {
     const node = canvasNodes.find(n => n.id === nodeId);
@@ -280,8 +345,15 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
         }));
       }
 
+      // Get positions for smart handle selection
+      const sourcePos = nodePositions[params.source!] || { x: 0, y: 0 };
+      const targetPos = nodePositions[params.target!] || { x: 0, y: 0 };
+      const handles = getBestHandles(sourcePos, targetPos);
+
       const newEdge = {
         ...params,
+        sourceHandle: handles.sourceHandle,
+        targetHandle: handles.targetHandle,
         type: 'deletable',
         style: { stroke: '#6366f1', strokeWidth: 2 },
         markerEnd: {
@@ -291,7 +363,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       };
       setEdges((eds) => addEdge(newEdge, eds));
     },
-    [setEdges]
+    [setEdges, nodePositions]
   );
 
   const onConnectStart = useCallback((event: any, params: OnConnectStartParams) => {

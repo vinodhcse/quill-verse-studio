@@ -85,11 +85,19 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
         </div>
       </CardContent>
 
-      {/* Single handle on each side - acts as both source and target */}
+      {/* Single handle on each side that acts as both source and target */}
       <Handle
         type="source"
         position={Position.Top}
         id="top"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
+        style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
+      />
+      
+      <Handle
+        type="target"
+        position={Position.Top}
+        id="top-target"
         className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
       />
@@ -103,9 +111,25 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
       />
       
       <Handle
+        type="target"
+        position={Position.Right}
+        id="right-target"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
+        style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
+      />
+      
+      <Handle
         type="source"
         position={Position.Bottom}
         id="bottom"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
+        style={{ bottom: -8, left: '50%', transform: 'translateX(-50%)' }}
+      />
+      
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-target"
         className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ bottom: -8, left: '50%', transform: 'translateX(-50%)' }}
       />
@@ -117,37 +141,12 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
         className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
       />
-
-      {/* Target handles at the same positions */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top-target"
-        className="w-4 h-4 !bg-gray-400 !border-gray-600"
-        style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
-      />
-      
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right-target"
-        className="w-4 h-4 !bg-gray-400 !border-gray-600"
-        style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
-      />
-      
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom-target"
-        className="w-4 h-4 !bg-gray-400 !border-gray-600"
-        style={{ bottom: -8, left: '50%', transform: 'translateX(-50%)' }}
-      />
       
       <Handle
         type="target"
         position={Position.Left}
         id="left-target"
-        className="w-4 h-4 !bg-gray-400 !border-gray-600"
+        className="w-4 h-4 !bg-blue-500 !border-blue-700"
         style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
       />
     </Card>
