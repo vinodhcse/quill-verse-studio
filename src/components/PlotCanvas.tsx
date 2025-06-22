@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import {
   ReactFlow,
@@ -49,19 +50,19 @@ const getBestHandles = (sourcePos: { x: number; y: number }, targetPos: { x: num
   if (Math.abs(deltaX) > Math.abs(deltaY)) {
     // Horizontal connection is primary
     if (deltaX > 0) {
-      // Target is to the right of source
+      // Target is to the right of source - connect right to left
       return { sourceHandle: 'right', targetHandle: 'left' };
     } else {
-      // Target is to the left of source
+      // Target is to the left of source - connect left to right
       return { sourceHandle: 'left', targetHandle: 'right' };
     }
   } else {
     // Vertical connection is primary
     if (deltaY > 0) {
-      // Target is below source
+      // Target is below source - connect bottom to top
       return { sourceHandle: 'bottom', targetHandle: 'top' };
     } else {
-      // Target is above source
+      // Target is above source - connect top to bottom
       return { sourceHandle: 'top', targetHandle: 'bottom' };
     }
   }
@@ -209,6 +210,19 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
     }
   }, []);
 
+  const handleEditNode = useCallback((nodeId: string) => {
+    const node = canvasNodes.find(n => n.id === nodeId);
+    setEditingNode(node);
+    setParentNodeForNew(undefined);
+    setIsModalOpen(true);
+  }, [canvasNodes]);
+
+  const handleAddChild = useCallback((parentId: string) => {
+    setEditingNode(undefined);
+    setParentNodeForNew(parentId);
+    setIsModalOpen(true);
+  }, []);
+
   // Memoize flow edges to prevent unnecessary recalculations
   const flowEdges = useMemo(() => {
     const edges: Edge[] = [];
@@ -336,19 +350,6 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const handleEdgesChange = useCallback((changes: any[]) => {
     onEdgesChange(changes);
   }, [onEdgesChange]);
-
-  const handleEditNode = useCallback((nodeId: string) => {
-    const node = canvasNodes.find(n => n.id === nodeId);
-    setEditingNode(node);
-    setParentNodeForNew(undefined);
-    setIsModalOpen(true);
-  }, [canvasNodes]);
-
-  const handleAddChild = useCallback((parentId: string) => {
-    setEditingNode(undefined);
-    setParentNodeForNew(parentId);
-    setIsModalOpen(true);
-  }, []);
 
   const handleCreateRootNode = useCallback(() => {
     setEditingNode(undefined);
