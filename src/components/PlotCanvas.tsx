@@ -106,11 +106,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       
       // Handle edge deletion in canvas nodes first
       if (edgeId.startsWith('parent_')) {
-        // Handle parent-child edge deletion
-        const parts = edgeId.split('_');
-        if (parts.length >= 3) {
-          const parentId = parts[1];
-          const childId = parts[2];
+        // Handle parent-child edge deletion - extract node IDs properly
+        const match = edgeId.match(/^parent_(.+)_(.+)$/);
+        if (match) {
+          const [, parentId, childId] = match;
           
           console.log('Deleting parent-child edge:', { parentId, childId });
           
@@ -130,11 +129,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           }));
         }
       } else if (edgeId.startsWith('link_')) {
-        // Handle linked edge deletion
-        const parts = edgeId.split('_');
-        if (parts.length >= 3) {
-          const sourceId = parts[1];
-          const targetId = parts[2];
+        // Handle linked edge deletion - extract node IDs properly
+        const match = edgeId.match(/^link_(.+)_(.+)$/);
+        if (match) {
+          const [, sourceId, targetId] = match;
           
           console.log('Deleting linked edge:', { sourceId, targetId });
           
@@ -163,11 +161,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       console.log('Converting edge type:', { edgeId, newType: newTypeOrDelete });
       
       if (edgeId.startsWith('parent_') && newTypeOrDelete === 'linked') {
-        // Convert parent-child to linked
-        const parts = edgeId.split('_');
-        if (parts.length >= 3) {
-          const parentId = parts[1];
-          const childId = parts[2];
+        // Convert parent-child to linked - extract node IDs properly
+        const match = edgeId.match(/^parent_(.+)_(.+)$/);
+        if (match) {
+          const [, parentId, childId] = match;
           
           console.log('Converting parent-child to linked:', { parentId, childId });
           
@@ -190,11 +187,10 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
           }));
         }
       } else if (edgeId.startsWith('link_') && newTypeOrDelete === 'parent-child') {
-        // Convert linked to parent-child
-        const parts = edgeId.split('_');
-        if (parts.length >= 3) {
-          const sourceId = parts[1];
-          const targetId = parts[2];
+        // Convert linked to parent-child - extract node IDs properly
+        const match = edgeId.match(/^link_(.+)_(.+)$/);
+        if (match) {
+          const [, sourceId, targetId] = match;
           
           console.log('Converting linked to parent-child:', { sourceId, targetId });
           
