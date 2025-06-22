@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
@@ -11,7 +12,6 @@ import Image from '@tiptap/extension-image';
 import Placeholder from '@tiptap/extension-placeholder';
 import CharacterCount from '@tiptap/extension-character-count';
 import Focus from '@tiptap/extension-focus';
-import { useCollaborationContext } from '@/lib/CollaborationContextProvider';
 import { useUserContext } from '@/lib/UserContextProvider';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -33,7 +33,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
-import { ImageIcon, Link as LinkIcon, Bold, Italic, UnderlineIcon, ListOrdered, ListUnordered, Code, AlignLeft, AlignCenter, AlignRight, AlignJustify, History, MessageSquare, ChevronDown } from 'lucide-react';
+import { ImageIcon, Link as LinkIcon, Bold, Italic, UnderlineIcon, ListOrdered, List, Code, AlignLeft, AlignCenter, AlignRight, AlignJustify, History, MessageSquare, ChevronDown } from 'lucide-react';
 import { Chapter } from '@/types/collaboration';
 
 interface EditorRichTextEditorProps {
@@ -59,7 +59,6 @@ export const EditorRichTextEditor: React.FC<EditorRichTextEditorProps> = ({
   showComments = false,
   onCommentsToggle,
 }) => {
-  const { ydoc } = useCollaborationContext();
   const { userId } = useUserContext();
   const [isLinkModalOpen, setIsLinkModalOpen] = useState(false);
   const [linkURL, setLinkURL] = useState('');
@@ -211,7 +210,7 @@ export const EditorRichTextEditor: React.FC<EditorRichTextEditorProps> = ({
             variant={editor.isActive('bulletList') ? 'default' : 'ghost'}
             size="sm"
           >
-            <ListUnordered className="h-4 w-4" />
+            <List className="h-4 w-4" />
           </Button>
           <Button
             type="button"

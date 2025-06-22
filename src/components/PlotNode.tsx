@@ -13,7 +13,7 @@ interface PlotNodeData extends CanvasNode {
   onAddChild: (parentId: string) => void;
 }
 
-const PlotNode = memo(({ data, selected }: NodeProps<PlotNodeData>) => {
+const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
   const getNodeColor = (type: string) => {
     switch (type) {
       case 'Outline':
@@ -39,8 +39,7 @@ const PlotNode = memo(({ data, selected }: NodeProps<PlotNodeData>) => {
     <Card 
       className={cn(
         'min-w-[200px] max-w-[250px] shadow-lg',
-        getNodeColor(data.type),
-        selected && 'ring-2 ring-primary'
+        getNodeColor(data.type)
       )}
     >
       <CardHeader className="pb-2">
