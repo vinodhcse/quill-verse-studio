@@ -12,6 +12,7 @@ import { apiClient } from '@/lib/api';
 import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
 import { useForm } from 'react-hook-form';
 import { EditBookModal } from '@/components/EditBookModal';
+import { CreateVersionModal } from '@/components/CreateVersionModal';
 import { useToast } from '@/hooks/use-toast';
 import { getLoggedInUserId } from '../lib/authService';
 import { useUserContext } from '../lib/UserContextProvider';
@@ -30,6 +31,7 @@ const BookDetails = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInviting, setIsInviting] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isCreateVersionOpen, setIsCreateVersionOpen] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [isDeletingCollaborator, setIsDeletingCollaborator] = useState<string | null>(null);
   const [bookUserRole, setBookUserRole] = useState<string | null>(null);
@@ -180,6 +182,37 @@ const BookDetails = () => {
     } catch (error) {
       console.error('Failed to update book:', error);
       alert('Failed to update book. Please try again.');
+    }
+  };
+
+  const handleCreateVersion = async (versionData: { name: string; baseVersionId?: string }) => {
+    try {
+      const response = await apiClient.post(`/books/${bookId}/versions`, {
+        name: versionData.name,
+        lastModifiedBy: bookDetails?.authorname,
+        metaData: {
+          totalWords: 0,
+          totalCharacters: 0,
+          tags: ['Draft', 'Book_series_name'],
+        },
+      });
+
+      // Refresh versions list
+      const versionsResponse = await apiClient.get(`/books/${bookId}/versions`);
+      setVersions(versionsResponse.data);
+      setIsCreateVersionOpen(false);
+      
+      toast({
+        title: "Success",
+        description: "Version created successfully",
+      });
+    } catch (error) {
+      console.error('Failed to create version:', error);
+      toast({
+        title: "Error",
+        description: "Failed to create version. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -364,6 +397,13 @@ const BookDetails = () => {
           <TabsContent value="versions" className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-lg font-medium">Book Versions</h3>
+              <Button 
+                onClick={() => setIsCreateVersionOpen(true)} 
+                size="sm"
+              >
+                <Plus size={16} className="mr-2" />
+                Create Version
+              </Button>
             </div>
             
             <div className="grid gap-4">
@@ -549,6 +589,13 @@ const BookDetails = () => {
         onClose={() => setIsEditModalOpen(false)}
         book={bookDetails}
         onUpdateBook={handleUpdateBook}
+      />
+
+      <CreateVersionModal
+        isOpen={isCreateVersionOpen}
+        onClose={() => setIsCreateVersionOpen(false)}
+        onCreateVersion={handleCreateVersion}
+        existingVersions={versions}
       />
     </div>
   );
