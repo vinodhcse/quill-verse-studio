@@ -12,7 +12,6 @@ import {
   Edge,
   Node,
   NodeTypes,
-  useReactFlow,
   OnConnectStart,
   OnConnectEnd,
   BackgroundVariant,
@@ -23,7 +22,7 @@ import DeletableEdge from './DeletableEdge';
 import { NodeEditModal } from './NodeEditModal';
 import { QuickNodeModal } from './QuickNodeModal';
 
-interface PlotNodeDataType {
+interface PlotNodeDataType extends Record<string, unknown> {
   id: string;
   type: string;
   name: string;
@@ -95,7 +94,6 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     position: { x: 0, y: 0 },
   });
   const [connectionStartParams, setConnectionStartParams] = useState<any>(null);
-  const { setViewport } = useReactFlow();
 
   useEffect(() => {
     if (canvasData) {
@@ -181,7 +179,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 
     setNodes((nds) => [...nds, newNode]);
     setEdges((eds) => {
-      const newEdge = {
+      const newEdge: Edge = {
         id: `e${connectionStartParams?.nodeId}-${id}`,
         source: connectionStartParams?.nodeId || '',
         target: id,

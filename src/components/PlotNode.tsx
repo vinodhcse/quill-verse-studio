@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Plus, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface PlotNodeDataType {
+interface PlotNodeDataType extends Record<string, unknown> {
   id: string;
   type: string;
   name: string;
