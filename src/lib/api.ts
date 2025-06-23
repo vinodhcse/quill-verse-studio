@@ -96,4 +96,14 @@ export const fetchSelectedChapter = async (bookId: string, versionId: string, ch
   return response.data;
 };
 
+export const updateCharacter = async (bookId: string, versionId: string, characterId: string, characterData: any) => {
+  const response = await apiClient.patch(`/books/${bookId}/versions/${versionId}/characters/${characterId}`, characterData);
+  return response.data;
+};
+
+export const deleteCharacter = async (bookId: string, versionId: string, characterId: string) => {
+  const response = await apiClient.delete(`/books/${bookId}/versions/${versionId}/characters/${characterId}`);
+  return response.data;
+};
+
 export { apiClient };

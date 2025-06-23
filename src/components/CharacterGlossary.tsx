@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { apiClient } from '@/lib/api';
+import { apiClient, updateCharacter, deleteCharacter } from '@/lib/api';
 import { Character } from '@/types/character';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, Edit, Users, Calendar, MapPin, Target } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Plus, Edit, Users, Calendar, Target, Trash2 } from 'lucide-react';
 import { CreateCharacterModal } from './CreateCharacterModal';
+import { EditCharacterModal } from './EditCharacterModal';
 
 interface CharacterGlossaryProps {
   bookId?: string;
@@ -22,6 +21,7 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
   const [characters, setCharacters] = useState<Character[]>([]);
   const [loading, setLoading] = useState(true);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [editingCharacter, setEditingCharacter] = useState<Character | null>(null);
 
   const currentBookId = bookId || paramBookId;
   const currentVersionId = versionId || paramVersionId;
@@ -57,6 +57,30 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
       setIsCreateModalOpen(false);
     } catch (error) {
       console.error('Failed to create character:', error);
+    }
+  };
+
+  const handleEditCharacter = async (characterId: string, characterData: Partial<Character>) => {
+    if (!currentBookId || !currentVersionId) return;
+
+    try {
+      const response = await updateCharacter(currentBookId, currentVersionId, characterId, characterData);
+      setCharacters(prev => prev.map(char => 
+        char.id === characterId ? { ...char, ...response.data } : char
+      ));
+    } catch (error) {
+      console.error('Failed to update character:', error);
+    }
+  };
+
+  const handleDeleteCharacter = async (characterId: string) => {
+    if (!currentBookId || !currentVersionId) return;
+
+    try {
+      await deleteCharacter(currentBookId, currentVersionId, characterId);
+      setCharacters(prev => prev.filter(char => char.id !== characterId));
+    } catch (error) {
+      console.error('Failed to delete character:', error);
     }
   };
 
@@ -115,14 +139,15 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
                       )}
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleEditCharacterArc(character.id)}
-                    className="opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <Edit size={14} />
-                  </Button>
+                  <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingCharacter(character)}
+                    >
+                      <Edit size={14} />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -181,6 +206,17 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
         onClose={() => setIsCreateModalOpen(false)}
         onSave={handleCreateCharacter}
       />
+
+      {editingCharacter && (
+        <EditCharacterModal
+          isOpen={!!editingCharacter}
+          onClose={() => setEditingCharacter(null)}
+          onSave={handleEditCharacter}
+          onDelete={handleDeleteCharacter}
+          character={editingCharacter}
+          bookId={currentBookId!}
+        />
+      )}
     </div>
   );
 };
