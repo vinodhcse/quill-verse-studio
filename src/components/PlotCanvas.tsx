@@ -158,7 +158,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     }
   };
 
-  const handleQuickNodeSave = async (nodeData: Omit<PlotNodeDataType, 'id' | 'onEdit' | 'onAddChild'>) => {
+  const handleQuickNodeSave = async (nodeData: { type: string; name: string; detail?: string; status: string }) => {
     const id = String(nodes.length + 1);
     const newNode: Node<PlotNodeDataType> = {
       id: id,
