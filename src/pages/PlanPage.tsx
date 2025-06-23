@@ -4,6 +4,7 @@ import { useParams } from 'react-router-dom';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
 import PlotCanvas from '@/components/PlotCanvas';
 import { CharacterGlossary } from '@/components/CharacterGlossary';
+import { WorldBuilding } from '@/components/WorldBuilding';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { apiClient } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +18,7 @@ const PlanPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const fetchCanvasData = async (boardType: string) => {
-    if (!bookId || !versionId || boardType === 'characters') return;
+    if (!bookId || !versionId || boardType === 'characters' || boardType === 'world-building') return;
 
     setLoading(true);
     try {
@@ -25,9 +26,6 @@ const PlanPage: React.FC = () => {
       switch (boardType) {
         case 'plot-arcs':
           endpoint = `/books/${bookId}/versions/${versionId}/plotCanvas`;
-          break;
-        case 'world-building':
-          endpoint = `/books/${bookId}/versions/${versionId}/worldCanvas`;
           break;
         case 'timeline':
           endpoint = `/books/${bookId}/versions/${versionId}/timelineCanvas`;
@@ -47,16 +45,13 @@ const PlanPage: React.FC = () => {
   };
 
   const handleCanvasUpdate = async (data: any) => {
-    if (!bookId || !versionId || selectedBoard === 'characters') return;
+    if (!bookId || !versionId || selectedBoard === 'characters' || selectedBoard === 'world-building') return;
 
     try {
       let endpoint = '';
       switch (selectedBoard) {
         case 'plot-arcs':
           endpoint = `/books/${bookId}/versions/${versionId}/plotCanvas`;
-          break;
-        case 'world-building':
-          endpoint = `/books/${bookId}/versions/${versionId}/worldCanvas`;
           break;
         case 'timeline':
           endpoint = `/books/${bookId}/versions/${versionId}/timelineCanvas`;
@@ -188,20 +183,7 @@ const PlanPage: React.FC = () => {
           )}
           
           {selectedBoard === 'world-building' && (
-            <div className="flex-1">
-              {loading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-lg">Loading World Building...</div>
-                </div>
-              ) : (
-                <PlotCanvas
-                  bookId={bookId}
-                  versionId={versionId}
-                  canvasData={canvasData}
-                  onCanvasUpdate={handleCanvasUpdate}
-                />
-              )}
-            </div>
+            <WorldBuilding bookId={bookId} versionId={versionId} />
           )}
           
           {selectedBoard === 'timeline' && (

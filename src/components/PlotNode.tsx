@@ -1,153 +1,93 @@
 
-import React, { memo } from 'react';
+import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Plus, Edit } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import { Edit, Plus } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
 
-const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
-  const getNodeColor = (type: string) => {
-    switch (type) {
-      case 'Outline':
-        return 'bg-purple-100 border-purple-300';
-      case 'Act':
-        return 'bg-blue-100 border-blue-300';
-      case 'Chapter':
-        return 'bg-green-100 border-green-300';
-      case 'SceneBeats':
-        return 'bg-yellow-100 border-yellow-300';
-      case 'Character':
-        return 'bg-pink-100 border-pink-300';
+interface PlotNodeProps extends NodeProps {
+  data: PlotNodeData;
+}
+
+const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'bg-green-100 text-green-800 border-green-200';
+      case 'in-progress':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
+      case 'not-started':
+        return 'bg-gray-100 text-gray-800 border-gray-200';
       default:
-        return 'bg-gray-100 border-gray-300';
+        return 'bg-gray-100 text-gray-800 border-gray-200';
     }
   };
 
-  const getStatusColor = (status: string) => {
-    return status === 'Completed' ? 'bg-green-500' : 'bg-orange-500';
+  const getNodeIcon = (type: string) => {
+    switch (type) {
+      case 'act':
+        return '📚';
+      case 'chapter':
+        return '📄';
+      case 'scene':
+        return '🎬';
+      case 'beat':
+        return '🎵';
+      default:
+        return '📝';
+    }
   };
 
   return (
-    <Card 
-      className={cn(
-        'min-w-[200px] max-w-[250px] shadow-lg relative',
-        getNodeColor(data.type)
-      )}
-    >
+    <Card className="min-w-[200px] shadow-lg border-2 hover:shadow-xl transition-shadow">
+      <Handle type="target" position={Position.Top} />
+      
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <Badge variant="outline" className="text-xs">
-            {data.type}
-          </Badge>
-          <Badge 
-            className={cn('text-white text-xs', getStatusColor(data.status))}
-          >
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{getNodeIcon(data.type)}</span>
+            <CardTitle className="text-sm font-semibold">{data.name}</CardTitle>
+          </div>
+          <Badge className={`text-xs ${getStatusColor(data.status)}`}>
             {data.status}
           </Badge>
         </div>
-        <CardTitle className="text-sm font-semibold line-clamp-2">
-          {data.name}
-        </CardTitle>
       </CardHeader>
       
       <CardContent className="pt-0">
         {data.detail && (
-          <p className="text-xs text-muted-foreground line-clamp-3 mb-2">
+          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
             {data.detail}
           </p>
         )}
         
-        <div className="flex gap-1 mt-2">
+        <div className="flex gap-1">
           <Button
+            variant="outline"
             size="sm"
-            variant="ghost"
-            className="h-6 px-2"
+            className="h-6 px-2 text-xs"
             onClick={() => data.onEdit(data.id)}
           >
-            <Edit size={12} />
+            <Edit size={10} className="mr-1" />
+            Edit
           </Button>
           <Button
+            variant="outline"
             size="sm"
-            variant="ghost"
-            className="h-6 px-2"
+            className="h-6 px-2 text-xs"
             onClick={() => data.onAddChild(data.id)}
           >
-            <Plus size={12} />
+            <Plus size={10} className="mr-1" />
+            Add
           </Button>
         </div>
       </CardContent>
-
-      {/* Handles for connecting nodes */}
-      <Handle
-        type="source"
-        position={Position.Top}
-        id="top"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
-      />
       
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top-target"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ top: -8, left: '50%', transform: 'translateX(-50%)' }}
-      />
-      
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
-      />
-      
-      <Handle
-        type="target"
-        position={Position.Right}
-        id="right-target"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ right: -8, top: '50%', transform: 'translateY(-50%)' }}
-      />
-      
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ bottom: -8, left: '50%', transform: 'translateX(-50%)' }}
-      />
-      
-      <Handle
-        type="target"
-        position={Position.Bottom}
-        id="bottom-target"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ bottom: -8, left: '50%', transform: 'translateY(-50%)' }}
-      />
-      
-      <Handle
-        type="source"
-        position={Position.Left}
-        id="left"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
-      />
-      
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left-target"
-        className="w-4 h-4 !bg-blue-500 !border-blue-700"
-        style={{ left: -8, top: '50%', transform: 'translateY(-50%)' }}
-      />
+      <Handle type="source" position={Position.Bottom} />
     </Card>
   );
-});
-
-PlotNode.displayName = 'PlotNode';
+};
 
 export default PlotNode;

@@ -1,13 +1,14 @@
 
 import React from 'react';
-import { cn } from '@/lib/utils';
-import { ChevronLeft, Layers, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { ChevronLeft, FileText, Users, Globe, Calendar, BarChart3 } from 'lucide-react';
 
 interface PlanLeftSidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
   selectedBoard: string;
-  onBoardSelect: (board: string) => void;
+  onBoardSelect: (boardId: string) => void;
 }
 
 export const PlanLeftSidebar: React.FC<PlanLeftSidebarProps> = ({
@@ -16,50 +17,93 @@ export const PlanLeftSidebar: React.FC<PlanLeftSidebarProps> = ({
   selectedBoard,
   onBoardSelect,
 }) => {
-  const planningBoards = [
-    { id: 'plot-arcs', name: 'Plot Arcs', icon: Layers },
-    { id: 'characters', name: 'Characters', icon: Users },
-    { id: 'world-building', name: 'World Building', icon: Layers },
-    { id: 'timeline', name: 'Timeline', icon: Layers },
+  const boardOptions = [
+    {
+      id: 'plot-arcs',
+      label: 'Plot Arcs',
+      icon: FileText,
+      description: 'Story structure and narrative arcs'
+    },
+    {
+      id: 'characters',
+      label: 'Characters',
+      icon: Users,
+      description: 'Character development and relationships'
+    },
+    {
+      id: 'world-building',
+      label: 'World Building',
+      icon: Globe,
+      description: 'Locations, objects, and world details'
+    },
+    {
+      id: 'timeline',
+      label: 'Timeline',
+      icon: Calendar,
+      description: 'Story timeline and events'
+    },
   ];
 
-  if (isCollapsed) return null;
-
-  return (
-    <div className="h-full bg-background/80 backdrop-blur-md border-r border-border/50 overflow-hidden">
-      <div className="p-4 border-b border-border/50 flex items-center justify-between">
-        <h2 className="font-medium text-lg">Planning Boards</h2>
-        <button
-          onClick={onToggle}
-          className="p-1.5 hover:bg-accent/50 rounded-lg transition-colors"
-          title="Collapse sidebar"
-        >
-          <ChevronLeft size={16} />
-        </button>
-      </div>
-      
-      <div className="flex-1 p-4 overflow-y-auto h-[calc(100%-73px)]">
-        <div className="space-y-2">
-          {planningBoards.map((board) => {
-            const IconComponent = board.icon;
+  if (isCollapsed) {
+    return (
+      <div className="w-16 border-r bg-background flex flex-col">
+        <div className="p-2">
+          <Button variant="ghost" size="sm" onClick={onToggle}>
+            <ChevronLeft size={16} className="rotate-180" />
+          </Button>
+        </div>
+        <div className="flex-1 space-y-2 p-2">
+          {boardOptions.map((board) => {
+            const Icon = board.icon;
             return (
-              <div
+              <Button
                 key={board.id}
+                variant={selectedBoard === board.id ? 'default' : 'ghost'}
+                size="sm"
+                className="w-full p-2 h-10"
                 onClick={() => onBoardSelect(board.id)}
-                className={cn(
-                  "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm flex items-center space-x-2 group hover:shadow-sm",
-                  selectedBoard === board.id 
-                    ? "bg-primary/10 text-primary border-primary/20 border" 
-                    : "hover:bg-accent/50"
-                )}
               >
-                <IconComponent size={14} className="opacity-70 group-hover:opacity-100" />
-                <span className="font-medium">{board.name}</span>
-              </div>
+                <Icon size={16} />
+              </Button>
             );
           })}
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="border-r bg-background flex flex-col">
+      <div className="p-4 border-b">
+        <div className="flex items-center justify-between">
+          <h2 className="font-semibold">Planning Boards</h2>
+          <Button variant="ghost" size="sm" onClick={onToggle}>
+            <ChevronLeft size={16} />
+          </Button>
+        </div>
+      </div>
+
+      <ScrollArea className="flex-1 p-4">
+        <div className="space-y-2">
+          {boardOptions.map((board) => {
+            const Icon = board.icon;
+            return (
+              <Button
+                key={board.id}
+                variant={selectedBoard === board.id ? 'default' : 'ghost'}
+                className="w-full justify-start text-left h-auto p-3"
+                onClick={() => onBoardSelect(board.id)}
+              >
+                <Icon size={16} className="mr-3 flex-shrink-0" />
+                <div>
+                  <div className="font-medium">{board.label}</div>
+                  <div className="text-xs text-muted-foreground">{board.description}</div>
+                </div>
+              </Button>
+            );
+          })}
+        </div>
+      </ScrollArea>
     </div>
   );
 };

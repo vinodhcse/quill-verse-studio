@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient, updateCharacter, deleteCharacter } from '@/lib/api';
@@ -65,9 +66,11 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
 
     try {
       const response = await updateCharacter(currentBookId, currentVersionId, characterId, characterData);
+      // Refresh the character data to ensure UI consistency
       setCharacters(prev => prev.map(char => 
-        char.id === characterId ? { ...char, ...response.data } : char
+        char.id === characterId ? { ...char, ...characterData } : char
       ));
+      setEditingCharacter(null);
     } catch (error) {
       console.error('Failed to update character:', error);
     }
@@ -79,6 +82,7 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
     try {
       await deleteCharacter(currentBookId, currentVersionId, characterId);
       setCharacters(prev => prev.filter(char => char.id !== characterId));
+      setEditingCharacter(null);
     } catch (error) {
       console.error('Failed to delete character:', error);
     }
