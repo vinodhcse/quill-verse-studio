@@ -27,7 +27,7 @@ import { Plus, Save, Download, Upload } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 
 const nodeTypes = {
-  plotNode: PlotNode,
+  plotNode: PlotNode as any,
 };
 
 const edgeTypes = {
@@ -38,6 +38,8 @@ const nodeOrigin: NodeOrigin = [0.5, 0];
 
 interface PlotCanvasProps {
   bookId?: string;
+  initialData?: CanvasData | null;
+  onDataUpdate?: (data: CanvasData) => void;
 }
 
 // Helper function to determine the best handles based on node positions
@@ -67,7 +69,7 @@ const getBestHandles = (sourcePos: { x: number; y: number }, targetPos: { x: num
   }
 };
 
-export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
+export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId, initialData, onDataUpdate }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [canvasNodes, setCanvasNodes] = useState<CanvasNode[]>([]);
@@ -82,20 +84,52 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
-  // Load data from localStorage on mount
+  // Load initial data or from localStorage
   useEffect(() => {
-    const savedData = localStorage.getItem(`plotCanvas_${bookId || 'default'}`);
-    if (savedData) {
-      try {
-        const data: CanvasData = JSON.parse(savedData);
-        setCanvasNodes(data.nodes || []);
-        setTimelineEvents(data.timelineEvents || []);
-        setNodePositions(data.nodePositions || {});
-      } catch (error) {
-        console.error('Failed to load canvas data:', error);
+    if (initialData) {
+      setCanvasNodes(initialData.nodes || []);
+      setTimelineEvents(initialData.timelineEvents || []);
+      setNodePositions(initialData.nodePositions || {});
+    } else {
+      const savedData = localStorage.getItem(`plotCanvas_${bookId || 'default'}`);
+      if (savedData) {
+        try {
+          const data: CanvasData = JSON.parse(savedData);
+          setCanvasNodes(data.nodes || []);
+          setTimelineEvents(data.timelineEvents || []);
+          setNodePositions(data.nodePositions || {});
+        } catch (error) {
+          console.error('Failed to load canvas data:', error);
+        }
       }
     }
-  }, [bookId]);
+  }, [bookId, initialData]);
+
+  // Auto-save data when it changes
+  useEffect(() => {
+    if (canvasNodes.length > 0 || timelineEvents.length > 0) {
+      const data: CanvasData = {
+        nodes: canvasNodes,
+        timelineEvents,
+        nodePositions,
+        lastUpdated: new Date().toISOString()
+      };
+
+      if (onDataUpdate) {
+        onDataUpdate(data);
+        toast({
+          title: "Canvas saved",
+          description: "Your plot canvas has been saved to the server.",
+        });
+      } else {
+        localStorage.setItem(`plotCanvas_${bookId || 'default'}`, JSON.stringify(data));
+        toast({
+          title: "Canvas saved",
+          description: "Your plot canvas has been saved locally.",
+        });
+      }
+    }
+  }, [canvasNodes, timelineEvents, nodePositions, bookId, onDataUpdate]);
 
   // Handle edge conversion and deletion
   const handleEdgeConversion = useCallback((edgeId: string, newTypeOrDelete: string) => {
@@ -300,7 +334,7 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
 
   // Convert canvas nodes to React Flow nodes and update edges
   useEffect(() => {
-    const flowNodes: Node[] = canvasNodes.map((canvasNode, index) => {
+    const flowNodes = canvasNodes.map((canvasNode, index) => {
       const savedPosition = nodePositions[canvasNode.id] || canvasNode.position;
       const defaultPosition = { x: (index % 4) * 300, y: Math.floor(index / 4) * 200 };
       
@@ -519,13 +553,20 @@ export const PlotCanvas: React.FC<PlotCanvasProps> = ({ bookId }) => {
       lastUpdated: new Date().toISOString()
     };
 
-    localStorage.setItem(`plotCanvas_${bookId || 'default'}`, JSON.stringify(data));
-    
-    toast({
-      title: "Canvas saved",
-      description: "Your plot canvas has been saved locally.",
-    });
-  }, [canvasNodes, timelineEvents, nodePositions, bookId]);
+    if (onDataUpdate) {
+      onDataUpdate(data);
+      toast({
+        title: "Canvas saved",
+        description: "Your plot canvas has been saved to the server.",
+      });
+    } else {
+      localStorage.setItem(`plotCanvas_${bookId || 'default'}`, JSON.stringify(data));
+      toast({
+        title: "Canvas saved",
+        description: "Your plot canvas has been saved locally.",
+      });
+    }
+  }, [canvasNodes, timelineEvents, nodePositions, bookId, onDataUpdate]);
 
   const exportCanvas = useCallback(() => {
     const data: CanvasData = {

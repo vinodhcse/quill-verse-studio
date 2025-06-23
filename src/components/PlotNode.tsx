@@ -14,6 +14,8 @@ interface PlotNodeData extends CanvasNode {
 }
 
 const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
+  const nodeData = data as PlotNodeData;
+
   const getNodeColor = (type: string) => {
     switch (type) {
       case 'Outline':
@@ -39,29 +41,29 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
     <Card 
       className={cn(
         'min-w-[200px] max-w-[250px] shadow-lg relative',
-        getNodeColor(data.type)
+        getNodeColor(nodeData.type)
       )}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <Badge variant="outline" className="text-xs">
-            {data.type}
+            {nodeData.type}
           </Badge>
           <Badge 
-            className={cn('text-white text-xs', getStatusColor(data.status))}
+            className={cn('text-white text-xs', getStatusColor(nodeData.status))}
           >
-            {data.status}
+            {nodeData.status}
           </Badge>
         </div>
         <CardTitle className="text-sm font-semibold line-clamp-2">
-          {data.name}
+          {nodeData.name}
         </CardTitle>
       </CardHeader>
       
       <CardContent className="pt-0">
-        {data.detail && (
+        {nodeData.detail && (
           <p className="text-xs text-muted-foreground line-clamp-3 mb-2">
-            {data.detail}
+            {nodeData.detail}
           </p>
         )}
         
@@ -70,7 +72,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
             size="sm"
             variant="ghost"
             className="h-6 px-2"
-            onClick={() => data.onEdit(data.id)}
+            onClick={() => nodeData.onEdit(nodeData.id)}
           >
             <Edit size={12} />
           </Button>
@@ -78,7 +80,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
             size="sm"
             variant="ghost"
             className="h-6 px-2"
-            onClick={() => data.onAddChild(data.id)}
+            onClick={() => nodeData.onAddChild(nodeData.id)}
           >
             <Plus size={12} />
           </Button>
