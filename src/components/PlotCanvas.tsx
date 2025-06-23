@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
@@ -12,15 +13,15 @@ import {
   Node,
   NodeTypes,
   useReactFlow,
-  OnConnectStartParams,
-  OnConnectEndParams,
+  OnConnectStart,
+  OnConnectEnd,
+  BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import PlotNode from './PlotNode';
 import DeletableEdge from './DeletableEdge';
 import { NodeEditModal } from './NodeEditModal';
 import { QuickNodeModal } from './QuickNodeModal';
-import { apiClient } from '@/lib/api';
 import { PlotNodeData } from '@/types/plotCanvas';
 
 interface PlotCanvasProps {
@@ -30,7 +31,7 @@ interface PlotCanvasProps {
   onCanvasUpdate?: (data: any) => void;
 }
 
-const initialNodes: PlotNodeData[] = [
+const initialNodes = [
   {
     id: '1',
     type: 'plotNode',
@@ -41,7 +42,7 @@ const initialNodes: PlotNodeData[] = [
       status: 'Completed',
       onEdit: (nodeId: string) => console.log('Edit node', nodeId),
       onAddChild: (parentId: string) => console.log('Add child to', parentId),
-    },
+    } as PlotNodeData,
     position: { x: 100, y: 100 },
   },
   {
@@ -54,7 +55,7 @@ const initialNodes: PlotNodeData[] = [
       status: 'In Progress',
       onEdit: (nodeId: string) => console.log('Edit node', nodeId),
       onAddChild: (parentId: string) => console.log('Add child to', parentId),
-    },
+    } as PlotNodeData,
     position: { x: 100, y: 300 },
   },
 ];
@@ -84,7 +85,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     isOpen: false,
     position: { x: 0, y: 0 },
   });
-  const [connectionStartParams, setConnectionStartParams] = useState<OnConnectStartParams | null>(null);
+  const [connectionStartParams, setConnectionStartParams] = useState<any>(null);
   const { setViewport } = useReactFlow();
 
   useEffect(() => {
@@ -104,24 +105,24 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     [setEdges]
   );
 
-  const onConnectStart = useCallback((params: OnConnectStartParams) => {
+  const onConnectStart: OnConnectStart = useCallback((event, params) => {
     setConnectionStartParams(params);
   }, [setConnectionStartParams]);
 
-  const onConnectEnd = useCallback((event: React.MouseEvent, params: OnConnectEndParams) => {
+  const onConnectEnd: OnConnectEnd = useCallback((event) => {
     if (!connectionStartParams) return;
 
-    const targetNode = nodes.find(node => node.id === params.target);
-    if (!targetNode) {
-      setQuickNodeModal({
-        isOpen: true,
-        position: {
-          x: event.clientX - 150,
-          y: event.clientY - 50,
-        },
-      });
-    }
-  }, [nodes, connectionStartParams, setQuickNodeModal]);
+    const reactFlowBounds = (event.target as Element).closest('.react-flow')?.getBoundingClientRect();
+    if (!reactFlowBounds) return;
+
+    setQuickNodeModal({
+      isOpen: true,
+      position: {
+        x: (event as MouseEvent).clientX - reactFlowBounds.left - 150,
+        y: (event as MouseEvent).clientY - reactFlowBounds.top - 50,
+      },
+    });
+  }, [connectionStartParams, setQuickNodeModal]);
 
   const handleSaveNode = async (nodeId: string, updatedData: any) => {
     setNodes((nds) =>
@@ -159,7 +160,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       data: {
         ...nodeData,
         id: id,
-        onEdit: (nodeId: string) => console.log('Edit node', nodeId),
+        onEdit: (nodeId: string) => setEditingNode(nodes.find(n => n.id === nodeId)?.data as PlotNodeData),
         onAddChild: (parentId: string) => console.log('Add child to', parentId),
       },
     };
@@ -220,10 +221,25 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     }
   };
 
+  // Update node data to include the callback functions
+  const nodesWithCallbacks = nodes.map(node => ({
+    ...node,
+    data: {
+      ...node.data,
+      onEdit: (nodeId: string) => {
+        const nodeToEdit = nodes.find(n => n.id === nodeId);
+        if (nodeToEdit) {
+          setEditingNode(nodeToEdit.data as PlotNodeData);
+        }
+      },
+      onAddChild: (parentId: string) => console.log('Add child to', parentId),
+    },
+  }));
+
   return (
     <div style={{ width: '100%', height: '100%' }}>
       <ReactFlow
-        nodes={nodes}
+        nodes={nodesWithCallbacks}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
@@ -237,7 +253,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       >
         <Controls />
         <MiniMap />
-        <Background variant="dots" gap={12} size={1} />
+        <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
       </ReactFlow>
 
       {/* Modals */}

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { useParams } from 'react-router-dom';
-import { PlotCanvas } from '@/components/PlotCanvas';
+import PlotCanvas from '@/components/PlotCanvas';
 
 const PlotCanvasPage: React.FC = () => {
   const { bookId } = useParams<{ bookId: string }>();

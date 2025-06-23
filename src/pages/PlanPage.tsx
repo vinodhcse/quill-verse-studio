@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
-import { PlotCanvas } from '@/components/PlotCanvas';
+import PlotCanvas from '@/components/PlotCanvas';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { apiClient } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
