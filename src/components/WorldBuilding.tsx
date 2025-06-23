@@ -31,7 +31,8 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
     setLoading(true);
     try {
       // First try to get existing world data
-      const response = await apiClient.get(`/books/${currentBookId}/versions/${currentVersionId}/world`);
+      const response = await apiClient.get(`/books/${currentBookId}/versions/${currentVersionId}/world/all`);
+      console.log('world resposne', response);
       if (response.data && response.data.length > 0) {
         const firstWorld = response.data[0];
         setWorldId(firstWorld.id);
