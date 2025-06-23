@@ -3,7 +3,6 @@ import React, { createContext, useContext, useReducer, useEffect, useState } fro
 import { useParams, useLocation } from 'react-router-dom';
 import { fetchChapters, fetchSelectedChapter } from './bookService';
 import { apiClient } from './api';
-import { CanvasData } from '@/types/canvas';
 
 const initialState = {
   bookId: null,
@@ -14,7 +13,6 @@ const initialState = {
   selectedChapter: null,
   bookDetails: null,
   collaborators: [],
-  plotCanvasData: null,
 };
 
 const BookContext = createContext(null);
@@ -37,8 +35,6 @@ const bookReducer = (state, action) => {
       return { ...state, bookDetails: action.payload };
     case 'SET_COLLABORATORS':
       return { ...state, collaborators: action.payload };
-    case 'SET_PLOT_CANVAS_DATA':
-      return { ...state, plotCanvasData: action.payload };
     default:
       return state;
   }
@@ -54,7 +50,7 @@ export const BookProvider = ({ children }) => {
     if (state.bookId && state.versionId) {
       try {
         const chapters = await fetchChapters(state.bookId, state.versionId);
-        const sortedChapters = chapters.sort((a, b) => a.position - b.position);
+        const sortedChapters = chapters.sort((a, b) => a.position - b.position); // Sort by position (asc)
         dispatch({ type: 'SET_CHAPTERS', payload: sortedChapters || [] });
       } catch (error) {
         console.error('Failed to refetch chapters:', error);
@@ -71,32 +67,6 @@ export const BookProvider = ({ children }) => {
         dispatch({ type: 'SET_COLLABORATORS', payload: response.data.collaborators || [] });
       } catch (error) {
         console.error('Failed to fetch book details:', error);
-      }
-    }
-  };
-
-  const fetchPlotCanvasData = async () => {
-    if (state.bookId && state.versionId) {
-      try {
-        const response = await apiClient.get(`/books/${state.bookId}/versions/${state.versionId}/plot-canvas`);
-        dispatch({ type: 'SET_PLOT_CANVAS_DATA', payload: response.data });
-      } catch (error) {
-        console.error('Failed to fetch plot canvas data:', error);
-        // If no data exists, set empty canvas data
-        dispatch({ type: 'SET_PLOT_CANVAS_DATA', payload: { nodes: [], timelineEvents: [], nodePositions: {} } });
-      }
-    }
-  };
-
-  const updatePlotCanvasData = async (canvasData: CanvasData) => {
-    if (state.bookId && state.versionId) {
-      try {
-        const response = await apiClient.put(`/books/${state.bookId}/versions/${state.versionId}/plot-canvas`, canvasData);
-        dispatch({ type: 'SET_PLOT_CANVAS_DATA', payload: response.data });
-        return response.data;
-      } catch (error) {
-        console.error('Failed to update plot canvas data:', error);
-        throw error;
       }
     }
   };
@@ -120,7 +90,7 @@ export const BookProvider = ({ children }) => {
       if (state.bookId && state.versionId) {
         try {
           const chapters = await fetchChapters(state.bookId, state.versionId);
-          const sortedChapters = chapters.sort((a, b) => a.position - b.position);
+          const sortedChapters = chapters.sort((a, b) => a.position - b.position); // Sort by position (asc)
           dispatch({ type: 'SET_CHAPTERS', payload: sortedChapters || [] });
           if (!state.chapterId && sortedChapters.length > 0) {
             dispatch({ type: 'SET_SELECTED_CHAPTER', payload: sortedChapters[0] });
@@ -129,9 +99,6 @@ export const BookProvider = ({ children }) => {
           console.error('Failed to fetch chapters:', error);
           dispatch({ type: 'SET_CHAPTERS', payload: [] });
         }
-
-        // Only fetch plot canvas data when we have the required IDs
-        await fetchPlotCanvasData();
       }
 
       if (state.chapterId && state.bookId && state.versionId) {
@@ -147,6 +114,7 @@ export const BookProvider = ({ children }) => {
         }
       }
 
+      // Fetch book details including collaborators
       await fetchBookDetails();
     };
 
@@ -154,14 +122,7 @@ export const BookProvider = ({ children }) => {
   }, [state.bookId, state.versionId, state.chapterId]);
 
   return (
-    <BookContext.Provider value={{ 
-      state, 
-      dispatch, 
-      refetchChapters, 
-      fetchBookDetails, 
-      updatePlotCanvasData,
-      loading 
-    }}>
+    <BookContext.Provider value={{ state, dispatch, refetchChapters, fetchBookDetails, loading }}>
       {children}
     </BookContext.Provider>
   );

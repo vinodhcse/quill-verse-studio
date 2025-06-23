@@ -1,6 +1,6 @@
 
 import React, { memo } from 'react';
-import { Handle, Position, NodeProps, Node } from '@xyflow/react';
+import { Handle, Position, NodeProps } from '@xyflow/react';
 import { CanvasNode } from '@/types/canvas';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,11 +13,7 @@ interface PlotNodeData extends CanvasNode {
   onAddChild: (parentId: string) => void;
 }
 
-type PlotNodeType = Node<PlotNodeData>;
-
 const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
-  const nodeData = data as PlotNodeData;
-
   const getNodeColor = (type: string) => {
     switch (type) {
       case 'Outline':
@@ -43,29 +39,29 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
     <Card 
       className={cn(
         'min-w-[200px] max-w-[250px] shadow-lg relative',
-        getNodeColor(nodeData.type)
+        getNodeColor(data.type)
       )}
     >
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <Badge variant="outline" className="text-xs">
-            {nodeData.type}
+            {data.type}
           </Badge>
           <Badge 
-            className={cn('text-white text-xs', getStatusColor(nodeData.status))}
+            className={cn('text-white text-xs', getStatusColor(data.status))}
           >
-            {nodeData.status}
+            {data.status}
           </Badge>
         </div>
         <CardTitle className="text-sm font-semibold line-clamp-2">
-          {nodeData.name}
+          {data.name}
         </CardTitle>
       </CardHeader>
       
       <CardContent className="pt-0">
-        {nodeData.detail && (
+        {data.detail && (
           <p className="text-xs text-muted-foreground line-clamp-3 mb-2">
-            {nodeData.detail}
+            {data.detail}
           </p>
         )}
         
@@ -74,7 +70,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
             size="sm"
             variant="ghost"
             className="h-6 px-2"
-            onClick={() => nodeData.onEdit(nodeData.id)}
+            onClick={() => data.onEdit(data.id)}
           >
             <Edit size={12} />
           </Button>
@@ -82,14 +78,14 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
             size="sm"
             variant="ghost"
             className="h-6 px-2"
-            onClick={() => nodeData.onAddChild(nodeData.id)}
+            onClick={() => data.onAddChild(data.id)}
           >
             <Plus size={12} />
           </Button>
         </div>
       </CardContent>
 
-      {/* Handles for connections */}
+      {/* Single multi-functional handles on each side */}
       <Handle
         type="source"
         position={Position.Top}
@@ -160,4 +156,3 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
 PlotNode.displayName = 'PlotNode';
 
 export default PlotNode;
-export type { PlotNodeType };
