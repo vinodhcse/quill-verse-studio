@@ -265,21 +265,10 @@ export const LeftSidebar: React.FC<LeftSidebarProps> = ({
           </div>
         );
       
-      case 'planning':
+      default:
         return (
           <div className="space-y-4">
-            <h3 className="text-sm font-medium">Planning Boards</h3>
-            <div className="space-y-2">
-              {['Plot Outline', 'Character Arcs', 'World Building', 'Timeline'].map((board, i) => (
-                <div
-                  key={i}
-                  className="p-3 rounded-xl cursor-pointer hover:bg-accent/50 transition-all duration-200 text-sm flex items-center space-x-2 group hover:shadow-sm"
-                >
-                  <Layers size={14} className="opacity-70 group-hover:opacity-100" />
-                  <span className="font-medium">{board}</span>
-                </div>
-              ))}
-            </div>
+            <h3 className="text-sm font-medium">No content available</h3>
           </div>
         );
     }

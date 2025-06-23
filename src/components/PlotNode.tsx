@@ -1,14 +1,18 @@
 
 import React, { memo } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { CanvasNode } from '@/types/canvas';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface PlotNodeData extends CanvasNode {
+interface PlotNodeData {
+  id: string;
+  type: string;
+  name: string;
+  detail?: string;
+  status: string;
   onEdit: (nodeId: string) => void;
   onAddChild: (parentId: string) => void;
 }
@@ -85,7 +89,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
         </div>
       </CardContent>
 
-      {/* Single multi-functional handles on each side */}
+      {/* Handles for connecting nodes */}
       <Handle
         type="source"
         position={Position.Top}

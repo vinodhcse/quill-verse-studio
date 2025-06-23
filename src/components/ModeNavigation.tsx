@@ -3,7 +3,7 @@ import React from 'react';
 import { Button } from '@/components/ui/button';
 import { PenTool, Layout, Users, Eye, FileType, Home, Bell, Download, UserPlus, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 
 export type Mode = 'writing' | 'planning' | 'editing' | 'formatting' | 'reviewing';
 
@@ -21,6 +21,7 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
   onModeChange,
 }) => {
   const navigate = useNavigate();
+  const { bookId, versionId } = useParams();
 
   const modes = [
     { id: 'writing' as Mode, label: 'Writing', icon: PenTool },
@@ -32,6 +33,14 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
 
   const handleHomeClick = () => {
     navigate('/dashboard');
+  };
+
+  const handleModeChange = (mode: Mode) => {
+    if (mode === 'planning' && bookId && versionId) {
+      navigate(`/plan/book/${bookId}/version/${versionId}`);
+    } else {
+      onModeChange(mode);
+    }
   };
 
   return (
@@ -57,7 +66,7 @@ export const ModeNavigation: React.FC<ModeNavigationProps> = ({
                 key={mode.id}
                 variant={currentMode === mode.id ? 'default' : 'ghost'}
                 size="sm"
-                onClick={() => onModeChange(mode.id)}
+                onClick={() => handleModeChange(mode.id)}
                 className={cn(
                   "h-8 px-3 rounded-lg transition-all duration-200",
                   currentMode === mode.id 
