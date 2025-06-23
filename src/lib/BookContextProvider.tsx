@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { fetchChapters, fetchSelectedChapter } from './bookService';
@@ -129,7 +130,7 @@ export const BookProvider = ({ children }) => {
           dispatch({ type: 'SET_CHAPTERS', payload: [] });
         }
 
-        // Fetch plot canvas data
+        // Only fetch plot canvas data when we have the required IDs
         await fetchPlotCanvasData();
       }
 

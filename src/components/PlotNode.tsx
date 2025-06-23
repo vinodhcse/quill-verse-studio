@@ -1,6 +1,6 @@
 
 import React, { memo } from 'react';
-import { Handle, Position, NodeProps } from '@xyflow/react';
+import { Handle, Position, NodeProps, Node } from '@xyflow/react';
 import { CanvasNode } from '@/types/canvas';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -12,6 +12,8 @@ interface PlotNodeData extends CanvasNode {
   onEdit: (nodeId: string) => void;
   onAddChild: (parentId: string) => void;
 }
+
+type PlotNodeType = Node<PlotNodeData>;
 
 const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
   const nodeData = data as PlotNodeData;
@@ -87,7 +89,7 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
         </div>
       </CardContent>
 
-      {/* Single multi-functional handles on each side */}
+      {/* Handles for connections */}
       <Handle
         type="source"
         position={Position.Top}
@@ -158,3 +160,4 @@ const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
 PlotNode.displayName = 'PlotNode';
 
 export default PlotNode;
+export type { PlotNodeType };

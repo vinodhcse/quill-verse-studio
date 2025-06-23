@@ -32,34 +32,6 @@ export const CenterPanel: React.FC<CenterPanelProps> = ({ mode }) => {
           </div>
         );
       
-      case 'research':
-        return (
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Research Mode</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Research tools and resources will be available here.
-              </p>
-            </CardContent>
-          </Card>
-        );
-      
-      case 'review':
-        return (
-          <Card className="h-full">
-            <CardHeader>
-              <CardTitle>Review Mode</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Review and editing tools will be available here.
-              </p>
-            </CardContent>
-          </Card>
-        );
-      
       default:
         return (
           <Card className="h-full">
