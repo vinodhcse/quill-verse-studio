@@ -1,5 +1,5 @@
 
-export interface PlotNodeData {
+export interface PlotNodeData extends Record<string, unknown> {
   id: string;
   type: string;
   name: string;

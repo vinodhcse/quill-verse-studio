@@ -21,16 +21,7 @@ import PlotNode from './PlotNode';
 import DeletableEdge from './DeletableEdge';
 import { NodeEditModal } from './NodeEditModal';
 import { QuickNodeModal } from './QuickNodeModal';
-
-interface PlotNodeDataType extends Record<string, unknown> {
-  id: string;
-  type: string;
-  name: string;
-  detail?: string;
-  status: string;
-  onEdit: (nodeId: string) => void;
-  onAddChild: (parentId: string) => void;
-}
+import { PlotNodeData } from '@/types/plotCanvas';
 
 interface PlotCanvasProps {
   bookId?: string;
@@ -39,7 +30,7 @@ interface PlotCanvasProps {
   onCanvasUpdate?: (data: any) => void;
 }
 
-const initialNodes: Node<PlotNodeDataType>[] = [
+const initialNodes: Node<PlotNodeData>[] = [
   {
     id: '1',
     type: 'plotNode',
@@ -88,7 +79,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(canvasData?.nodes || initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(canvasData?.edges || initialEdges);
-  const [editingNode, setEditingNode] = useState<PlotNodeDataType | null>(null);
+  const [editingNode, setEditingNode] = useState<PlotNodeData | null>(null);
   const [quickNodeModal, setQuickNodeModal] = useState<{ isOpen: boolean; position: { x: number; y: number } }>({
     isOpen: false,
     position: { x: 0, y: 0 },
@@ -131,7 +122,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     });
   }, [connectionStartParams, setQuickNodeModal]);
 
-  const handleSaveNode = async (nodeId: string, updatedData: Partial<PlotNodeDataType>) => {
+  const handleSaveNode = async (nodeId: string, updatedData: Partial<PlotNodeData>) => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
@@ -160,7 +151,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 
   const handleQuickNodeSave = async (nodeData: { type: string; name: string; detail?: string; status: string }) => {
     const id = String(nodes.length + 1);
-    const newNode: Node<PlotNodeDataType> = {
+    const newNode: Node<PlotNodeData> = {
       id: id,
       type: 'plotNode',
       position: quickNodeModal.position,

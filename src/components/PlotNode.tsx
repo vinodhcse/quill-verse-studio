@@ -6,18 +6,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Plus, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { PlotNodeData } from '@/types/plotCanvas';
 
-interface PlotNodeDataType extends Record<string, unknown> {
-  id: string;
-  type: string;
-  name: string;
-  detail?: string;
-  status: string;
-  onEdit: (nodeId: string) => void;
-  onAddChild: (parentId: string) => void;
-}
-
-const PlotNode = memo(({ data }: NodeProps<PlotNodeDataType>) => {
+const PlotNode = memo(({ data }: NodeProps<PlotNodeData>) => {
   const getNodeColor = (type: string) => {
     switch (type) {
       case 'Outline':
