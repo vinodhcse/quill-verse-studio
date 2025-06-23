@@ -36,6 +36,7 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
     setLoading(true);
     try {
       const response = await apiClient.get(`/books/${currentBookId}/versions/${currentVersionId}/characters/all`);
+      console.log('fetchAll characters', response);
       setCharacters(response.data.characters || []);
     } catch (error) {
       console.error('Failed to fetch characters:', error);
