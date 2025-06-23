@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
 import PlotCanvas from '@/components/PlotCanvas';
+import { CharacterGlossary } from '@/components/CharacterGlossary';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { apiClient } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,22 +12,19 @@ const PlanPage: React.FC = () => {
   const { bookId, versionId } = useParams<{ bookId: string; versionId: string }>();
   const { state } = useBookContext();
   const [leftSidebarVisible, setLeftSidebarVisible] = useState(true);
-  const [selectedBoard, setSelectedBoard] = useState('plot-outline');
+  const [selectedBoard, setSelectedBoard] = useState('plot-arcs');
   const [canvasData, setCanvasData] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const fetchCanvasData = async (boardType: string) => {
-    if (!bookId || !versionId) return;
+    if (!bookId || !versionId || boardType === 'characters') return;
 
     setLoading(true);
     try {
       let endpoint = '';
       switch (boardType) {
-        case 'plot-outline':
+        case 'plot-arcs':
           endpoint = `/books/${bookId}/versions/${versionId}/plotCanvas`;
-          break;
-        case 'character-arcs':
-          endpoint = `/books/${bookId}/versions/${versionId}/characterCanvas`;
           break;
         case 'world-building':
           endpoint = `/books/${bookId}/versions/${versionId}/worldCanvas`;
@@ -49,16 +47,13 @@ const PlanPage: React.FC = () => {
   };
 
   const handleCanvasUpdate = async (data: any) => {
-    if (!bookId || !versionId) return;
+    if (!bookId || !versionId || selectedBoard === 'characters') return;
 
     try {
       let endpoint = '';
       switch (selectedBoard) {
-        case 'plot-outline':
+        case 'plot-arcs':
           endpoint = `/books/${bookId}/versions/${versionId}/plotCanvas`;
-          break;
-        case 'character-arcs':
-          endpoint = `/books/${bookId}/versions/${versionId}/characterCanvas`;
           break;
         case 'world-building':
           endpoint = `/books/${bookId}/versions/${versionId}/worldCanvas`;
@@ -84,6 +79,81 @@ const PlanPage: React.FC = () => {
   const handleBoardSelect = (boardId: string) => {
     setSelectedBoard(boardId);
   };
+
+  const renderPlotArcsContent = () => (
+    <Tabs value="plot-outline" className="flex-1 flex flex-col">
+      <div className="border-b px-4 py-2">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="plot-outline">Plot Outline</TabsTrigger>
+          <TabsTrigger value="character-arcs">Character Arcs</TabsTrigger>
+          <TabsTrigger value="world-building">World Building</TabsTrigger>
+          <TabsTrigger value="timeline">Timeline</TabsTrigger>
+        </TabsList>
+      </div>
+
+      <div className="flex-1">
+        <TabsContent value="plot-outline" className="h-full m-0">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-lg">Loading Plot Outline...</div>
+            </div>
+          ) : (
+            <PlotCanvas
+              bookId={bookId}
+              versionId={versionId}
+              canvasData={canvasData}
+              onCanvasUpdate={handleCanvasUpdate}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="character-arcs" className="h-full m-0">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-lg">Loading Character Arcs...</div>
+            </div>
+          ) : (
+            <PlotCanvas
+              bookId={bookId}
+              versionId={versionId}
+              canvasData={canvasData}
+              onCanvasUpdate={handleCanvasUpdate}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="world-building" className="h-full m-0">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-lg">Loading World Building...</div>
+            </div>
+          ) : (
+            <PlotCanvas
+              bookId={bookId}
+              versionId={versionId}
+              canvasData={canvasData}
+              onCanvasUpdate={handleCanvasUpdate}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="timeline" className="h-full m-0">
+          {loading ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-lg">Loading Timeline...</div>
+            </div>
+          ) : (
+            <PlotCanvas
+              bookId={bookId}
+              versionId={versionId}
+              canvasData={canvasData}
+              onCanvasUpdate={handleCanvasUpdate}
+            />
+          )}
+        </TabsContent>
+      </div>
+    </Tabs>
+  );
 
   return (
     <div className="h-screen flex flex-col">
@@ -111,78 +181,45 @@ const PlanPage: React.FC = () => {
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          <Tabs value={selectedBoard} onValueChange={setSelectedBoard} className="flex-1 flex flex-col">
-            <div className="border-b px-4 py-2">
-              <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="plot-outline">Plot Outline</TabsTrigger>
-                <TabsTrigger value="character-arcs">Character Arcs</TabsTrigger>
-                <TabsTrigger value="world-building">World Building</TabsTrigger>
-                <TabsTrigger value="timeline">Timeline</TabsTrigger>
-              </TabsList>
-            </div>
-
+          {selectedBoard === 'plot-arcs' && renderPlotArcsContent()}
+          
+          {selectedBoard === 'characters' && (
+            <CharacterGlossary bookId={bookId} versionId={versionId} />
+          )}
+          
+          {selectedBoard === 'world-building' && (
             <div className="flex-1">
-              <TabsContent value="plot-outline" className="h-full m-0">
-                {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-lg">Loading Plot Outline...</div>
-                  </div>
-                ) : (
-                  <PlotCanvas
-                    bookId={bookId}
-                    versionId={versionId}
-                    canvasData={canvasData}
-                    onCanvasUpdate={handleCanvasUpdate}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="character-arcs" className="h-full m-0">
-                {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-lg">Loading Character Arcs...</div>
-                  </div>
-                ) : (
-                  <PlotCanvas
-                    bookId={bookId}
-                    versionId={versionId}
-                    canvasData={canvasData}
-                    onCanvasUpdate={handleCanvasUpdate}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="world-building" className="h-full m-0">
-                {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-lg">Loading World Building...</div>
-                  </div>
-                ) : (
-                  <PlotCanvas
-                    bookId={bookId}
-                    versionId={versionId}
-                    canvasData={canvasData}
-                    onCanvasUpdate={handleCanvasUpdate}
-                  />
-                )}
-              </TabsContent>
-
-              <TabsContent value="timeline" className="h-full m-0">
-                {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-lg">Loading Timeline...</div>
-                  </div>
-                ) : (
-                  <PlotCanvas
-                    bookId={bookId}
-                    versionId={versionId}
-                    canvasData={canvasData}
-                    onCanvasUpdate={handleCanvasUpdate}
-                  />
-                )}
-              </TabsContent>
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-lg">Loading World Building...</div>
+                </div>
+              ) : (
+                <PlotCanvas
+                  bookId={bookId}
+                  versionId={versionId}
+                  canvasData={canvasData}
+                  onCanvasUpdate={handleCanvasUpdate}
+                />
+              )}
             </div>
-          </Tabs>
+          )}
+          
+          {selectedBoard === 'timeline' && (
+            <div className="flex-1">
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-lg">Loading Timeline...</div>
+                </div>
+              ) : (
+                <PlotCanvas
+                  bookId={bookId}
+                  versionId={versionId}
+                  canvasData={canvasData}
+                  onCanvasUpdate={handleCanvasUpdate}
+                />
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

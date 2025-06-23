@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, Layers } from 'lucide-react';
+import { ChevronLeft, Layers, Users } from 'lucide-react';
 
 interface PlanLeftSidebarProps {
   isCollapsed: boolean;
@@ -17,10 +17,10 @@ export const PlanLeftSidebar: React.FC<PlanLeftSidebarProps> = ({
   onBoardSelect,
 }) => {
   const planningBoards = [
-    { id: 'plot-outline', name: 'Plot Outline' },
-    { id: 'character-arcs', name: 'Character Arcs' },
-    { id: 'world-building', name: 'World Building' },
-    { id: 'timeline', name: 'Timeline' },
+    { id: 'plot-arcs', name: 'Plot Arcs', icon: Layers },
+    { id: 'characters', name: 'Characters', icon: Users },
+    { id: 'world-building', name: 'World Building', icon: Layers },
+    { id: 'timeline', name: 'Timeline', icon: Layers },
   ];
 
   if (isCollapsed) return null;
@@ -40,21 +40,24 @@ export const PlanLeftSidebar: React.FC<PlanLeftSidebarProps> = ({
       
       <div className="flex-1 p-4 overflow-y-auto h-[calc(100%-73px)]">
         <div className="space-y-2">
-          {planningBoards.map((board) => (
-            <div
-              key={board.id}
-              onClick={() => onBoardSelect(board.id)}
-              className={cn(
-                "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm flex items-center space-x-2 group hover:shadow-sm",
-                selectedBoard === board.id 
-                  ? "bg-primary/10 text-primary border-primary/20 border" 
-                  : "hover:bg-accent/50"
-              )}
-            >
-              <Layers size={14} className="opacity-70 group-hover:opacity-100" />
-              <span className="font-medium">{board.name}</span>
-            </div>
-          ))}
+          {planningBoards.map((board) => {
+            const IconComponent = board.icon;
+            return (
+              <div
+                key={board.id}
+                onClick={() => onBoardSelect(board.id)}
+                className={cn(
+                  "p-3 rounded-xl cursor-pointer transition-all duration-200 text-sm flex items-center space-x-2 group hover:shadow-sm",
+                  selectedBoard === board.id 
+                    ? "bg-primary/10 text-primary border-primary/20 border" 
+                    : "hover:bg-accent/50"
+                )}
+              >
+                <IconComponent size={14} className="opacity-70 group-hover:opacity-100" />
+                <span className="font-medium">{board.name}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

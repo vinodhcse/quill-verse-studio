@@ -131,7 +131,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     });
   }, [connectionStartParams, setQuickNodeModal]);
 
-  const handleSaveNode = async (nodeId: string, updatedData: any) => {
+  const handleSaveNode = async (nodeId: string, updatedData: Partial<PlotNodeDataType>) => {
     setNodes((nds) =>
       nds.map((node) => {
         if (node.id === nodeId) {
