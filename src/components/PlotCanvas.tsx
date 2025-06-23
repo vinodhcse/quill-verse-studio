@@ -22,7 +22,16 @@ import PlotNode from './PlotNode';
 import DeletableEdge from './DeletableEdge';
 import { NodeEditModal } from './NodeEditModal';
 import { QuickNodeModal } from './QuickNodeModal';
-import { PlotNodeData } from '@/types/plotCanvas';
+
+interface PlotNodeDataType {
+  id: string;
+  type: string;
+  name: string;
+  detail?: string;
+  status: string;
+  onEdit: (nodeId: string) => void;
+  onAddChild: (parentId: string) => void;
+}
 
 interface PlotCanvasProps {
   bookId?: string;
@@ -31,7 +40,7 @@ interface PlotCanvasProps {
   onCanvasUpdate?: (data: any) => void;
 }
 
-const initialNodes = [
+const initialNodes: Node<PlotNodeDataType>[] = [
   {
     id: '1',
     type: 'plotNode',
@@ -42,7 +51,7 @@ const initialNodes = [
       status: 'Completed',
       onEdit: (nodeId: string) => console.log('Edit node', nodeId),
       onAddChild: (parentId: string) => console.log('Add child to', parentId),
-    } as PlotNodeData,
+    },
     position: { x: 100, y: 100 },
   },
   {
@@ -55,7 +64,7 @@ const initialNodes = [
       status: 'In Progress',
       onEdit: (nodeId: string) => console.log('Edit node', nodeId),
       onAddChild: (parentId: string) => console.log('Add child to', parentId),
-    } as PlotNodeData,
+    },
     position: { x: 100, y: 300 },
   },
 ];
@@ -80,7 +89,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(canvasData?.nodes || initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(canvasData?.edges || initialEdges);
-  const [editingNode, setEditingNode] = useState<PlotNodeData | null>(null);
+  const [editingNode, setEditingNode] = useState<PlotNodeDataType | null>(null);
   const [quickNodeModal, setQuickNodeModal] = useState<{ isOpen: boolean; position: { x: number; y: number } }>({
     isOpen: false,
     position: { x: 0, y: 0 },
@@ -151,16 +160,21 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     }
   };
 
-  const handleQuickNodeSave = async (nodeData: Omit<PlotNodeData, 'id'>) => {
+  const handleQuickNodeSave = async (nodeData: Omit<PlotNodeDataType, 'id' | 'onEdit' | 'onAddChild'>) => {
     const id = String(nodes.length + 1);
-    const newNode: any = {
+    const newNode: Node<PlotNodeDataType> = {
       id: id,
       type: 'plotNode',
       position: quickNodeModal.position,
       data: {
         ...nodeData,
         id: id,
-        onEdit: (nodeId: string) => setEditingNode(nodes.find(n => n.id === nodeId)?.data as PlotNodeData),
+        onEdit: (nodeId: string) => {
+          const nodeToEdit = nodes.find(n => n.id === nodeId);
+          if (nodeToEdit) {
+            setEditingNode(nodeToEdit.data);
+          }
+        },
         onAddChild: (parentId: string) => console.log('Add child to', parentId),
       },
     };
@@ -229,7 +243,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       onEdit: (nodeId: string) => {
         const nodeToEdit = nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
-          setEditingNode(nodeToEdit.data as PlotNodeData);
+          setEditingNode(nodeToEdit.data);
         }
       },
       onAddChild: (parentId: string) => console.log('Add child to', parentId),
