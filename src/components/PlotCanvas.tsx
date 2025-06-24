@@ -1,6 +1,7 @@
 
 import React, { useState, useCallback, useEffect } from 'react';
-import ReactFlow, {
+import {
+  ReactFlow,
   addEdge,
   useNodesState,
   useEdgesState,
@@ -19,7 +20,7 @@ import { Plus } from 'lucide-react';
 import { QuickNodeModal } from './QuickNodeModal';
 import { NodeEditModal } from './NodeEditModal';
 
-const initialNodes: Node[] = [
+const initialNodes: Node<PlotNodeData>[] = [
   {
     id: '1',
     type: 'plotNode',
@@ -57,7 +58,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   onCanvasUpdate,
 }) => {
   const { setViewport } = useReactFlow();
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [nodes, setNodes, onNodesChange] = useNodesState<PlotNodeData>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [allNodes, setAllNodes] = useState<PlotNodeData[]>([]);
   const [showQuickModal, setShowQuickModal] = useState(false);
@@ -191,7 +192,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     }
   };
 
-  const createReactFlowNode = (nodeData: PlotNodeData): Node => ({
+  const createReactFlowNode = (nodeData: PlotNodeData): Node<PlotNodeData> => ({
     id: nodeData.id,
     type: 'plotNode',
     position: { x: Math.random() * 400, y: Math.random() * 400 },
