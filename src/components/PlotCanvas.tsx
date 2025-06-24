@@ -1,33 +1,52 @@
-
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
+import React, { useState, useCallback, useEffect } from 'react';
+import ReactFlow, {
+  addEdge,
   useNodesState,
   useEdgesState,
-  addEdge,
-  Connection,
+  Controls,
+  Background,
+  Node,
   Edge,
+  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import PlotNode from './PlotNode';
-import { NodeEditModal } from './NodeEditModal';
-import { QuickNodeModal } from './QuickNodeModal';
-import { Button } from './ui/button';
+import PlotNode from '@/components/PlotNode';
+import DeletableEdge from '@/components/DeletableEdge';
+import { PlotNodeData } from '@/types/plotCanvas';
+import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
-import { PlotCanvasData, PlotNodeData } from '@/types/plotCanvas';
+import { QuickNodeModal } from './QuickNodeModal';
+import { NodeEditModal } from './NodeEditModal';
 
-const nodeTypes = {
-  plotNode: PlotNode,
+const initialNodes: Node[] = [
+  {
+    id: '1',
+    type: 'plotNode',
+    position: { x: 50, y: 50 },
+    data: {
+      id: '1',
+      type: 'act',
+      name: 'Act 1',
+      detail: 'The beginning of the story',
+      status: 'not-started',
+      onEdit: (nodeId: string) => console.log('Edit node', nodeId),
+      onAddChild: (parentId: string) => console.log('Add child to', parentId),
+    },
+  },
+];
+
+const initialEdges: Edge[] = [];
+
+const nodeTypes = { plotNode: PlotNode };
+const edgeTypes = {
+  custom: DeletableEdge,
 };
 
 interface PlotCanvasProps {
-  bookId?: string;
-  versionId?: string;
-  canvasData?: PlotCanvasData | null;
-  onCanvasUpdate?: (data: PlotCanvasData) => void;
+  bookId: string | undefined;
+  versionId: string | undefined;
+  canvasData: any;
+  onCanvasUpdate: (data: any) => void;
 }
 
 const PlotCanvas: React.FC<PlotCanvasProps> = ({
@@ -36,181 +55,192 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   canvasData,
   onCanvasUpdate,
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [selectedNode, setSelectedNode] = useState<PlotNodeData | null>(null);
-  const [isQuickModalOpen, setIsQuickModalOpen] = useState(false);
-  const [parentNodeId, setParentNodeId] = useState<string | null>(null);
+  const { setViewport } = useReactFlow();
+  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [allNodes, setAllNodes] = useState<PlotNodeData[]>([]);
+  const [showQuickModal, setShowQuickModal] = useState(false);
+  const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
+  const [editingNode, setEditingNode] = useState<Node<PlotNodeData> | null>(null);
 
-  // Convert canvas data to React Flow format
   useEffect(() => {
-    if (canvasData?.nodes) {
-      const flowNodes = canvasData.nodes.map((node: any) => ({
-        id: node.id,
-        type: 'plotNode',
-        position: node.position || { x: Math.random() * 400, y: Math.random() * 400 },
-        data: {
-          id: node.id,
-          type: node.type || 'scene',
-          name: node.name || 'Untitled',
-          detail: node.detail || '',
-          status: node.status || 'not-started',
-          onEdit: handleNodeEdit,
-          onAddChild: handleAddChild,
-        } as PlotNodeData,
-      }));
-      
-      setNodes(flowNodes);
-    }
-
-    if (canvasData?.edges) {
+    if (canvasData) {
+      const reactFlowNodes = canvasData.nodes.map((nodeData: PlotNodeData) =>
+        createReactFlowNode(nodeData)
+      );
+      setNodes(reactFlowNodes);
       setEdges(canvasData.edges);
+      setAllNodes(canvasData.nodes);
     }
-  }, [canvasData]);
+  }, [canvasData, setNodes, setEdges]);
 
-  const handleNodeEdit = useCallback((nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (node) {
-      setSelectedNode(node.data as PlotNodeData);
-    }
-  }, [nodes]);
+  const handleNodeEdit = async (nodeId: string, updatedData: Partial<PlotNodeData>) => {
+    const updatedNodes = nodes.map(node => {
+      if (node.id === nodeId) {
+        return {
+          ...node,
+          data: { ...node.data, ...updatedData }
+        };
+      }
+      return node;
+    });
 
-  const handleAddChild = useCallback((parentId: string) => {
-    setParentNodeId(parentId);
-    setIsQuickModalOpen(true);
-  }, []);
-
-  const handleNodeUpdate = async (nodeId: string, updatedData: Partial<PlotNodeData>) => {
-    setNodes((nds) =>
-      nds.map((node) =>
-        node.id === nodeId
-          ? {
-              ...node,
-              data: { ...node.data, ...updatedData } as PlotNodeData,
-            }
-          : node
-      )
-    );
-
-    // Update canvas data
-    const updatedCanvasData = {
-      nodes: nodes.map(node => 
-        node.id === nodeId 
-          ? { ...node, data: { ...node.data, ...updatedData } }
-          : node
-      ),
-      edges,
-    };
-
-    if (onCanvasUpdate) {
-      onCanvasUpdate(updatedCanvasData);
-    }
-
-    setSelectedNode(null);
-  };
-
-  const handleQuickNodeCreate = (nodeData: Partial<PlotNodeData>) => {
-    const newNodeId = `node-${Date.now()}`;
-    const parentNode = nodes.find(n => n.id === parentNodeId);
-    
-    const newNode = {
-      id: newNodeId,
-      type: 'plotNode',
-      position: {
-        x: parentNode ? parentNode.position.x + 200 : Math.random() * 400,
-        y: parentNode ? parentNode.position.y + 100 : Math.random() * 400,
-      },
-      data: {
-        id: newNodeId,
-        type: nodeData.type || 'scene',
-        name: nodeData.name || 'Untitled',
-        detail: nodeData.detail || '',
-        status: nodeData.status || 'not-started',
-        onEdit: handleNodeEdit,
-        onAddChild: handleAddChild,
-      } as PlotNodeData,
-    };
-
-    setNodes((nds) => [...nds, newNode]);
-
-    // Add edge if there's a parent
-    if (parentNodeId) {
-      const newEdge = {
-        id: `edge-${parentNodeId}-${newNodeId}`,
-        source: parentNodeId,
-        target: newNodeId,
-        type: 'smoothstep',
-      };
-      setEdges((eds) => [...eds, newEdge]);
-    }
-
-    // Update canvas data
-    const updatedCanvasData = {
-      nodes: [...nodes, newNode],
-      edges: parentNodeId ? [...edges, {
-        id: `edge-${parentNodeId}-${newNodeId}`,
-        source: parentNodeId,
-        target: newNodeId,
-        type: 'smoothstep',
-      }] : edges,
-    };
-
-    if (onCanvasUpdate) {
-      onCanvasUpdate(updatedCanvasData);
-    }
-
-    setIsQuickModalOpen(false);
-    setParentNodeId(null);
+    const newCanvasData = { nodes: updatedNodes, edges };
+    setNodes(updatedNodes);
+    await onCanvasUpdate(newCanvasData);
+    setEditingNode(null);
   };
 
   const onConnect = useCallback(
-    (params: Connection | Edge) => setEdges((eds) => addEdge(params, eds)),
+    (params) => {
+      setEdges((eds) => addEdge(params, eds));
+    },
     [setEdges]
   );
 
-  const handleAddRootNode = () => {
-    setParentNodeId(null);
-    setIsQuickModalOpen(true);
+  const handlePaneClick = (event: any) => {
+    setQuickModalPosition({ x: event.clientX, y: event.clientY });
+    setShowQuickModal(true);
   };
+
+  const handleQuickNodeSave = async (nodeData: Omit<PlotNodeData, 'id'>) => {
+    const newNodeId = `node-${Date.now()}`;
+    const newNode: PlotNodeData = {
+      id: newNodeId,
+      ...nodeData,
+      onEdit: (nodeId: string) => {
+        const nodeToEdit = allNodes.find(n => n.id === nodeId);
+        if (nodeToEdit) {
+          setEditingNode(nodeToEdit);
+        }
+      },
+      onAddChild: handleAddChild,
+    };
+
+    const newReactFlowNode = createReactFlowNode(newNode);
+    setNodes((nds) => [...nds, newReactFlowNode]);
+    setAllNodes((nds) => [...nds, newNode]);
+
+    const newCanvasData = { nodes: [...allNodes, newNode], edges };
+    await onCanvasUpdate(newCanvasData);
+    setShowQuickModal(false);
+  };
+
+  const handleAddChild = async (parentId: string) => {
+    const newNodeId = `node-${Date.now()}`;
+    const newNode: PlotNodeData = {
+      id: newNodeId,
+      type: 'scene',
+      name: 'New Scene',
+      status: 'not-started',
+      detail: 'Details of the new scene',
+      onEdit: (nodeId: string) => {
+        const nodeToEdit = allNodes.find(n => n.id === nodeId);
+        if (nodeToEdit) {
+          setEditingNode(nodeToEdit);
+        }
+      },
+      onAddChild: handleAddChild,
+    };
+
+    const newReactFlowNode = createReactFlowNode(newNode);
+    setNodes((nds) => [...nds, newReactFlowNode]);
+    setAllNodes((nds) => [...nds, newNode]);
+
+    const newEdge = {
+      id: `${parentId}-${newNodeId}`,
+      source: parentId,
+      target: newNodeId,
+      type: 'custom',
+      data: {
+        type: 'parent-child',
+        onConvertEdge: handleConvertEdge,
+      },
+    };
+    setEdges((eds) => [...eds, newEdge]);
+
+    const newCanvasData = { nodes: [...allNodes, newNode], edges: [...edges, newEdge] };
+    await onCanvasUpdate(newCanvasData);
+  };
+
+  const handleConvertEdge = async (edgeId: string, action: string) => {
+    if (action === 'delete') {
+      const updatedEdges = edges.filter(edge => edge.id !== edgeId);
+      setEdges(updatedEdges);
+
+      const newCanvasData = { nodes: allNodes, edges: updatedEdges };
+      await onCanvasUpdate(newCanvasData);
+    } else {
+      const updatedEdges = edges.map(edge => {
+        if (edge.id === edgeId) {
+          return {
+            ...edge,
+            data: {
+              ...edge.data,
+              type: action,
+            },
+          };
+        }
+        return edge;
+      });
+      setEdges(updatedEdges);
+
+      const newCanvasData = { nodes: allNodes, edges: updatedEdges };
+      await onCanvasUpdate(newCanvasData);
+    }
+  };
+
+  const createReactFlowNode = (nodeData: PlotNodeData): Node => ({
+    id: nodeData.id,
+    type: 'plotNode',
+    position: { x: Math.random() * 400, y: Math.random() * 400 },
+    data: {
+      ...nodeData,
+      onEdit: (nodeId: string) => {
+        const nodeToEdit = allNodes.find(n => n.id === nodeId);
+        if (nodeToEdit) {
+          setEditingNode(nodeToEdit);
+        }
+      },
+      onAddChild: handleAddChild,
+    },
+  });
 
   return (
     <div className="h-full w-full relative">
-      <div className="absolute top-4 left-4 z-10">
-        <Button onClick={handleAddRootNode} size="sm">
-          <Plus size={16} className="mr-2" />
-          Add Node
-        </Button>
-      </div>
-      
       <ReactFlow
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        onPaneClick={handlePaneClick}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
         fitView
+        className="bg-background"
       >
-        <Background />
         <Controls />
-        <MiniMap />
+        <Background />
       </ReactFlow>
 
-      {selectedNode && (
-        <NodeEditModal
-          node={selectedNode}
-          onClose={() => setSelectedNode(null)}
-          onSave={handleNodeUpdate}
+      {/* Quick Node Creation Modal */}
+      {showQuickModal && (
+        <QuickNodeModal 
+          isOpen={showQuickModal}
+          position={quickModalPosition}
+          onClose={() => setShowQuickModal(false)}
+          onSave={handleQuickNodeSave}
         />
       )}
 
-      {isQuickModalOpen && (
-        <QuickNodeModal
-          onClose={() => {
-            setIsQuickModalOpen(false);
-            setParentNodeId(null);
-          }}
-          onSave={handleQuickNodeCreate}
+      {/* Node Edit Modal */}
+      {editingNode && (
+        <NodeEditModal
+          isOpen={!!editingNode}
+          node={editingNode}
+          onClose={() => setEditingNode(null)}
+          onSave={(nodeId: string, updatedData: Partial<PlotNodeData>) => handleNodeEdit(nodeId, updatedData)}
         />
       )}
     </div>

@@ -106,4 +106,29 @@ export const deleteCharacter = async (bookId: string, versionId: string, charact
   return response.data;
 };
 
+export const fetchAllWorlds = async (bookId: string, versionId: string) => {
+  const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/world/all`);
+  return response.data;
+};
+
+export const fetchWorld = async (bookId: string, versionId: string, worldId: string) => {
+  const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/world/${worldId}`);
+  return response.data;
+};
+
+export const createWorld = async (bookId: string, versionId: string, worldData: any) => {
+  const response = await apiClient.post(`/books/${bookId}/versions/${versionId}/world`, worldData);
+  return response.data;
+};
+
+export const updateWorld = async (bookId: string, versionId: string, worldId: string, worldData: any) => {
+  const response = await apiClient.patch(`/books/${bookId}/versions/${versionId}/world/${worldId}`, worldData);
+  return response.data;
+};
+
+export const deleteWorld = async (bookId: string, versionId: string, worldId: string) => {
+  const response = await apiClient.delete(`/books/${bookId}/versions/${versionId}/world/${worldId}`);
+  return response.data;
+};
+
 export { apiClient };
