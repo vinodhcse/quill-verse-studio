@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Edit, Trash2, Globe, MapPin, Package } from 'lucide-react';
 import { LocationGlossary } from './LocationGlossary';
 import { ObjectGlossary } from './ObjectGlossary';
-import { apiClient } from '@/lib/api';
+import { fetchAllWorlds, createWorld, deleteWorld } from '@/lib/api';
 import { WorldData } from '@/types/world';
 
 interface World {
@@ -47,11 +47,11 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
 
     setLoading(true);
     try {
-      const response = await apiClient.get(`/books/${currentBookId}/versions/${currentVersionId}/world/all`);
+      const response = await fetchAllWorlds(currentBookId, currentVersionId);
       console.log('Worlds response:', response);
-      if (response.data && response.data.length > 0) {
-        setWorlds(response.data);
-        setSelectedWorld(response.data[0]);
+      if (response && response.length > 0) {
+        setWorlds(response);
+        setSelectedWorld(response[0]);
       }
     } catch (error) {
       console.error('Failed to fetch worlds:', error);
@@ -60,7 +60,7 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
     }
   };
 
-  const createWorld = async () => {
+  const handleCreateWorld = async () => {
     if (!currentBookId || !currentVersionId || !newWorldName.trim()) return;
 
     try {
@@ -72,11 +72,11 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
         }
       };
       
-      const response = await apiClient.post(`/books/${currentBookId}/versions/${currentVersionId}/world`, newWorldData);
-      const createdWorld = { ...response.data, name: newWorldName };
+      const createdWorld = await createWorld(currentBookId, currentVersionId, newWorldData);
+      const worldWithName = { ...createdWorld, name: newWorldName };
       
-      setWorlds([...worlds, createdWorld]);
-      setSelectedWorld(createdWorld);
+      setWorlds([...worlds, worldWithName]);
+      setSelectedWorld(worldWithName);
       setNewWorldName('');
       setIsCreating(false);
     } catch (error) {
@@ -92,14 +92,14 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
     }
   };
 
-  const deleteWorld = async (worldId: string) => {
+  const handleDeleteWorld = async (worldId: string) => {
     if (!currentBookId || !currentVersionId) return;
 
     const confirmDelete = window.confirm('Are you sure you want to delete this world? This action cannot be undone.');
     if (!confirmDelete) return;
 
     try {
-      await apiClient.delete(`/books/${currentBookId}/versions/${currentVersionId}/world/${worldId}`);
+      await deleteWorld(currentBookId, currentVersionId, worldId);
       const updatedWorlds = worlds.filter(w => w.id !== worldId);
       setWorlds(updatedWorlds);
       
@@ -146,10 +146,10 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
                 value={newWorldName}
                 onChange={(e) => setNewWorldName(e.target.value)}
                 className="mb-2"
-                onKeyPress={(e) => e.key === 'Enter' && createWorld()}
+                onKeyPress={(e) => e.key === 'Enter' && handleCreateWorld()}
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={createWorld} disabled={!newWorldName.trim()}>
+                <Button size="sm" onClick={handleCreateWorld} disabled={!newWorldName.trim()}>
                   Create
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setIsCreating(false)}>
@@ -189,7 +189,7 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
                     variant="ghost"
                     onClick={(e) => {
                       e.stopPropagation();
-                      deleteWorld(world.id);
+                      handleDeleteWorld(world.id);
                     }}
                     className="h-6 w-6 p-0 text-destructive hover:text-destructive"
                   >

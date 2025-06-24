@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback, useEffect } from 'react';
 import ReactFlow, {
   addEdge,
@@ -109,7 +110,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       id: newNodeId,
       ...nodeData,
       onEdit: (nodeId: string) => {
-        const nodeToEdit = allNodes.find(n => n.id === nodeId);
+        const nodeToEdit = nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
           setEditingNode(nodeToEdit);
         }
@@ -135,7 +136,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       status: 'not-started',
       detail: 'Details of the new scene',
       onEdit: (nodeId: string) => {
-        const nodeToEdit = allNodes.find(n => n.id === nodeId);
+        const nodeToEdit = nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
           setEditingNode(nodeToEdit);
         }
@@ -197,7 +198,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     data: {
       ...nodeData,
       onEdit: (nodeId: string) => {
-        const nodeToEdit = allNodes.find(n => n.id === nodeId);
+        const nodeToEdit = nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
           setEditingNode(nodeToEdit);
         }
