@@ -9,14 +9,11 @@ import {
   Background,
   Node,
   Edge,
-  useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import PlotNode from '@/components/PlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
 import { PlotNodeData } from '@/types/plotCanvas';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
 import { QuickNodeModal } from './QuickNodeModal';
 import { NodeEditModal } from './NodeEditModal';
 
@@ -57,22 +54,19 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   canvasData,
   onCanvasUpdate,
 }) => {
-  const { setViewport } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<PlotNodeData>(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-  const [allNodes, setAllNodes] = useState<PlotNodeData[]>([]);
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
   const [editingNode, setEditingNode] = useState<Node<PlotNodeData> | null>(null);
 
   useEffect(() => {
     if (canvasData) {
-      const reactFlowNodes = canvasData.nodes.map((nodeData: PlotNodeData) =>
+      const reactFlowNodes = canvasData.nodes.map((nodeData: any) =>
         createReactFlowNode(nodeData)
       );
       setNodes(reactFlowNodes);
-      setEdges(canvasData.edges);
-      setAllNodes(canvasData.nodes);
+      setEdges(canvasData.edges || []);
     }
   }, [canvasData, setNodes, setEdges]);
 
@@ -121,9 +115,8 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 
     const newReactFlowNode = createReactFlowNode(newNode);
     setNodes((nds) => [...nds, newReactFlowNode]);
-    setAllNodes((nds) => [...nds, newNode]);
 
-    const newCanvasData = { nodes: [...allNodes, newNode], edges };
+    const newCanvasData = { nodes: [...nodes, newReactFlowNode], edges };
     await onCanvasUpdate(newCanvasData);
     setShowQuickModal(false);
   };
@@ -147,7 +140,6 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 
     const newReactFlowNode = createReactFlowNode(newNode);
     setNodes((nds) => [...nds, newReactFlowNode]);
-    setAllNodes((nds) => [...nds, newNode]);
 
     const newEdge = {
       id: `${parentId}-${newNodeId}`,
@@ -161,7 +153,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     };
     setEdges((eds) => [...eds, newEdge]);
 
-    const newCanvasData = { nodes: [...allNodes, newNode], edges: [...edges, newEdge] };
+    const newCanvasData = { nodes: [...nodes, newReactFlowNode], edges: [...edges, newEdge] };
     await onCanvasUpdate(newCanvasData);
   };
 
@@ -170,7 +162,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       const updatedEdges = edges.filter(edge => edge.id !== edgeId);
       setEdges(updatedEdges);
 
-      const newCanvasData = { nodes: allNodes, edges: updatedEdges };
+      const newCanvasData = { nodes, edges: updatedEdges };
       await onCanvasUpdate(newCanvasData);
     } else {
       const updatedEdges = edges.map(edge => {
@@ -187,17 +179,21 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       });
       setEdges(updatedEdges);
 
-      const newCanvasData = { nodes: allNodes, edges: updatedEdges };
+      const newCanvasData = { nodes, edges: updatedEdges };
       await onCanvasUpdate(newCanvasData);
     }
   };
 
-  const createReactFlowNode = (nodeData: PlotNodeData): Node<PlotNodeData> => ({
+  const createReactFlowNode = (nodeData: any): Node<PlotNodeData> => ({
     id: nodeData.id,
     type: 'plotNode',
-    position: { x: Math.random() * 400, y: Math.random() * 400 },
+    position: nodeData.position || { x: Math.random() * 400, y: Math.random() * 400 },
     data: {
-      ...nodeData,
+      id: nodeData.id,
+      type: nodeData.type || 'scene',
+      name: nodeData.name || 'Untitled',
+      detail: nodeData.detail || '',
+      status: nodeData.status || 'not-started',
       onEdit: (nodeId: string) => {
         const nodeToEdit = nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
