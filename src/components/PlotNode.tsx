@@ -42,23 +42,14 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
 
   return (
     <Card className="min-w-[220px] shadow-lg border-2 hover:shadow-xl transition-shadow">
-      {/* Top Handles */}
+      {/* Single handles on each side that accept multiple connections */}
       <Handle 
         type="target" 
         position={Position.Top} 
-        id="top-left"
-        style={{ left: '25%' }}
-        className="w-3 h-3 bg-blue-500 border-2 border-white"
-      />
-      <Handle 
-        type="target" 
-        position={Position.Top} 
-        id="top-right"
-        style={{ left: '75%' }}
+        id="top"
         className="w-3 h-3 bg-blue-500 border-2 border-white"
       />
       
-      {/* Left Handle */}
       <Handle 
         type="target" 
         position={Position.Left} 
@@ -66,11 +57,17 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         className="w-3 h-3 bg-blue-500 border-2 border-white"
       />
       
-      {/* Right Handle */}
       <Handle 
         type="source" 
         position={Position.Right} 
         id="right"
+        className="w-3 h-3 bg-green-500 border-2 border-white"
+      />
+      
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="bottom"
         className="w-3 h-3 bg-green-500 border-2 border-white"
       />
       
@@ -114,7 +111,11 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             variant="outline"
             size="sm"
             className="h-6 px-2 text-xs"
-            onClick={() => data.onEdit(data.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Edit button clicked for node:', data.id);
+              data.onEdit(data.id);
+            }}
           >
             <Edit size={10} className="mr-1" />
             Edit
@@ -123,29 +124,17 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             variant="outline"
             size="sm"
             className="h-6 px-2 text-xs"
-            onClick={() => data.onAddChild(data.id)}
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log('Add button clicked for node:', data.id);
+              data.onAddChild(data.id);
+            }}
           >
             <Plus size={10} className="mr-1" />
             Add
           </Button>
         </div>
       </CardContent>
-      
-      {/* Bottom Handles */}
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        id="bottom-left"
-        style={{ left: '25%' }}
-        className="w-3 h-3 bg-green-500 border-2 border-white"
-      />
-      <Handle 
-        type="source" 
-        position={Position.Bottom} 
-        id="bottom-right"
-        style={{ left: '75%' }}
-        className="w-3 h-3 bg-green-500 border-2 border-white"
-      />
     </Card>
   );
 };

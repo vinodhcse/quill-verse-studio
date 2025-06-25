@@ -17,6 +17,8 @@ import DeletableEdge from '@/components/DeletableEdge';
 import { PlotNodeData } from '@/types/plotCanvas';
 import { QuickNodeModal } from './QuickNodeModal';
 import { NodeEditModal } from './NodeEditModal';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const initialNodes: Node<PlotNodeData>[] = [
   {
@@ -31,8 +33,8 @@ const initialNodes: Node<PlotNodeData>[] = [
       status: 'not-started',
       characters: [],
       worlds: [],
-      onEdit: (nodeId: string) => console.log('Edit node', nodeId),
-      onAddChild: (parentId: string) => console.log('Add child to', parentId),
+      onEdit: () => {},
+      onAddChild: () => {},
     },
   },
 ];
@@ -128,9 +130,10 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       position
     });
 
-    setNodes((nds) => [...nds, newNode]);
+    const updatedNodes = [...nodes, newNode];
+    setNodes(updatedNodes);
 
-    const newCanvasData = { nodes: [...nodes, newNode], edges };
+    const newCanvasData = { nodes: updatedNodes, edges };
     await onCanvasUpdate(newCanvasData);
     setShowQuickModal(false);
   };
@@ -139,7 +142,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     const newNodeId = `node-${Date.now()}`;
     const parentNode = nodes.find(n => n.id === parentId);
     const childPosition = parentNode 
-      ? { x: parentNode.position.x + 150, y: parentNode.position.y + 100 }
+      ? { x: parentNode.position.x + 300, y: parentNode.position.y + 150 }
       : { x: Math.random() * 400, y: Math.random() * 400 };
 
     const newNode: Node<PlotNodeData> = createReactFlowNode({
@@ -153,23 +156,23 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       position: childPosition
     });
 
-    setNodes((nds) => [...nds, newNode]);
+    const updatedNodes = [...nodes, newNode];
+    setNodes(updatedNodes);
 
     const newEdge = {
       id: `${parentId}-${newNodeId}`,
       source: parentId,
       target: newNodeId,
-      sourceHandle: 'bottom-right',
-      targetHandle: 'top-left',
       type: 'custom',
       data: {
         type: 'parent-child',
         onConvertEdge: handleConvertEdge,
       },
     };
-    setEdges((eds) => [...eds, newEdge]);
+    const updatedEdges = [...edges, newEdge];
+    setEdges(updatedEdges);
 
-    const newCanvasData = { nodes: [...nodes, newNode], edges: [...edges, newEdge] };
+    const newCanvasData = { nodes: updatedNodes, edges: updatedEdges };
     await onCanvasUpdate(newCanvasData);
   };
 
@@ -224,8 +227,39 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     },
   });
 
+  const handleAddFirstNode = () => {
+    const newNodeId = `node-${Date.now()}`;
+    const newNode: Node<PlotNodeData> = createReactFlowNode({
+      id: newNodeId,
+      type: 'act',
+      name: 'Act 1',
+      detail: 'The beginning of the story',
+      status: 'not-started',
+      characters: [],
+      worlds: [],
+      position: { x: 250, y: 250 }
+    });
+
+    setNodes([newNode]);
+    const newCanvasData = { nodes: [newNode], edges: [] };
+    onCanvasUpdate(newCanvasData);
+  };
+
   return (
     <div className="h-full w-full relative">
+      {nodes.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/80">
+          <div className="text-center space-y-4">
+            <h3 className="text-lg font-semibold text-muted-foreground">No story structure yet</h3>
+            <p className="text-sm text-muted-foreground">Start building your plot by adding your first act</p>
+            <Button onClick={handleAddFirstNode} className="flex items-center gap-2">
+              <Plus size={16} />
+              Add First Act
+            </Button>
+          </div>
+        </div>
+      )}
+
       <ReactFlow
         nodes={nodes}
         edges={edges}
@@ -239,6 +273,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         className="bg-background"
         deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode={['Meta', 'Ctrl']}
+        connectionMode="loose"
       >
         <Controls />
         <Background />
@@ -260,7 +295,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
           isOpen={!!editingNode}
           node={editingNode.data}
           onClose={() => setEditingNode(null)}
-          onSave={(nodeId: string, updatedData: Partial<PlotNodeData>) => handleNodeEdit(nodeId, updatedData)}
+          onSave={handleNodeEdit}
           timelineEvents={[]}
           onTimelineEventsChange={() => {}}
         />

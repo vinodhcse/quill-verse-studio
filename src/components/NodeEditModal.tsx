@@ -8,7 +8,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Label } from '@/components/ui/label';
 import { PlotNodeData } from '@/types/plotCanvas';
 import { TimelineEvent } from '@/types/canvas';
-import { TimelineEditor } from './TimelineEditor';
 
 interface NodeEditModalProps {
   isOpen: boolean;
@@ -52,6 +51,7 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   };
 
   useEffect(() => {
+    console.log('NodeEditModal useEffect - node:', node);
     if (node) {
       setFormData({
         type: node.type,
@@ -74,7 +74,11 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   }, [node, parentType, isOpen]);
 
   const handleSave = () => {
-    if (!formData.name?.trim() || !node) return;
+    console.log('NodeEditModal handleSave - formData:', formData, 'node:', node);
+    if (!formData.name?.trim() || !node) {
+      console.log('Cannot save - missing name or node');
+      return;
+    }
 
     onSave(node.id, {
       type: formData.type,
