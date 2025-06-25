@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { ReactFlowProvider } from '@xyflow/react';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
 import PlotCanvas from '@/components/PlotCanvas';
 import { CharacterGlossary } from '@/components/CharacterGlossary';
@@ -93,12 +94,14 @@ const PlanPage: React.FC = () => {
               <div className="text-lg">Loading Plot Outline...</div>
             </div>
           ) : (
-            <PlotCanvas
-              bookId={bookId}
-              versionId={versionId}
-              canvasData={canvasData}
-              onCanvasUpdate={handleCanvasUpdate}
-            />
+            <ReactFlowProvider>
+              <PlotCanvas
+                bookId={bookId}
+                versionId={versionId}
+                canvasData={canvasData}
+                onCanvasUpdate={handleCanvasUpdate}
+              />
+            </ReactFlowProvider>
           )}
         </TabsContent>
 
@@ -108,12 +111,14 @@ const PlanPage: React.FC = () => {
               <div className="text-lg">Loading Character Arcs...</div>
             </div>
           ) : (
-            <PlotCanvas
-              bookId={bookId}
-              versionId={versionId}
-              canvasData={canvasData}
-              onCanvasUpdate={handleCanvasUpdate}
-            />
+            <ReactFlowProvider>
+              <PlotCanvas
+                bookId={bookId}
+                versionId={versionId}
+                canvasData={canvasData}
+                onCanvasUpdate={handleCanvasUpdate}
+              />
+            </ReactFlowProvider>
           )}
         </TabsContent>
 
@@ -123,12 +128,14 @@ const PlanPage: React.FC = () => {
               <div className="text-lg">Loading World Building...</div>
             </div>
           ) : (
-            <PlotCanvas
-              bookId={bookId}
-              versionId={versionId}
-              canvasData={canvasData}
-              onCanvasUpdate={handleCanvasUpdate}
-            />
+            <ReactFlowProvider>
+              <PlotCanvas
+                bookId={bookId}
+                versionId={versionId}
+                canvasData={canvasData}
+                onCanvasUpdate={handleCanvasUpdate}
+              />
+            </ReactFlowProvider>
           )}
         </TabsContent>
 
@@ -138,12 +145,14 @@ const PlanPage: React.FC = () => {
               <div className="text-lg">Loading Timeline...</div>
             </div>
           ) : (
-            <PlotCanvas
-              bookId={bookId}
-              versionId={versionId}
-              canvasData={canvasData}
-              onCanvasUpdate={handleCanvasUpdate}
-            />
+            <ReactFlowProvider>
+              <PlotCanvas
+                bookId={bookId}
+                versionId={versionId}
+                canvasData={canvasData}
+                onCanvasUpdate={handleCanvasUpdate}
+              />
+            </ReactFlowProvider>
           )}
         </TabsContent>
       </div>
@@ -193,12 +202,14 @@ const PlanPage: React.FC = () => {
                   <div className="text-lg">Loading Timeline...</div>
                 </div>
               ) : (
-                <PlotCanvas
-                  bookId={bookId}
-                  versionId={versionId}
-                  canvasData={canvasData}
-                  onCanvasUpdate={handleCanvasUpdate}
-                />
+                <ReactFlowProvider>
+                  <PlotCanvas
+                    bookId={bookId}
+                    versionId={versionId}
+                    canvasData={canvasData}
+                    onCanvasUpdate={handleCanvasUpdate}
+                  />
+                </ReactFlowProvider>
               )}
             </div>
           )}

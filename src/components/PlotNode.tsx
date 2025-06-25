@@ -4,7 +4,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Plus } from 'lucide-react';
+import { Edit, Plus, Users, Globe } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
 
 interface PlotNodeProps extends NodeProps {
@@ -41,8 +41,38 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   };
 
   return (
-    <Card className="min-w-[200px] shadow-lg border-2 hover:shadow-xl transition-shadow">
-      <Handle type="target" position={Position.Top} />
+    <Card className="min-w-[220px] shadow-lg border-2 hover:shadow-xl transition-shadow">
+      {/* Top Handles */}
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        id="top-left"
+        style={{ left: '25%' }}
+        className="w-3 h-3 bg-blue-500 border-2 border-white"
+      />
+      <Handle 
+        type="target" 
+        position={Position.Top} 
+        id="top-right"
+        style={{ left: '75%' }}
+        className="w-3 h-3 bg-blue-500 border-2 border-white"
+      />
+      
+      {/* Left Handle */}
+      <Handle 
+        type="target" 
+        position={Position.Left} 
+        id="left"
+        className="w-3 h-3 bg-blue-500 border-2 border-white"
+      />
+      
+      {/* Right Handle */}
+      <Handle 
+        type="source" 
+        position={Position.Right} 
+        id="right"
+        className="w-3 h-3 bg-green-500 border-2 border-white"
+      />
       
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
@@ -62,6 +92,22 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             {data.detail}
           </p>
         )}
+
+        {/* Characters and Worlds indicators */}
+        <div className="flex flex-wrap gap-1 mb-3">
+          {data.characters && data.characters.length > 0 && (
+            <Badge variant="outline" className="text-xs flex items-center gap-1">
+              <Users size={8} />
+              {data.characters.length}
+            </Badge>
+          )}
+          {data.worlds && data.worlds.length > 0 && (
+            <Badge variant="outline" className="text-xs flex items-center gap-1">
+              <Globe size={8} />
+              {data.worlds.length}
+            </Badge>
+          )}
+        </div>
         
         <div className="flex gap-1">
           <Button
@@ -85,7 +131,21 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         </div>
       </CardContent>
       
-      <Handle type="source" position={Position.Bottom} />
+      {/* Bottom Handles */}
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="bottom-left"
+        style={{ left: '25%' }}
+        className="w-3 h-3 bg-green-500 border-2 border-white"
+      />
+      <Handle 
+        type="source" 
+        position={Position.Bottom} 
+        id="bottom-right"
+        style={{ left: '75%' }}
+        className="w-3 h-3 bg-green-500 border-2 border-white"
+      />
     </Card>
   );
 };

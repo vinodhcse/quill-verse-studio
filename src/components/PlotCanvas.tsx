@@ -9,6 +9,7 @@ import {
   Background,
   Node,
   Edge,
+  Connection,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import PlotNode from '@/components/PlotNode';
@@ -88,14 +89,27 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   };
 
   const onConnect = useCallback(
-    (params) => {
-      setEdges((eds) => addEdge(params, eds));
+    (params: Connection) => {
+      const newEdge = {
+        ...params,
+        id: `${params.source}-${params.target}-${Date.now()}`,
+        type: 'custom',
+        data: {
+          type: 'linked',
+          onConvertEdge: handleConvertEdge,
+        },
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
     },
     [setEdges]
   );
 
   const handlePaneClick = (event: any) => {
-    setQuickModalPosition({ x: event.clientX, y: event.clientY });
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setQuickModalPosition({ 
+      x: event.clientX - bounds.left, 
+      y: event.clientY - bounds.top 
+    });
     setShowQuickModal(true);
   };
 
@@ -194,6 +208,8 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       name: nodeData.name || 'Untitled',
       detail: nodeData.detail || '',
       status: nodeData.status || 'not-started',
+      characters: nodeData.characters || [],
+      worlds: nodeData.worlds || [],
       onEdit: (nodeId: string) => {
         const nodeToEdit = nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
@@ -217,6 +233,8 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         edgeTypes={edgeTypes}
         fitView
         className="bg-background"
+        deleteKeyCode={['Backspace', 'Delete']}
+        multiSelectionKeyCode={['Meta', 'Ctrl']}
       >
         <Controls />
         <Background />
