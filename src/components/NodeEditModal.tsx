@@ -6,14 +6,15 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
-import { CanvasNode, TimelineEvent } from '@/types/canvas';
+import { PlotNodeData } from '@/types/plotCanvas';
+import { TimelineEvent } from '@/types/canvas';
 import { TimelineEditor } from './TimelineEditor';
 
 interface NodeEditModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (node: CanvasNode) => void;
-  node?: CanvasNode;
+  onSave: (nodeId: string, updatedData: Partial<PlotNodeData>) => void;
+  node?: PlotNodeData;
   timelineEvents: TimelineEvent[];
   onTimelineEventsChange: (events: TimelineEvent[]) => void;
   parentType?: string;
@@ -28,60 +29,61 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   onTimelineEventsChange,
   parentType
 }) => {
-  const [formData, setFormData] = useState<Partial<CanvasNode>>({
-    type: 'Outline',
+  const [formData, setFormData] = useState<Partial<PlotNodeData>>({
+    type: 'act',
     name: '',
     detail: '',
-    goal: '',
-    status: 'Not Completed',
-    timelineEventIds: []
+    status: 'not-started',
+    characters: [],
+    worlds: []
   });
 
   const getChildType = (parentType: string): string => {
     switch (parentType) {
-      case 'Outline':
-        return 'Act';
-      case 'Act':
-        return 'Chapter';
-      case 'Chapter':
-        return 'SceneBeats';
+      case 'act':
+        return 'chapter';
+      case 'chapter':
+        return 'scene';
+      case 'scene':
+        return 'beat';
       default:
-        return 'Outline';
+        return 'act';
     }
   };
 
   useEffect(() => {
     if (node) {
-      setFormData(node);
+      setFormData({
+        type: node.type,
+        name: node.name,
+        detail: node.detail,
+        status: node.status,
+        characters: node.characters || [],
+        worlds: node.worlds || []
+      });
     } else {
       setFormData({
-        type: parentType ? getChildType(parentType) as any : 'Outline',
+        type: parentType ? getChildType(parentType) as any : 'act',
         name: '',
         detail: '',
-        goal: '',
-        status: 'Not Completed',
-        timelineEventIds: []
+        status: 'not-started',
+        characters: [],
+        worlds: []
       });
     }
   }, [node, parentType, isOpen]);
 
   const handleSave = () => {
-    if (!formData.name?.trim()) return;
+    if (!formData.name?.trim() || !node) return;
 
-    const nodeData: CanvasNode = {
-      id: node?.id || `node_${Date.now()}`,
-      type: formData.type as any,
+    onSave(node.id, {
+      type: formData.type,
       name: formData.name,
-      detail: formData.detail || '',
-      goal: formData.goal || '',
-      status: formData.status as any,
-      timelineEventIds: formData.timelineEventIds || [],
-      parentId: formData.parentId,
-      childIds: formData.childIds || []
-    };
-
-    onSave(nodeData);
-    onClose();
+      detail: formData.detail,
+      status: formData.status,
+      characters: formData.characters,
+      worlds: formData.worlds
+    });
   };
 
   return (
@@ -104,11 +106,10 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Outline">Outline</SelectItem>
-                <SelectItem value="Act">Act</SelectItem>
-                <SelectItem value="Chapter">Chapter</SelectItem>
-                <SelectItem value="SceneBeats">Scene Beats</SelectItem>
-                <SelectItem value="Character">Character</SelectItem>
+                <SelectItem value="act">Act</SelectItem>
+                <SelectItem value="chapter">Chapter</SelectItem>
+                <SelectItem value="scene">Scene</SelectItem>
+                <SelectItem value="beat">Beat</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -135,17 +136,6 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
           </div>
 
           <div>
-            <Label htmlFor="goal">Goal</Label>
-            <Textarea
-              id="goal"
-              value={formData.goal}
-              onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
-              placeholder="Enter goal..."
-              rows={3}
-            />
-          </div>
-
-          <div>
             <Label htmlFor="status">Status</Label>
             <Select
               value={formData.status}
@@ -155,21 +145,34 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="Completed">Completed</SelectItem>
-                <SelectItem value="Not Completed">Not Completed</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="in-progress">In Progress</SelectItem>
+                <SelectItem value="not-started">Not Started</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div>
-            <Label>Timeline Events</Label>
-            <TimelineEditor
-              timelineEvents={timelineEvents}
-              selectedEventIds={formData.timelineEventIds || []}
-              onEventsChange={onTimelineEventsChange}
-              onSelectionChange={(eventIds) => 
-                setFormData(prev => ({ ...prev, timelineEventIds: eventIds }))
-              }
+            <Label>Characters</Label>
+            <Input
+              value={formData.characters?.join(', ') || ''}
+              onChange={(e) => setFormData(prev => ({ 
+                ...prev, 
+                characters: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+              }))}
+              placeholder="Enter character names separated by commas..."
+            />
+          </div>
+
+          <div>
+            <Label>Worlds</Label>
+            <Input
+              value={formData.worlds?.join(', ') || ''}
+              onChange={(e) => setFormData(prev => ({ 
+                ...prev, 
+                worlds: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
+              }))}
+              placeholder="Enter world names separated by commas..."
             />
           </div>
 

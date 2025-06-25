@@ -29,6 +29,8 @@ const initialNodes: Node<PlotNodeData>[] = [
       name: 'Act 1',
       detail: 'The beginning of the story',
       status: 'not-started',
+      characters: [],
+      worlds: [],
       onEdit: (nodeId: string) => console.log('Edit node', nodeId),
       onAddChild: (parentId: string) => console.log('Add child to', parentId),
     },
@@ -62,7 +64,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   const [editingNode, setEditingNode] = useState<Node<PlotNodeData> | null>(null);
 
   useEffect(() => {
-    if (canvasData) {
+    if (canvasData && canvasData.nodes) {
       const reactFlowNodes = canvasData.nodes.map((nodeData: any) =>
         createReactFlowNode(nodeData)
       );
@@ -113,52 +115,52 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     setShowQuickModal(true);
   };
 
-  const handleQuickNodeSave = async (nodeData: Omit<PlotNodeData, 'id'>) => {
+  const handleQuickNodeSave = async (nodeData: any, position: { x: number; y: number }) => {
     const newNodeId = `node-${Date.now()}`;
-    const newNode: PlotNodeData = {
+    const newNode: Node<PlotNodeData> = createReactFlowNode({
       id: newNodeId,
-      ...nodeData,
-      onEdit: (nodeId: string) => {
-        const nodeToEdit = nodes.find(n => n.id === nodeId);
-        if (nodeToEdit) {
-          setEditingNode(nodeToEdit);
-        }
-      },
-      onAddChild: handleAddChild,
-    };
+      type: nodeData.type || 'scene',
+      name: nodeData.name || 'New Node',
+      detail: nodeData.detail || '',
+      status: nodeData.status || 'not-started',
+      characters: nodeData.characters || [],
+      worlds: nodeData.worlds || [],
+      position
+    });
 
-    const newReactFlowNode = createReactFlowNode(newNode);
-    setNodes((nds) => [...nds, newReactFlowNode]);
+    setNodes((nds) => [...nds, newNode]);
 
-    const newCanvasData = { nodes: [...nodes, newReactFlowNode], edges };
+    const newCanvasData = { nodes: [...nodes, newNode], edges };
     await onCanvasUpdate(newCanvasData);
     setShowQuickModal(false);
   };
 
   const handleAddChild = async (parentId: string) => {
     const newNodeId = `node-${Date.now()}`;
-    const newNode: PlotNodeData = {
+    const parentNode = nodes.find(n => n.id === parentId);
+    const childPosition = parentNode 
+      ? { x: parentNode.position.x + 150, y: parentNode.position.y + 100 }
+      : { x: Math.random() * 400, y: Math.random() * 400 };
+
+    const newNode: Node<PlotNodeData> = createReactFlowNode({
       id: newNodeId,
       type: 'scene',
       name: 'New Scene',
-      status: 'not-started',
       detail: 'Details of the new scene',
-      onEdit: (nodeId: string) => {
-        const nodeToEdit = nodes.find(n => n.id === nodeId);
-        if (nodeToEdit) {
-          setEditingNode(nodeToEdit);
-        }
-      },
-      onAddChild: handleAddChild,
-    };
+      status: 'not-started',
+      characters: [],
+      worlds: [],
+      position: childPosition
+    });
 
-    const newReactFlowNode = createReactFlowNode(newNode);
-    setNodes((nds) => [...nds, newReactFlowNode]);
+    setNodes((nds) => [...nds, newNode]);
 
     const newEdge = {
       id: `${parentId}-${newNodeId}`,
       source: parentId,
       target: newNodeId,
+      sourceHandle: 'bottom-right',
+      targetHandle: 'top-left',
       type: 'custom',
       data: {
         type: 'parent-child',
@@ -167,7 +169,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     };
     setEdges((eds) => [...eds, newEdge]);
 
-    const newCanvasData = { nodes: [...nodes, newReactFlowNode], edges: [...edges, newEdge] };
+    const newCanvasData = { nodes: [...nodes, newNode], edges: [...edges, newEdge] };
     await onCanvasUpdate(newCanvasData);
   };
 
@@ -211,8 +213,10 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       characters: nodeData.characters || [],
       worlds: nodeData.worlds || [],
       onEdit: (nodeId: string) => {
+        console.log('Edit clicked for node:', nodeId);
         const nodeToEdit = nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
+          console.log('Setting editing node:', nodeToEdit);
           setEditingNode(nodeToEdit);
         }
       },
@@ -254,9 +258,11 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       {editingNode && (
         <NodeEditModal
           isOpen={!!editingNode}
-          node={editingNode}
+          node={editingNode.data}
           onClose={() => setEditingNode(null)}
           onSave={(nodeId: string, updatedData: Partial<PlotNodeData>) => handleNodeEdit(nodeId, updatedData)}
+          timelineEvents={[]}
+          onTimelineEventsChange={() => {}}
         />
       )}
     </div>
