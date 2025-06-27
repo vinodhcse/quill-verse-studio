@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/api';
-import { Book, Version, Collaborator } from '@/types/collaboration';
+import { Book, Version, CollaboratorInfo } from '@/types/collaboration';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Plus, Edit, BookOpen, Settings, Share2, Trash2 } from 'lucide-react';
@@ -10,29 +11,42 @@ import { EditVersionModal } from '@/components/EditVersionModal';
 import { ShareVersionModal } from '@/components/ShareVersionModal';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
-import { useAuth } from '@clerk/clerk-react';
-import { Header } from '@/components/Header';
+import { useUserContext } from '@/lib/UserContextProvider';
+import Header from '@/components/Header';
 
-interface Params {
+interface Params extends Record<string, string> {
   bookId: string;
+}
+
+// Extended interfaces to include missing properties
+interface ExtendedBook extends Book {
+  description?: string;
+  authorName?: string;
+  updatedAt?: string;
+}
+
+interface ExtendedVersion extends Version {
+  status?: 'active' | 'draft' | 'archived';
+  type?: 'main' | 'branch';
+  updatedAt?: string;
+  createdBy?: string;
 }
 
 const BookDetails: React.FC = () => {
   const { bookId } = useParams<Params>();
   const navigate = useNavigate();
-  const [book, setBook] = useState<Book | null>(null);
-  const [versions, setVersions] = useState<Version[]>([]);
-  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [book, setBook] = useState<ExtendedBook | null>(null);
+  const [versions, setVersions] = useState<ExtendedVersion[]>([]);
+  const [collaborators, setCollaborators] = useState<CollaboratorInfo[]>([]);
   const [loading, setLoading] = useState(true);
   const [createVersionModalOpen, setCreateVersionModalOpen] = useState(false);
   const [editVersionModalOpen, setEditVersionModalOpen] = useState(false);
   const [shareVersionModalOpen, setShareVersionModalOpen] = useState(false);
-  const [editingVersion, setEditingVersion] = useState<Version | null>(null);
-  const [sharingVersion, setSharingVersion] = useState<Version | null>(null);
+  const [editingVersion, setEditingVersion] = useState<ExtendedVersion | null>(null);
+  const [sharingVersion, setSharingVersion] = useState<ExtendedVersion | null>(null);
   const [deleteVersionDialogOpen, setDeleteVersionDialogOpen] = useState(false);
   const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
-  const { userId, getToken } = useAuth();
-  const [user, setUser] = useState<any>(null);
+  const { userId } = useUserContext();
 
   useEffect(() => {
     const fetchBookDetails = async () => {
@@ -57,26 +71,7 @@ const BookDetails: React.FC = () => {
     fetchBookDetails();
   }, [bookId]);
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      if (!userId) return;
-      try {
-        const token = await getToken({ template: "supabase" });
-        const userResponse = await apiClient.get(`/users/${userId}`, {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        setUser(userResponse.data);
-      } catch (error) {
-        console.error('Failed to fetch user details:', error);
-      }
-    };
-
-    fetchUser();
-  }, [userId, getToken]);
-
-  const handleCreateVersion = async (versionData: { name: string; description: string }) => {
+  const handleCreateVersion = async (versionData: { name: string; baseVersionId?: string }) => {
     if (!bookId) return;
 
     try {
@@ -120,21 +115,18 @@ const BookDetails: React.FC = () => {
     if (!bookId) return;
 
     try {
-      // Assuming the API endpoint for sharing a version is something like this
       await apiClient.post(`/books/${bookId}/versions/${versionId}/share`, shareData);
       setShareVersionModalOpen(false);
       setSharingVersion(null);
-      // Optionally, provide user feedback (e.g., a toast notification)
       alert('Version shared successfully!');
     } catch (error) {
       console.error('Failed to share version:', error);
-      // Optionally, show an error message to the user
       alert('Failed to share version.');
     }
   };
 
-  const currentUserCollaborator = collaborators.find(c => c.userId === user?.id);
-  const canManageVersions = currentUserCollaborator?.role === 'owner' || currentUserCollaborator?.role === 'editor';
+  const currentUserCollaborator = collaborators.find(c => c.user_id === userId);
+  const canManageVersions = currentUserCollaborator?.collaborator_type === 'owner' || currentUserCollaborator?.collaborator_type === 'editor';
 
   if (loading) {
     return (
@@ -159,14 +151,14 @@ const BookDetails: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">{book.title}</h1>
-          <p className="text-muted-foreground mb-4">{book.description}</p>
+          <p className="text-muted-foreground mb-4">{book.description || 'No description available'}</p>
           
           <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>Author: {book.authorName}</span>
+            <span>Author: {book.authorName || book.authorname}</span>
             <span>•</span>
             <span>Created: {new Date(book.createdAt).toLocaleDateString()}</span>
             <span>•</span>
-            <span>Updated: {new Date(book.updatedAt).toLocaleDateString()}</span>
+            <span>Updated: {new Date(book.updatedAt || book.lastModified).toLocaleDateString()}</span>
           </div>
         </div>
 
@@ -194,13 +186,13 @@ const BookDetails: React.FC = () => {
                             variant={version.status === 'active' ? 'default' : 'secondary'}
                             className="text-xs"
                           >
-                            {version.status}
+                            {version.status || 'draft'}
                           </Badge>
                           <Badge 
                             variant={version.type === 'main' ? 'default' : 'outline'}
                             className="text-xs"
                           >
-                            {version.type}
+                            {version.type || 'branch'}
                           </Badge>
                         </div>
                         
@@ -209,7 +201,7 @@ const BookDetails: React.FC = () => {
                         <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
                           <span>Created: {new Date(version.createdAt).toLocaleDateString()}</span>
                           <span>•</span>
-                          <span>Updated: {new Date(version.updatedAt).toLocaleDateString()}</span>
+                          <span>Updated: {new Date(version.updatedAt || version.createdAt).toLocaleDateString()}</span>
                           {version.createdBy && (
                             <>
                               <span>•</span>
@@ -309,11 +301,11 @@ const BookDetails: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{collaborator.userName}</div>
-                        <div className="text-sm text-muted-foreground">{collaborator.userEmail}</div>
+                        <div className="font-medium">{collaborator.name}</div>
+                        <div className="text-sm text-muted-foreground">{collaborator.user_email}</div>
                       </div>
                       <Badge variant="outline" className="text-xs">
-                        {collaborator.role}
+                        {collaborator.collaborator_type}
                       </Badge>
                     </div>
                   </CardContent>
@@ -336,7 +328,8 @@ const BookDetails: React.FC = () => {
       <CreateVersionModal
         isOpen={createVersionModalOpen}
         onClose={() => setCreateVersionModalOpen(false)}
-        onSave={handleCreateVersion}
+        onCreateVersion={handleCreateVersion}
+        existingVersions={versions}
       />
 
       {editingVersion && (
@@ -358,7 +351,7 @@ const BookDetails: React.FC = () => {
             setShareVersionModalOpen(false);
             setSharingVersion(null);
           }}
-          onSave={(data) => handleShareVersion(sharingVersion.id, data)}
+          onShareVersion={(data) => handleShareVersion(sharingVersion.id, data)}
           version={sharingVersion}
         />
       )}
