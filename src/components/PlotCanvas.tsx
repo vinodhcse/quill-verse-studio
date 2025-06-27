@@ -68,11 +68,20 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       // Show children and linked nodes of the selected node
       const selectedNode = canvasData.nodes.find(n => n.id === currentViewNodeId);
       if (selectedNode) {
-        nodesToShow = canvasData.nodes.filter(node => 
-          selectedNode.childIds.includes(node.id) || 
-          selectedNode.linkedNodeIds.includes(node.id) ||
-          node.id === currentViewNodeId
+        // Always include the current node
+        nodesToShow.push(selectedNode);
+        
+        // Add all child nodes
+        const childNodes = canvasData.nodes.filter(node => 
+          selectedNode.childIds.includes(node.id)
         );
+        nodesToShow.push(...childNodes);
+        
+        // Add all linked nodes (including characters and world entities)
+        const linkedNodes = canvasData.nodes.filter(node => 
+          selectedNode.linkedNodeIds.includes(node.id)
+        );
+        nodesToShow.push(...linkedNodes);
       }
     }
 
@@ -81,17 +90,20 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 
     // Create edges for parent-child and linked relationships
     const reactFlowEdges: Edge[] = [];
+    
     nodesToShow.forEach(node => {
       // Parent-child edges (from bottom handle to top handle)
       node.childIds.forEach(childId => {
         if (nodesToShow.find(n => n.id === childId)) {
           reactFlowEdges.push({
-            id: `${node.id}-${childId}`,
+            id: `parent-child-${node.id}-${childId}`,
             source: node.id,
             sourceHandle: 'bottom',
             target: childId,
             targetHandle: 'top',
             type: 'custom',
+            animated: false,
+            style: { stroke: '#6366f1', strokeWidth: 2 },
             data: {
               type: 'parent-child',
               onConvertEdge: handleConvertEdge,
@@ -100,16 +112,18 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         }
       });
 
-      // Linked edges (from side handles)
+      // Linked edges (from side handles) - these are for related/associated entities
       node.linkedNodeIds.forEach(linkedId => {
         if (nodesToShow.find(n => n.id === linkedId)) {
           reactFlowEdges.push({
-            id: `${node.id}-${linkedId}`,
+            id: `linked-${node.id}-${linkedId}`,
             source: node.id,
             sourceHandle: 'right',
             target: linkedId,
             targetHandle: 'left',
             type: 'custom',
+            animated: true,
+            style: { stroke: '#10b981', strokeWidth: 2, strokeDasharray: '5,5' },
             data: {
               type: 'linked',
               onConvertEdge: handleConvertEdge,
@@ -273,7 +287,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   const handleNavigateToEntity = (entityId: string) => {
     console.log('Navigating to entity:', entityId);
     const entity = canvasData?.nodes.find(n => n.id === entityId);
-    if (entity && ['Character', 'WorldLocation', 'WorldObject'].includes(entity.type)) {
+    if (entity) {
       console.log('Setting current view to:', entityId, entity.type);
       setCurrentViewNodeId(entityId);
       setCurrentViewType(entity.type);

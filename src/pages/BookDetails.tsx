@@ -1,609 +1,391 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share, Edit, UserPlus, Trash2 } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/api';
-import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
-import { useForm } from 'react-hook-form';
-import { EditBookModal } from '@/components/EditBookModal';
+import { Book, Version, Collaborator } from '@/types/collaboration';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Plus, Edit, BookOpen, Settings, Share2, Trash2 } from 'lucide-react';
 import { CreateVersionModal } from '@/components/CreateVersionModal';
-import { useToast } from '@/hooks/use-toast';
-import { getLoggedInUserId } from '../lib/authService';
-import { useUserContext } from '../lib/UserContextProvider';
+import { EditVersionModal } from '@/components/EditVersionModal';
+import { ShareVersionModal } from '@/components/ShareVersionModal';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Badge } from '@/components/ui/badge';
+import { useAuth } from '@clerk/clerk-react';
+import { Header } from '@/components/Header';
 
-interface InviteFormData {
-  email: string;
-  role: 'Co-Author' | 'Editor' | 'Reviewer';
+interface Params {
+  bookId: string;
 }
 
-const BookDetails = () => {
-  const { bookId } = useParams<{ bookId: string }>();
+const BookDetails: React.FC = () => {
+  const { bookId } = useParams<Params>();
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const [bookDetails, setBookDetails] = useState<BookDetailsType | null>(null);
+  const [book, setBook] = useState<Book | null>(null);
   const [versions, setVersions] = useState<Version[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isInviting, setIsInviting] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [isCreateVersionOpen, setIsCreateVersionOpen] = useState(false);
-  const [showInviteForm, setShowInviteForm] = useState(false);
-  const [isDeletingCollaborator, setIsDeletingCollaborator] = useState<string | null>(null);
-  const [bookUserRole, setBookUserRole] = useState<string | null>(null);
-
-  const { userId: currentUserId } = useUserContext();
-  console.log('Current User ID:', currentUserId);
-
-  const form = useForm<InviteFormData>({
-    defaultValues: {
-      email: '',
-      role: 'Reviewer',
-    },
-  });
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [createVersionModalOpen, setCreateVersionModalOpen] = useState(false);
+  const [editVersionModalOpen, setEditVersionModalOpen] = useState(false);
+  const [shareVersionModalOpen, setShareVersionModalOpen] = useState(false);
+  const [editingVersion, setEditingVersion] = useState<Version | null>(null);
+  const [sharingVersion, setSharingVersion] = useState<Version | null>(null);
+  const [deleteVersionDialogOpen, setDeleteVersionDialogOpen] = useState(false);
+  const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
+  const { userId, getToken } = useAuth();
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
     const fetchBookDetails = async () => {
       if (!bookId) return;
-      
-      setIsLoading(true);
+
       try {
-        const [bookResponse, versionsResponse] = await Promise.all([
-          apiClient.get(`/books/${bookId}`),
-          apiClient.get(`/books/${bookId}/versions`)
-        ]);
-        const bookData = bookResponse.data;
-        setBookDetails(bookData);
+        const bookResponse = await apiClient.get(`/books/${bookId}`);
+        setBook(bookResponse.data);
+
+        const versionsResponse = await apiClient.get(`/books/${bookId}/versions`);
         setVersions(versionsResponse.data);
 
-        // Determine user role
-        const loggedInUserId = currentUserId || getLoggedInUserId();
-        console.log('Logged In User ID:', loggedInUserId);
-        console.log('Book Author ID:', bookData.authorId);
-
-        let userRole = null;
-        
-        // Check if user is the author first
-        if (bookData.authorId === loggedInUserId) {
-          userRole = 'AUTHOR';
-          console.log('User is the AUTHOR of this book');
-        } else {
-          // Check if user is a collaborator
-          console.log('Book collaborators:', bookData.collaborators);
-          const collaborator = bookData.collaborators?.find(
-            (collab) => collab.user_id === loggedInUserId
-          );
-          console.log('Found collaborator:', collaborator);
-          userRole = collaborator ? collaborator.collaborator_type : 'VIEWER';
-        }
-        
-        console.log('Final determined role:', userRole);
-        setBookUserRole(userRole);
-        
+        const collaboratorsResponse = await apiClient.get(`/books/${bookId}/collaborators`);
+        setCollaborators(collaboratorsResponse.data);
       } catch (error) {
         console.error('Failed to fetch book details:', error);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
     fetchBookDetails();
-  }, [bookId, currentUserId]);
+  }, [bookId]);
 
-  const handleInviteCollaborator = async (data: InviteFormData) => {
-    setIsInviting(true);
-    try {
-      // Step 1: Check if email is already registered
-      let existingUser = null;
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (!userId) return;
       try {
-        const userResponse = await apiClient.get(`/users/email/${data.email}`);
-        existingUser = userResponse.data;
-        console.log('Found existing user:', existingUser);
-      } catch (error) {
-        console.log('User not found, will create placeholder');
-      }
-
-      if (existingUser) {
-        // User exists, add them directly to collaborators
-        const currentCollaborators = bookDetails?.collaborators || [];
-        const currentCollaboratorsIds = bookDetails?.collaboratorIds || [];
-        const newCollaborator = {
-          user_id: existingUser.id,
-          user_email: existingUser.email,
-          name: existingUser.name,
-          collaborator_type: data.role,
-          addedBy: currentUserId || "user_001", // This should come from current user context
-          addedAt: new Date().toISOString(),
-          expiresAt: null
-        };
-
-        const updatedCollaborators = [...currentCollaborators, newCollaborator];
-        const updatedCollaboratorids = [...currentCollaboratorsIds, existingUser.id];
-
-        await apiClient.patch(`/books/${bookId}`, {
-          collaborators: updatedCollaborators,
-          collaboratorIds: updatedCollaboratorids
-        });
-      } else {
-        // User doesn't exist, create placeholder and send invitation
-        await apiClient.post(`/books/${bookId}/invite`, {
-          email: data.email,
-          role: data.role
-        });
-      }
-
-      form.reset();
-      setShowInviteForm(false);
-      
-      // Refresh book details to show new collaborator
-      const response = await apiClient.get(`/books/${bookId}`);
-      setBookDetails(response.data);
-    } catch (error) {
-      console.error('Failed to invite collaborator:', error);
-      alert('Failed to invite collaborator. Please try again.');
-    } finally {
-      setIsInviting(false);
-    }
-  };
-
-  const handleUpdateBook = async (bookData: {
-    title: string;
-    subtitle: string;
-    language: string;
-    description: string;
-    file?: File;
-  }) => {
-    try {
-      // Update book details
-      const updateData: any = {
-        title: bookData.title,
-        subtitle: bookData.subtitle,
-        language: bookData.language,
-        description: bookData.description,
-      };
-
-      // If there's a new image file, upload it first
-      if (bookData.file) {
-        const uploadResponse = await apiClient.post(`/books/${bookId}/files`, {
-          file: bookData.file,
-          tags: 'cover',
-          description: 'Book cover image',
-        }, {
+        const token = await getToken({ template: "supabase" });
+        const userResponse = await apiClient.get(`/users/${userId}`, {
           headers: {
-            'Content-Type': 'multipart/form-data',
+            Authorization: `Bearer ${token}`,
           },
         });
-        updateData.bookImage = uploadResponse.data.url;
+        setUser(userResponse.data);
+      } catch (error) {
+        console.error('Failed to fetch user details:', error);
       }
+    };
 
-      await apiClient.patch(`/books/${bookId}`, updateData);
-      
-      // Refresh book details
-      const response = await apiClient.get(`/books/${bookId}`);
-      setBookDetails(response.data);
-      setIsEditModalOpen(false);
-    } catch (error) {
-      console.error('Failed to update book:', error);
-      alert('Failed to update book. Please try again.');
-    }
-  };
+    fetchUser();
+  }, [userId, getToken]);
 
-  const handleCreateVersion = async (versionData: { name: string; baseVersionId?: string }) => {
+  const handleCreateVersion = async (versionData: { name: string; description: string }) => {
+    if (!bookId) return;
+
     try {
-      const response = await apiClient.post(`/books/${bookId}/versions`, {
-        name: versionData.name,
-        lastModifiedBy: bookDetails?.authorname,
-        metaData: {
-          totalWords: 0,
-          totalCharacters: 0,
-          tags: ['Draft', 'Book_series_name'],
-        },
-      });
-
-      // Refresh versions list
-      const versionsResponse = await apiClient.get(`/books/${bookId}/versions`);
-      setVersions(versionsResponse.data);
-      setIsCreateVersionOpen(false);
-      
-      toast({
-        title: "Success",
-        description: "Version created successfully",
-      });
+      const response = await apiClient.post(`/books/${bookId}/versions`, versionData);
+      setVersions([...versions, response.data]);
+      setCreateVersionModalOpen(false);
     } catch (error) {
       console.error('Failed to create version:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create version. Please try again.",
-        variant: "destructive",
-      });
     }
   };
 
-  const handleOpenVersion = (versionId: string) => {
-    let basePath = '/write';
-    if (bookUserRole === 'EDITOR') {
-      basePath = '/edit';
-    } else if (bookUserRole === 'REVIEWER') {
-      basePath = '/review';
-    }
-    navigate(`${basePath}/book/${bookId}/version/${versionId}`);
-  };
+  const handleEditVersion = async (versionId: string, versionData: { name: string; description: string }) => {
+    if (!bookId) return;
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString();
-  };
-
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'AUTHOR': return 'bg-purple-100 text-purple-800';
-      case 'CO_WRITER': return 'bg-blue-100 text-blue-800';
-      case 'EDITOR': return 'bg-green-100 text-green-800';
-      case 'REVIEWER': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const handleDeleteCollaborator = async (collaboratorId: string) => {
-    if (!bookDetails) return;
-    
-    setIsDeletingCollaborator(collaboratorId);
     try {
-      // Filter out the collaborator to be deleted
-      const updatedCollaborators = bookDetails.collaborators.filter(
-        collaborator => collaborator.user_id !== collaboratorId
-      );
-
-      const updatedCollaboratorids = bookDetails?.collaboratorIds?.filter(
-         id => id !== collaboratorId
-      );
-
-      // Update the book with the new collaborators list
-      await apiClient.patch(`/books/${bookId}`, {
-        collaborators: updatedCollaborators,
-        collaboratorIds: updatedCollaboratorids
-      });
-
-      // Update local state
-      setBookDetails({
-        ...bookDetails,
-        collaborators: updatedCollaborators
-      });
-
-      toast({
-        title: "Success",
-        description: "Collaborator removed successfully",
-      });
+      const response = await apiClient.put(`/books/${bookId}/versions/${versionId}`, versionData);
+      const updatedVersions = versions.map(version => version.id === versionId ? response.data : version);
+      setVersions(updatedVersions);
+      setEditVersionModalOpen(false);
+      setEditingVersion(null);
     } catch (error) {
-      console.error('Failed to delete collaborator:', error);
-      toast({
-        title: "Error",
-        description: "Failed to remove collaborator. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsDeletingCollaborator(null);
+      console.error('Failed to edit version:', error);
     }
   };
 
-  if (isLoading) {
+  const handleDeleteVersion = async (versionId: string) => {
+    if (!bookId) return;
+
+    try {
+      await apiClient.delete(`/books/${bookId}/versions/${versionId}`);
+      const updatedVersions = versions.filter(version => version.id !== versionId);
+      setVersions(updatedVersions);
+      setDeleteVersionDialogOpen(false);
+      setDeletingVersionId(null);
+    } catch (error) {
+      console.error('Failed to delete version:', error);
+    }
+  };
+
+  const handleShareVersion = async (versionId: string, shareData: any) => {
+    if (!bookId) return;
+
+    try {
+      // Assuming the API endpoint for sharing a version is something like this
+      await apiClient.post(`/books/${bookId}/versions/${versionId}/share`, shareData);
+      setShareVersionModalOpen(false);
+      setSharingVersion(null);
+      // Optionally, provide user feedback (e.g., a toast notification)
+      alert('Version shared successfully!');
+    } catch (error) {
+      console.error('Failed to share version:', error);
+      // Optionally, show an error message to the user
+      alert('Failed to share version.');
+    }
+  };
+
+  const currentUserCollaborator = collaborators.find(c => c.userId === user?.id);
+  const canManageVersions = currentUserCollaborator?.role === 'owner' || currentUserCollaborator?.role === 'editor';
+
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Loading book details...</p>
-        </div>
+        <div className="text-lg">Loading...</div>
       </div>
     );
   }
 
-  if (!bookDetails) {
+  if (!book) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Book not found</h2>
-          <Button asChild>
-            <Link to="/dashboard">Back to Dashboard</Link>
-          </Button>
-        </div>
+        <div className="text-lg">Book not found</div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/dashboard">
-                  <ArrowLeft size={16} className="mr-2" />
-                  Back to Dashboard
-                </Link>
-              </Button>
-            </div>
-            <Button onClick={() => setIsEditModalOpen(true)} size="sm">
-              <Edit size={16} className="mr-2" />
-              Edit Book
-            </Button>
+      <Header />
+      
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold mb-2">{book.title}</h1>
+          <p className="text-muted-foreground mb-4">{book.description}</p>
+          
+          <div className="flex items-center gap-4 text-sm text-muted-foreground">
+            <span>Author: {book.authorName}</span>
+            <span>•</span>
+            <span>Created: {new Date(book.createdAt).toLocaleDateString()}</span>
+            <span>•</span>
+            <span>Updated: {new Date(book.updatedAt).toLocaleDateString()}</span>
           </div>
         </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Book Header */}
-        <div className="flex items-start space-x-6 mb-8">
-          <div className="w-32 h-44 flex-shrink-0">
-            {bookDetails.bookImage ? (
-              <img
-                src={bookDetails.bookImage}
-                alt={bookDetails.title}
-                className="w-full h-full object-cover rounded-lg"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center rounded-lg">
-                <Book size={32} className="text-primary/60" />
-              </div>
-            )}
-          </div>
-          
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-2">{bookDetails.title}</h1>
-            {bookDetails.subtitle && (
-              <p className="text-xl text-muted-foreground mb-2">{bookDetails.subtitle}</p>
-            )}
-            <p className="text-lg text-muted-foreground mb-4">by {bookDetails.authorname}</p>
-            
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-              <div className="flex items-center space-x-2">
-                <Calendar size={16} className="text-muted-foreground" />
-                <span>Created: {formatDate(bookDetails.createdAt)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Calendar size={16} className="text-muted-foreground" />
-                <span>Modified: {formatDate(bookDetails.lastModified)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <FileText size={16} className="text-muted-foreground" />
-                <span>{(bookDetails.wordCount || 0).toLocaleString()} words</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <User size={16} className="text-muted-foreground" />
-                <span>{bookDetails.collaborators?.length || 0} collaborators</span>
-              </div>
-              {bookDetails.language && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">Language:</span>
-                  <span>{bookDetails.language}</span>
-                </div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-2xl font-semibold">Versions</h2>
+              {canManageVersions && (
+                <Button onClick={() => setCreateVersionModalOpen(true)}>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Version
+                </Button>
               )}
             </div>
 
-            {bookDetails.description && (
-              <div className="mt-4">
-                <h3 className="font-medium mb-2">Description</h3>
-                <p className="text-muted-foreground">{bookDetails.description}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Tabs */}
-        <Tabs defaultValue="versions" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="versions">Versions</TabsTrigger>
-            <TabsTrigger value="collaborators">Collaborators</TabsTrigger>
-          </TabsList>
-
-          {/* Versions Tab */}
-          <TabsContent value="versions" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Book Versions</h3>
-              <Button 
-                onClick={() => setIsCreateVersionOpen(true)} 
-                size="sm"
-              >
-                <Plus size={16} className="mr-2" />
-                Create Version
-              </Button>
-            </div>
-            
-            <div className="grid gap-4">
-              {versions?.map((version) => (
-                <Card key={version.id} className="cursor-pointer hover:shadow-md transition-all duration-200 group">
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between">
+            <div className="space-y-4">
+              {versions.map((version) => (
+                <Card key={version.id} className="hover:shadow-md transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="font-medium">{version.name}</h4>
-                          <Badge className="bg-blue-100 text-blue-800">Manuscript</Badge>
-                          <Badge className="bg-yellow-100 text-yellow-800">Draft</Badge>
+                        <div className="flex items-center gap-2 mb-2">
+                          <h3 className="text-lg font-semibold">{version.name}</h3>
+                          <Badge 
+                            variant={version.status === 'active' ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {version.status}
+                          </Badge>
+                          <Badge 
+                            variant={version.type === 'main' ? 'default' : 'outline'}
+                            className="text-xs"
+                          >
+                            {version.type}
+                          </Badge>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Calendar size={12} />
-                            <span>Created: {formatDate(version.createdAt)}</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <FileText size={12} />
-                            <span>{(version.wordCount || 0).toLocaleString()} words</span>
-                          </div>
-                          <div className="flex items-center space-x-1">
-                            <User size={12} />
-                            <span>{version.createdBy?.name || 'Unknown'}</span>
-                          </div>
+                        <p className="text-muted-foreground mb-4">{version.description}</p>
+                        
+                        <div className="flex items-center gap-4 text-sm text-muted-foreground mb-4">
+                          <span>Created: {new Date(version.createdAt).toLocaleDateString()}</span>
+                          <span>•</span>
+                          <span>Updated: {new Date(version.updatedAt).toLocaleDateString()}</span>
+                          {version.createdBy && (
+                            <>
+                              <span>•</span>
+                              <span>By: {version.createdBy}</span>
+                            </>
+                          )}
                         </div>
-                      </div>
 
-                      <div className="flex items-center space-x-2 ml-4">
-                        <Button
-                          onClick={() => handleOpenVersion(version.id)}
-                          size="sm"
-                        >
-                          Open
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => navigate(`/edit/${book.id}/${version.id}`)}
+                          >
+                            <Edit className="h-4 w-4 mr-1" />
+                            Edit
+                          </Button>
+                          
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            onClick={() => navigate(`/plan/${book.id}/${version.id}`)}
+                          >
+                            <BookOpen className="h-4 w-4 mr-1" />
+                            Plan
+                          </Button>
+
+                          {canManageVersions && (
+                            <>
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setEditingVersion(version);
+                                  setEditVersionModalOpen(true);
+                                }}
+                              >
+                                <Settings className="h-4 w-4 mr-1" />
+                                Settings
+                              </Button>
+
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setSharingVersion(version);
+                                  setShareVersionModalOpen(true);
+                                }}
+                              >
+                                <Share2 className="h-4 w-4 mr-1" />
+                                Share
+                              </Button>
+
+                              <Button 
+                                variant="outline" 
+                                size="sm"
+                                onClick={() => {
+                                  setDeletingVersionId(version.id);
+                                  setDeleteVersionDialogOpen(true);
+                                }}
+                                className="text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4 mr-1" />
+                                Delete
+                              </Button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              )) || (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No versions found</p>
-                </div>
+              ))}
+
+              {versions.length === 0 && (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <div className="text-muted-foreground mb-4">No versions created yet</div>
+                    {canManageVersions && (
+                      <Button onClick={() => setCreateVersionModalOpen(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Create First Version
+                      </Button>
+                    )}
+                  </CardContent>
+                </Card>
               )}
             </div>
-          </TabsContent>
+          </div>
 
-          {/* Collaborators Tab */}
-          <TabsContent value="collaborators" className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Collaborators</h3>
-              <Button 
-                onClick={() => setShowInviteForm(!showInviteForm)} 
-                size="sm"
-                variant={showInviteForm ? "outline" : "default"}
-              >
-                <UserPlus size={16} className="mr-2" />
-                {showInviteForm ? 'Cancel' : 'Invite Collaborator'}
-              </Button>
-            </div>
-
-            {/* Invite Form */}
-            {showInviteForm && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>Invite New Collaborator</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Form {...form}>
-                    <form onSubmit={form.handleSubmit(handleInviteCollaborator)} className="space-y-4">
-                      <FormField
-                        control={form.control}
-                        name="email"
-                        rules={{ 
-                          required: 'Email is required',
-                          pattern: {
-                            value: /\S+@\S+\.\S+/,
-                            message: 'Invalid email address'
-                          }
-                        }}
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Email Address</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter email address" {...field} />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="role"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Role</FormLabel>
-                            <FormControl>
-                              <Select onValueChange={field.onChange} value={field.value}>
-                                <SelectTrigger>
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="CO_WRITER">CO_WRITER</SelectItem>
-                                  <SelectItem value="EDITOR">EDITOR</SelectItem>
-                                  <SelectItem value="REVIEWER">REVIEWER</SelectItem>
-                                </SelectContent>
-                              </Select>
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-
-                      <div className="flex space-x-2">
-                        <Button type="submit" disabled={isInviting}>
-                          <Mail size={16} className="mr-2" />
-                          {isInviting ? 'Inviting...' : 'Send Invitation'}
-                        </Button>
-                        <Button 
-                          type="button" 
-                          variant="outline" 
-                          onClick={() => setShowInviteForm(false)}
-                        >
-                          Cancel
-                        </Button>
-                      </div>
-                    </form>
-                  </Form>
-                </CardContent>
-              </Card>
-            )}
+          <div>
+            <h2 className="text-2xl font-semibold mb-6">Collaborators</h2>
             
-            {/* Collaborators List */}
-            <div className="grid gap-3">
-              {bookDetails.collaborators?.map((collaborator) => (
-                <Card key={collaborator.user_id}>
+            <div className="space-y-3">
+              {collaborators.map((collaborator) => (
+                <Card key={collaborator.id}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User size={16} className="text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{collaborator.name}</p>
-                          <p className="text-sm text-muted-foreground">{collaborator.user_email}</p>
-                        </div>
+                      <div>
+                        <div className="font-medium">{collaborator.userName}</div>
+                        <div className="text-sm text-muted-foreground">{collaborator.userEmail}</div>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <Badge className={getRoleColor(collaborator.collaborator_type)}>
-                          {collaborator.collaborator_type}
-                        </Badge>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleDeleteCollaborator(collaborator.user_id)}
-                          disabled={isDeletingCollaborator === collaborator.user_id}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          {isDeletingCollaborator === collaborator.user_id ? (
-                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
-                          ) : (
-                            <Trash2 size={16} />
-                          )}
-                        </Button>
-                      </div>
+                      <Badge variant="outline" className="text-xs">
+                        {collaborator.role}
+                      </Badge>
                     </div>
                   </CardContent>
                 </Card>
-              )) || (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No collaborators yet</p>
-                </div>
+              ))}
+
+              {collaborators.length === 0 && (
+                <Card>
+                  <CardContent className="p-6 text-center">
+                    <div className="text-muted-foreground">No collaborators yet</div>
+                  </CardContent>
+                </Card>
               )}
             </div>
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </div>
 
-      <EditBookModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        book={bookDetails}
-        onUpdateBook={handleUpdateBook}
+      {/* Modals */}
+      <CreateVersionModal
+        isOpen={createVersionModalOpen}
+        onClose={() => setCreateVersionModalOpen(false)}
+        onSave={handleCreateVersion}
       />
 
-      <CreateVersionModal
-        isOpen={isCreateVersionOpen}
-        onClose={() => setIsCreateVersionOpen(false)}
-        onCreateVersion={handleCreateVersion}
-        existingVersions={versions}
-      />
+      {editingVersion && (
+        <EditVersionModal
+          isOpen={editVersionModalOpen}
+          onClose={() => {
+            setEditVersionModalOpen(false);
+            setEditingVersion(null);
+          }}
+          onSave={(data) => handleEditVersion(editingVersion.id, data)}
+          version={editingVersion}
+        />
+      )}
+
+      {sharingVersion && (
+        <ShareVersionModal
+          isOpen={shareVersionModalOpen}
+          onClose={() => {
+            setShareVersionModalOpen(false);
+            setSharingVersion(null);
+          }}
+          onSave={(data) => handleShareVersion(sharingVersion.id, data)}
+          version={sharingVersion}
+        />
+      )}
+
+      <AlertDialog open={deleteVersionDialogOpen} onOpenChange={setDeleteVersionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Version</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this version? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (deletingVersionId) {
+                  handleDeleteVersion(deletingVersionId);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

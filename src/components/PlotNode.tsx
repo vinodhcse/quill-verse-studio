@@ -88,7 +88,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         type="target" 
         position={Position.Left} 
         id="left"
-        className="w-3 h-3 bg-blue-500 border-2 border-white"
+        className="w-3 h-3 bg-green-500 border-2 border-white"
         isConnectable={true}
       />
       
@@ -104,7 +104,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         type="source" 
         position={Position.Bottom} 
         id="bottom"
-        className="w-3 h-3 bg-green-500 border-2 border-white"
+        className="w-3 h-3 bg-blue-500 border-2 border-white"
         isConnectable={true}
       />
       
@@ -147,14 +147,17 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <Users size={12} className="text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">Characters</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  Characters ({data.characters.length})
+                </span>
               </div>
             </div>
             <div className="space-y-1">
               {data.characters.map((character: any) => (
                 <div 
                   key={character.id}
-                  className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors"
+                  className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors cursor-pointer"
+                  onClick={() => handleEntityClick(character.id)}
                 >
                   <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
@@ -164,6 +167,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-xs font-medium">{character.name}</span>
+                    <Badge variant="outline" className="text-xs">Character</Badge>
                   </div>
                   <Button
                     variant="ghost"
@@ -188,14 +192,17 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
                 <Globe size={12} className="text-muted-foreground" />
-                <span className="text-xs font-medium text-muted-foreground">World Elements</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  World Elements ({data.worlds.length})
+                </span>
               </div>
             </div>
             <div className="space-y-1">
               {data.worlds.map((world: any) => (
                 <div 
                   key={world.id}
-                  className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors"
+                  className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors cursor-pointer"
+                  onClick={() => handleEntityClick(world.id)}
                 >
                   <div className="flex items-center gap-2">
                     {world.type === 'WorldLocation' ? <MapPin size={12} /> : <Package size={12} />}
@@ -221,20 +228,28 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           </div>
         )}
 
-        {/* Child and Link indicators */}
-        <div className="flex flex-wrap gap-1">
-          {data.childIds && data.childIds.length > 0 && (
-            <Badge variant="outline" className="text-xs flex items-center gap-1">
-              <ChevronDown size={8} />
+        {/* Show linked node count if there are linked nodes but they're not characters/world entities */}
+        {data.linkedNodeIds && data.linkedNodeIds.length > 0 && 
+         (!data.characters || data.characters.length === 0) && 
+         (!data.worlds || data.worlds.length === 0) && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-medium text-muted-foreground">
+                🔗 {data.linkedNodeIds.length} linked node{data.linkedNodeIds.length !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Child indicators */}
+        {data.childIds && data.childIds.length > 0 && (
+          <div className="flex items-center gap-1">
+            <ChevronDown size={12} className="text-muted-foreground" />
+            <span className="text-xs font-medium text-muted-foreground">
               {data.childIds.length} child{data.childIds.length !== 1 ? 'ren' : ''}
-            </Badge>
-          )}
-          {data.linkedNodeIds && data.linkedNodeIds.length > 0 && (
-            <Badge variant="outline" className="text-xs flex items-center gap-1">
-              🔗 {data.linkedNodeIds.length} link{data.linkedNodeIds.length !== 1 ? 's' : ''}
-            </Badge>
-          )}
-        </div>
+            </span>
+          </div>
+        )}
         
         {/* Action buttons */}
         <div className="flex gap-1 pt-2">
