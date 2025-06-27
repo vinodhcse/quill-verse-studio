@@ -4,7 +4,8 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Plus, Users, Globe, Target, ChevronDown } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
 
 interface PlotNodeProps extends NodeProps {
@@ -65,12 +66,19 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
+  const handleEntityClick = (entityId: string) => {
+    if (data.onNavigateToEntity) {
+      data.onNavigateToEntity(entityId);
+    }
+  };
+
   return (
-    <Card className={`min-w-[280px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
+    <Card className={`min-w-[320px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
       {/* Handles for connections */}
       <Handle 
         type="target" 
         position={Position.Top} 
+        id="top"
         className="w-3 h-3 bg-blue-500 border-2 border-white"
         isConnectable={true}
       />
@@ -78,6 +86,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
       <Handle 
         type="target" 
         position={Position.Left} 
+        id="left"
         className="w-3 h-3 bg-blue-500 border-2 border-white"
         isConnectable={true}
       />
@@ -85,6 +94,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
       <Handle 
         type="source" 
         position={Position.Right} 
+        id="right"
         className="w-3 h-3 bg-green-500 border-2 border-white"
         isConnectable={true}
       />
@@ -92,6 +102,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
       <Handle 
         type="source" 
         position={Position.Bottom} 
+        id="bottom"
         className="w-3 h-3 bg-green-500 border-2 border-white"
         isConnectable={true}
       />
@@ -129,6 +140,56 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           </div>
         )}
 
+        {/* Characters Section with Images */}
+        {data.characters && data.characters.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Users size={12} className="text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">Characters</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {data.characters.map((character: any) => (
+                <div 
+                  key={character.id}
+                  className="flex items-center gap-1 p-1 rounded-md bg-background border cursor-pointer hover:bg-accent"
+                  onClick={() => handleEntityClick(character.id)}
+                >
+                  <Avatar className="h-4 w-4">
+                    <AvatarImage src={character.image} />
+                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                      {character.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs">{character.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* World Entities Section */}
+        {data.worlds && data.worlds.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-1">
+              <Globe size={12} className="text-muted-foreground" />
+              <span className="text-xs font-medium text-muted-foreground">World Elements</span>
+            </div>
+            <div className="flex flex-wrap gap-1">
+              {data.worlds.map((world: any) => (
+                <Badge 
+                  key={world.id}
+                  variant="outline" 
+                  className="text-xs cursor-pointer hover:bg-accent flex items-center gap-1"
+                  onClick={() => handleEntityClick(world.id)}
+                >
+                  {world.type === 'WorldLocation' ? <MapPin size={8} /> : <Package size={8} />}
+                  {world.name}
+                </Badge>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Child and Link indicators */}
         <div className="flex flex-wrap gap-1">
           {data.childIds && data.childIds.length > 0 && (
@@ -140,22 +201,6 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           {data.linkedNodeIds && data.linkedNodeIds.length > 0 && (
             <Badge variant="outline" className="text-xs flex items-center gap-1">
               🔗 {data.linkedNodeIds.length} link{data.linkedNodeIds.length !== 1 ? 's' : ''}
-            </Badge>
-          )}
-        </div>
-
-        {/* Characters and Worlds indicators */}
-        <div className="flex flex-wrap gap-1">
-          {data.characters && data.characters.length > 0 && (
-            <Badge variant="outline" className="text-xs flex items-center gap-1">
-              <Users size={8} />
-              {data.characters.length} character{data.characters.length !== 1 ? 's' : ''}
-            </Badge>
-          )}
-          {data.worlds && data.worlds.length > 0 && (
-            <Badge variant="outline" className="text-xs flex items-center gap-1">
-              <Globe size={8} />
-              {data.worlds.length} world{data.worlds.length !== 1 ? 's' : ''}
             </Badge>
           )}
         </div>

@@ -6,8 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import { PlotNodeData } from '@/types/plotCanvas';
 import { TimelineEvent } from '@/types/canvas';
+import { apiClient } from '@/lib/api';
+import { X } from 'lucide-react';
 
 interface NodeEditModalProps {
   isOpen: boolean;
@@ -17,6 +20,8 @@ interface NodeEditModalProps {
   timelineEvents: TimelineEvent[];
   onTimelineEventsChange: (events: TimelineEvent[]) => void;
   parentType?: string;
+  bookId?: string;
+  versionId?: string;
 }
 
 export const NodeEditModal: React.FC<NodeEditModalProps> = ({
@@ -26,7 +31,9 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   node,
   timelineEvents,
   onTimelineEventsChange,
-  parentType
+  parentType,
+  bookId,
+  versionId
 }) => {
   const [formData, setFormData] = useState<Partial<PlotNodeData>>({
     type: 'Act',
@@ -34,9 +41,12 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
     detail: '',
     goal: '',
     status: 'Not Completed',
-    characters: [],
-    worlds: []
+    linkedNodeIds: []
   });
+
+  const [availableCharacters, setAvailableCharacters] = useState<any[]>([]);
+  const [availableWorldEntities, setAvailableWorldEntities] = useState<any[]>([]);
+  const [selectedEntities, setSelectedEntities] = useState<string[]>([]);
 
   const getChildType = (parentType: string): string => {
     switch (parentType) {
@@ -59,9 +69,9 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
         detail: node.detail,
         goal: node.goal,
         status: node.status,
-        characters: node.characters || [],
-        worlds: node.worlds || []
+        linkedNodeIds: node.linkedNodeIds || []
       });
+      setSelectedEntities(node.linkedNodeIds || []);
     } else {
       setFormData({
         type: parentType ? getChildType(parentType) as any : 'Act',
@@ -69,11 +79,59 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
         detail: '',
         goal: '',
         status: 'Not Completed',
-        characters: [],
-        worlds: []
+        linkedNodeIds: []
       });
+      setSelectedEntities([]);
     }
   }, [node, parentType, isOpen]);
+
+  useEffect(() => {
+    if (isOpen && bookId && versionId) {
+      fetchAvailableEntities();
+    }
+  }, [isOpen, bookId, versionId]);
+
+  const fetchAvailableEntities = async () => {
+    if (!bookId || !versionId) return;
+
+    try {
+      // Fetch characters
+      const charactersResponse = await apiClient.get(`/books/${bookId}/versions/${versionId}/characters/all`);
+      setAvailableCharacters(charactersResponse.data || []);
+
+      // Fetch world entities (locations and objects)
+      const worldResponse = await apiClient.get(`/books/${bookId}/versions/${versionId}/world/all`);
+      setAvailableWorldEntities(worldResponse.data || []);
+    } catch (error) {
+      console.error('Failed to fetch available entities:', error);
+      setAvailableCharacters([]);
+      setAvailableWorldEntities([]);
+    }
+  };
+
+  const handleEntitySelect = (entityId: string) => {
+    if (!selectedEntities.includes(entityId)) {
+      const updatedEntities = [...selectedEntities, entityId];
+      setSelectedEntities(updatedEntities);
+      setFormData(prev => ({ ...prev, linkedNodeIds: updatedEntities }));
+    }
+  };
+
+  const handleEntityRemove = (entityId: string) => {
+    const updatedEntities = selectedEntities.filter(id => id !== entityId);
+    setSelectedEntities(updatedEntities);
+    setFormData(prev => ({ ...prev, linkedNodeIds: updatedEntities }));
+  };
+
+  const getEntityName = (entityId: string) => {
+    const character = availableCharacters.find(c => c.id === entityId);
+    if (character) return character.name;
+    
+    const worldEntity = availableWorldEntities.find(w => w.id === entityId);
+    if (worldEntity) return worldEntity.name;
+    
+    return entityId;
+  };
 
   const handleSave = () => {
     if (!formData.name?.trim() || !node) {
@@ -86,8 +144,7 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
       detail: formData.detail,
       goal: formData.goal,
       status: formData.status,
-      characters: formData.characters,
-      worlds: formData.worlds
+      linkedNodeIds: selectedEntities
     });
   };
 
@@ -170,29 +227,61 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
             </Select>
           </div>
 
-          <div>
-            <Label>Characters</Label>
-            <Input
-              value={formData.characters?.join(', ') || ''}
-              onChange={(e) => setFormData(prev => ({ 
-                ...prev, 
-                characters: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
-              }))}
-              placeholder="Enter character names separated by commas..."
-            />
-          </div>
+          {/* Entity Selection for Scene Beats */}
+          {formData.type === 'SceneBeats' && (
+            <>
+              <div>
+                <Label>Characters</Label>
+                <Select onValueChange={handleEntitySelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select characters..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCharacters.map((character) => (
+                      <SelectItem key={character.id} value={character.id}>
+                        {character.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
 
-          <div>
-            <Label>Worlds</Label>
-            <Input
-              value={formData.worlds?.join(', ') || ''}
-              onChange={(e) => setFormData(prev => ({ 
-                ...prev, 
-                worlds: e.target.value.split(',').map(s => s.trim()).filter(s => s) 
-              }))}
-              placeholder="Enter world names separated by commas..."
-            />
-          </div>
+              <div>
+                <Label>World Elements</Label>
+                <Select onValueChange={handleEntitySelect}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select world elements..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableWorldEntities.map((entity) => (
+                      <SelectItem key={entity.id} value={entity.id}>
+                        {entity.name} ({entity.type})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Selected Entities */}
+              {selectedEntities.length > 0 && (
+                <div>
+                  <Label>Selected Entities</Label>
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {selectedEntities.map((entityId) => (
+                      <Badge key={entityId} variant="outline" className="flex items-center gap-1">
+                        {getEntityName(entityId)}
+                        <X 
+                          size={12} 
+                          className="cursor-pointer hover:text-destructive"
+                          onClick={() => handleEntityRemove(entityId)}
+                        />
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
 
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={onClose}>

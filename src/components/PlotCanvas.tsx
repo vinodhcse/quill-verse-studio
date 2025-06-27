@@ -39,7 +39,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   canvasData,
   onCanvasUpdate,
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState<PlotNodeData>([]);
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
@@ -59,12 +59,13 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     let nodesToShow: CanvasNode[] = [];
     
     if (!currentViewNodeId) {
-      // Show top-level nodes (Outline and Acts)
+      // Show top-level nodes (Outline and Characters/World entities)
       nodesToShow = canvasData.nodes.filter(node => 
-        node.type === 'Outline' || (node.type === 'Act' && !node.parentId)
+        node.type === 'Outline' || 
+        (node.parentId === null && ['Character', 'WorldLocation', 'WorldObject'].includes(node.type))
       );
     } else {
-      // Show children of the selected node
+      // Show children and linked nodes of the selected node
       const selectedNode = canvasData.nodes.find(n => n.id === currentViewNodeId);
       if (selectedNode) {
         nodesToShow = canvasData.nodes.filter(node => 
@@ -75,19 +76,21 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       }
     }
 
-    const reactFlowNodes = nodesToShow.map(nodeData => createReactFlowNode(nodeData));
+    const reactFlowNodes: Node[] = nodesToShow.map(nodeData => createReactFlowNode(nodeData));
     setNodes(reactFlowNodes);
 
     // Create edges for parent-child and linked relationships
     const reactFlowEdges: Edge[] = [];
     nodesToShow.forEach(node => {
-      // Parent-child edges
+      // Parent-child edges (from bottom handle to top handle)
       node.childIds.forEach(childId => {
         if (nodesToShow.find(n => n.id === childId)) {
           reactFlowEdges.push({
             id: `${node.id}-${childId}`,
             source: node.id,
+            sourceHandle: 'bottom',
             target: childId,
+            targetHandle: 'top',
             type: 'custom',
             data: {
               type: 'parent-child',
@@ -97,13 +100,15 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         }
       });
 
-      // Linked edges
+      // Linked edges (from side handles)
       node.linkedNodeIds.forEach(linkedId => {
         if (nodesToShow.find(n => n.id === linkedId)) {
           reactFlowEdges.push({
             id: `${node.id}-${linkedId}`,
             source: node.id,
+            sourceHandle: 'right',
             target: linkedId,
+            targetHandle: 'left',
             type: 'custom',
             data: {
               type: 'linked',
@@ -128,6 +133,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
           detail: updatedData.detail || node.detail,
           goal: updatedData.goal || node.goal,
           status: updatedData.status || node.status,
+          linkedNodeIds: updatedData.linkedNodeIds || node.linkedNodeIds,
         };
       }
       return node;
@@ -136,6 +142,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     const newCanvasData = { ...canvasData, nodes: updatedNodes };
     await onCanvasUpdate(newCanvasData);
     setEditingNode(null);
+    loadNodesForCurrentView();
   };
 
   const onConnect = useCallback(
@@ -203,7 +210,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     const newNodeId = `node-${Date.now()}`;
     const parentNode = canvasData.nodes.find(n => n.id === parentId);
     const childPosition = parentNode 
-      ? { x: parentNode.position.x + 300, y: parentNode.position.y + 150 }
+      ? { x: parentNode.position.x, y: parentNode.position.y + 200 }
       : { x: Math.random() * 400, y: Math.random() * 400 };
 
     const getChildType = (parentType: string): CanvasNode['type'] => {
@@ -263,34 +270,52 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     }
   };
 
-  const createReactFlowNode = (nodeData: CanvasNode): Node<PlotNodeData> => ({
-    id: nodeData.id,
-    type: 'plotNode',
-    position: nodeData.position || { x: Math.random() * 400, y: Math.random() * 400 },
-    data: {
-      id: nodeData.id,
-      type: nodeData.type,
-      name: nodeData.name,
-      detail: nodeData.detail,
-      goal: nodeData.goal,
-      status: nodeData.status,
-      parentId: nodeData.parentId,
-      childIds: nodeData.childIds,
-      linkedNodeIds: nodeData.linkedNodeIds,
-      characters: nodeData.linkedNodeIds?.filter(id => id.startsWith('character-')) || [],
-      worlds: nodeData.linkedNodeIds?.filter(id => id.startsWith('world-')) || [],
-      onEdit: (nodeId: string) => {
-        const nodeToEdit = canvasData?.nodes.find(n => n.id === nodeId);
-        if (nodeToEdit) {
-          setEditingNode(nodeToEdit);
-        }
-      },
-      onAddChild: handleAddChild,
-    },
-  });
+  const createReactFlowNode = (nodeData: CanvasNode): Node => {
+    // Get linked characters and worlds for display
+    const linkedCharacters = canvasData?.nodes.filter(n => 
+      n.type === 'Character' && nodeData.linkedNodeIds.includes(n.id)
+    ) || [];
+    
+    const linkedWorlds = canvasData?.nodes.filter(n => 
+      ['WorldLocation', 'WorldObject'].includes(n.type) && nodeData.linkedNodeIds.includes(n.id)
+    ) || [];
 
-  const handleNodeClick = (node: Node<PlotNodeData>) => {
-    if (node.data.childIds.length > 0) {
+    return {
+      id: nodeData.id,
+      type: 'plotNode',
+      position: nodeData.position || { x: Math.random() * 400, y: Math.random() * 400 },
+      data: {
+        id: nodeData.id,
+        type: nodeData.type,
+        name: nodeData.name,
+        detail: nodeData.detail,
+        goal: nodeData.goal,
+        status: nodeData.status,
+        parentId: nodeData.parentId,
+        childIds: nodeData.childIds,
+        linkedNodeIds: nodeData.linkedNodeIds,
+        characters: linkedCharacters,
+        worlds: linkedWorlds,
+        onEdit: (nodeId: string) => {
+          const nodeToEdit = canvasData?.nodes.find(n => n.id === nodeId);
+          if (nodeToEdit) {
+            setEditingNode(nodeToEdit);
+          }
+        },
+        onAddChild: handleAddChild,
+        onNavigateToEntity: (entityId: string) => {
+          const entity = canvasData?.nodes.find(n => n.id === entityId);
+          if (entity && ['Character', 'WorldLocation', 'WorldObject'].includes(entity.type)) {
+            setCurrentViewNodeId(entityId);
+            setCurrentViewType(entity.type);
+          }
+        },
+      },
+    };
+  };
+
+  const handleNodeClick = (event: React.MouseEvent, node: Node) => {
+    if (node.data.childIds && node.data.childIds.length > 0) {
       setCurrentViewNodeId(node.data.id);
       setCurrentViewType(node.data.type);
     }
@@ -378,7 +403,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onPaneClick={handlePaneClick}
-        onNodeClick={(_, node) => handleNodeClick(node)}
+        onNodeClick={handleNodeClick}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
@@ -415,15 +440,17 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
             parentId: editingNode.parentId,
             childIds: editingNode.childIds,
             linkedNodeIds: editingNode.linkedNodeIds,
-            characters: editingNode.linkedNodeIds?.filter(id => id.startsWith('character-')) || [],
-            worlds: editingNode.linkedNodeIds?.filter(id => id.startsWith('world-')) || [],
+            characters: [],
+            worlds: [],
             onEdit: () => {},
             onAddChild: () => {},
           }}
           onClose={() => setEditingNode(null)}
           onSave={handleNodeEdit}
-          timelineEvents={[]}
+          timelineEvents={canvasData?.timelineEvents || []}
           onTimelineEventsChange={() => {}}
+          bookId={bookId}
+          versionId={versionId}
         />
       )}
     </div>

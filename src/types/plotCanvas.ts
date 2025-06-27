@@ -77,8 +77,18 @@ export interface PlotNodeData extends Record<string, unknown> {
   parentId?: string | null;
   childIds: string[];
   linkedNodeIds: string[];
-  characters?: string[];
-  worlds?: string[];
+  characters?: Array<{
+    id: string;
+    name: string;
+    image?: string;
+    type: string;
+  }>;
+  worlds?: Array<{
+    id: string;
+    name: string;
+    type: string;
+  }>;
   onEdit: (nodeId: string) => void;
   onAddChild: (parentId: string) => void;
+  onNavigateToEntity?: (entityId: string) => void;
 }
