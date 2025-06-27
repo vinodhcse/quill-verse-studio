@@ -270,6 +270,16 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     }
   };
 
+  const handleNavigateToEntity = (entityId: string) => {
+    console.log('Navigating to entity:', entityId);
+    const entity = canvasData?.nodes.find(n => n.id === entityId);
+    if (entity && ['Character', 'WorldLocation', 'WorldObject'].includes(entity.type)) {
+      console.log('Setting current view to:', entityId, entity.type);
+      setCurrentViewNodeId(entityId);
+      setCurrentViewType(entity.type);
+    }
+  };
+
   const createReactFlowNode = (nodeData: CanvasNode): Node => {
     // Get linked characters and worlds for display
     const linkedCharacters = canvasData?.nodes.filter(n => 
@@ -303,21 +313,16 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
           }
         },
         onAddChild: handleAddChild,
-        onNavigateToEntity: (entityId: string) => {
-          const entity = canvasData?.nodes.find(n => n.id === entityId);
-          if (entity && ['Character', 'WorldLocation', 'WorldObject'].includes(entity.type)) {
-            setCurrentViewNodeId(entityId);
-            setCurrentViewType(entity.type);
-          }
-        },
+        onNavigateToEntity: handleNavigateToEntity,
       },
     };
   };
 
   const handleNodeClick = (event: React.MouseEvent, node: Node) => {
-    if (node.data.childIds && node.data.childIds.length > 0) {
-      setCurrentViewNodeId(node.data.id);
-      setCurrentViewType(node.data.type);
+    const nodeData = node.data;
+    if (nodeData.childIds && Array.isArray(nodeData.childIds) && nodeData.childIds.length > 0) {
+      setCurrentViewNodeId(nodeData.id as string);
+      setCurrentViewType(nodeData.type as string);
     }
   };
 
@@ -360,7 +365,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   const getCurrentViewTitle = () => {
     if (!currentViewNodeId || !canvasData) return 'Story Outline';
     const currentNode = canvasData.nodes.find(n => n.id === currentViewNodeId);
-    return currentNode ? `${currentNode.name} - Children` : 'Story Outline';
+    return currentNode ? `${currentNode.name} - Arc` : 'Story Outline';
   };
 
   return (

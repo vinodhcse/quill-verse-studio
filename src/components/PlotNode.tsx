@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package } from 'lucide-react';
+import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
 
 interface PlotNodeProps extends NodeProps {
@@ -67,6 +67,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   };
 
   const handleEntityClick = (entityId: string) => {
+    console.log('Entity clicked:', entityId);
     if (data.onNavigateToEntity) {
       data.onNavigateToEntity(entityId);
     }
@@ -140,51 +141,81 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           </div>
         )}
 
-        {/* Characters Section with Images */}
+        {/* Characters Section with Images and Drill-down buttons */}
         {data.characters && data.characters.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-1">
-              <Users size={12} className="text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">Characters</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Users size={12} className="text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">Characters</span>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2">
+            <div className="space-y-1">
               {data.characters.map((character: any) => (
                 <div 
                   key={character.id}
-                  className="flex items-center gap-1 p-1 rounded-md bg-background border cursor-pointer hover:bg-accent"
-                  onClick={() => handleEntityClick(character.id)}
+                  className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors"
                 >
-                  <Avatar className="h-4 w-4">
-                    <AvatarImage src={character.image} />
-                    <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                      {character.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <span className="text-xs">{character.name}</span>
+                  <div className="flex items-center gap-2">
+                    <Avatar className="h-6 w-6">
+                      <AvatarImage src={character.image} />
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        {character.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs font-medium">{character.name}</span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEntityClick(character.id);
+                    }}
+                  >
+                    <ArrowRight size={12} />
+                  </Button>
                 </div>
               ))}
             </div>
           </div>
         )}
 
-        {/* World Entities Section */}
+        {/* World Entities Section with Drill-down buttons */}
         {data.worlds && data.worlds.length > 0 && (
           <div className="space-y-2">
-            <div className="flex items-center gap-1">
-              <Globe size={12} className="text-muted-foreground" />
-              <span className="text-xs font-medium text-muted-foreground">World Elements</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1">
+                <Globe size={12} className="text-muted-foreground" />
+                <span className="text-xs font-medium text-muted-foreground">World Elements</span>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-1">
+            <div className="space-y-1">
               {data.worlds.map((world: any) => (
-                <Badge 
+                <div 
                   key={world.id}
-                  variant="outline" 
-                  className="text-xs cursor-pointer hover:bg-accent flex items-center gap-1"
-                  onClick={() => handleEntityClick(world.id)}
+                  className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors"
                 >
-                  {world.type === 'WorldLocation' ? <MapPin size={8} /> : <Package size={8} />}
-                  {world.name}
-                </Badge>
+                  <div className="flex items-center gap-2">
+                    {world.type === 'WorldLocation' ? <MapPin size={12} /> : <Package size={12} />}
+                    <span className="text-xs font-medium">{world.name}</span>
+                    <Badge variant="outline" className="text-xs">
+                      {world.type === 'WorldLocation' ? 'Location' : 'Object'}
+                    </Badge>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 p-0"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEntityClick(world.id);
+                    }}
+                  >
+                    <ArrowRight size={12} />
+                  </Button>
+                </div>
               ))}
             </div>
           </div>
