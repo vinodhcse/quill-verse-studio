@@ -4,7 +4,7 @@ import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Edit, Plus, Users, Globe } from 'lucide-react';
+import { Edit, Plus, Users, Globe, Target, ChevronDown } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
 
 interface PlotNodeProps extends NodeProps {
@@ -14,11 +14,9 @@ interface PlotNodeProps extends NodeProps {
 const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'completed':
+      case 'Completed':
         return 'bg-green-100 text-green-800 border-green-200';
-      case 'in-progress':
-        return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'not-started':
+      case 'Not Completed':
         return 'bg-gray-100 text-gray-800 border-gray-200';
       default:
         return 'bg-gray-100 text-gray-800 border-gray-200';
@@ -27,93 +25,149 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
 
   const getNodeIcon = (type: string) => {
     switch (type) {
-      case 'act':
-        return '📚';
-      case 'chapter':
+      case 'Outline':
+        return '📋';
+      case 'Act':
+        return '🎭';
+      case 'Chapter':
         return '📄';
-      case 'scene':
+      case 'SceneBeats':
         return '🎬';
-      case 'beat':
-        return '🎵';
+      case 'Character':
+        return '👤';
+      case 'WorldLocation':
+        return '🏛️';
+      case 'WorldObject':
+        return '⚡';
       default:
         return '📝';
     }
   };
 
+  const getTypeColor = (type: string) => {
+    switch (type) {
+      case 'Outline':
+        return 'border-purple-200 bg-purple-50';
+      case 'Act':
+        return 'border-blue-200 bg-blue-50';
+      case 'Chapter':
+        return 'border-green-200 bg-green-50';
+      case 'SceneBeats':
+        return 'border-orange-200 bg-orange-50';
+      case 'Character':
+        return 'border-red-200 bg-red-50';
+      case 'WorldLocation':
+        return 'border-indigo-200 bg-indigo-50';
+      case 'WorldObject':
+        return 'border-yellow-200 bg-yellow-50';
+      default:
+        return 'border-gray-200 bg-gray-50';
+    }
+  };
+
   return (
-    <Card className="min-w-[220px] shadow-lg border-2 hover:shadow-xl transition-shadow">
-      {/* Single handles on each side that accept multiple connections */}
+    <Card className={`min-w-[280px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
+      {/* Handles for connections */}
       <Handle 
         type="target" 
         position={Position.Top} 
-        id="top"
         className="w-3 h-3 bg-blue-500 border-2 border-white"
+        isConnectable={true}
       />
       
       <Handle 
         type="target" 
         position={Position.Left} 
-        id="left"
         className="w-3 h-3 bg-blue-500 border-2 border-white"
+        isConnectable={true}
       />
       
       <Handle 
         type="source" 
         position={Position.Right} 
-        id="right"
         className="w-3 h-3 bg-green-500 border-2 border-white"
+        isConnectable={true}
       />
       
       <Handle 
         type="source" 
         position={Position.Bottom} 
-        id="bottom"
         className="w-3 h-3 bg-green-500 border-2 border-white"
+        isConnectable={true}
       />
       
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{getNodeIcon(data.type)}</span>
-            <CardTitle className="text-sm font-semibold">{data.name}</CardTitle>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <span className="text-lg flex-shrink-0">{getNodeIcon(data.type)}</span>
+            <div className="min-w-0 flex-1">
+              <CardTitle className="text-sm font-semibold truncate">{data.name}</CardTitle>
+              <Badge variant="outline" className="text-xs mt-1">{data.type}</Badge>
+            </div>
           </div>
-          <Badge className={`text-xs ${getStatusColor(data.status)}`}>
+          <Badge className={`text-xs flex-shrink-0 ml-2 ${getStatusColor(data.status)}`}>
             {data.status}
           </Badge>
         </div>
       </CardHeader>
       
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 space-y-3">
+        {/* Detail */}
         {data.detail && (
-          <p className="text-xs text-muted-foreground mb-3 line-clamp-2">
+          <p className="text-xs text-muted-foreground line-clamp-2">
             {data.detail}
           </p>
         )}
 
+        {/* Goal */}
+        {data.goal && (
+          <div className="flex items-start gap-2">
+            <Target size={12} className="text-muted-foreground mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-muted-foreground line-clamp-2">
+              {data.goal}
+            </p>
+          </div>
+        )}
+
+        {/* Child and Link indicators */}
+        <div className="flex flex-wrap gap-1">
+          {data.childIds && data.childIds.length > 0 && (
+            <Badge variant="outline" className="text-xs flex items-center gap-1">
+              <ChevronDown size={8} />
+              {data.childIds.length} child{data.childIds.length !== 1 ? 'ren' : ''}
+            </Badge>
+          )}
+          {data.linkedNodeIds && data.linkedNodeIds.length > 0 && (
+            <Badge variant="outline" className="text-xs flex items-center gap-1">
+              🔗 {data.linkedNodeIds.length} link{data.linkedNodeIds.length !== 1 ? 's' : ''}
+            </Badge>
+          )}
+        </div>
+
         {/* Characters and Worlds indicators */}
-        <div className="flex flex-wrap gap-1 mb-3">
+        <div className="flex flex-wrap gap-1">
           {data.characters && data.characters.length > 0 && (
             <Badge variant="outline" className="text-xs flex items-center gap-1">
               <Users size={8} />
-              {data.characters.length}
+              {data.characters.length} character{data.characters.length !== 1 ? 's' : ''}
             </Badge>
           )}
           {data.worlds && data.worlds.length > 0 && (
             <Badge variant="outline" className="text-xs flex items-center gap-1">
               <Globe size={8} />
-              {data.worlds.length}
+              {data.worlds.length} world{data.worlds.length !== 1 ? 's' : ''}
             </Badge>
           )}
         </div>
         
-        <div className="flex gap-1">
+        {/* Action buttons */}
+        <div className="flex gap-1 pt-2">
           <Button
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-xs"
+            className="h-7 px-2 text-xs flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Edit button clicked for node:', data.id);
               data.onEdit(data.id);
             }}
           >
@@ -123,10 +177,9 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           <Button
             variant="outline"
             size="sm"
-            className="h-6 px-2 text-xs"
+            className="h-7 px-2 text-xs flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              console.log('Add button clicked for node:', data.id);
               data.onAddChild(data.id);
             }}
           >

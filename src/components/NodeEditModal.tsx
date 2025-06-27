@@ -29,44 +29,46 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   parentType
 }) => {
   const [formData, setFormData] = useState<Partial<PlotNodeData>>({
-    type: 'act',
+    type: 'Act',
     name: '',
     detail: '',
-    status: 'not-started',
+    goal: '',
+    status: 'Not Completed',
     characters: [],
     worlds: []
   });
 
   const getChildType = (parentType: string): string => {
     switch (parentType) {
-      case 'act':
-        return 'chapter';
-      case 'chapter':
-        return 'scene';
-      case 'scene':
-        return 'beat';
+      case 'Outline':
+        return 'Act';
+      case 'Act':
+        return 'Chapter';
+      case 'Chapter':
+        return 'SceneBeats';
       default:
-        return 'act';
+        return 'SceneBeats';
     }
   };
 
   useEffect(() => {
-    console.log('NodeEditModal useEffect - node:', node);
     if (node) {
       setFormData({
         type: node.type,
         name: node.name,
         detail: node.detail,
+        goal: node.goal,
         status: node.status,
         characters: node.characters || [],
         worlds: node.worlds || []
       });
     } else {
       setFormData({
-        type: parentType ? getChildType(parentType) as any : 'act',
+        type: parentType ? getChildType(parentType) as any : 'Act',
         name: '',
         detail: '',
-        status: 'not-started',
+        goal: '',
+        status: 'Not Completed',
         characters: [],
         worlds: []
       });
@@ -74,9 +76,7 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   }, [node, parentType, isOpen]);
 
   const handleSave = () => {
-    console.log('NodeEditModal handleSave - formData:', formData, 'node:', node);
     if (!formData.name?.trim() || !node) {
-      console.log('Cannot save - missing name or node');
       return;
     }
 
@@ -84,6 +84,7 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
       type: formData.type,
       name: formData.name,
       detail: formData.detail,
+      goal: formData.goal,
       status: formData.status,
       characters: formData.characters,
       worlds: formData.worlds
@@ -110,10 +111,13 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="act">Act</SelectItem>
-                <SelectItem value="chapter">Chapter</SelectItem>
-                <SelectItem value="scene">Scene</SelectItem>
-                <SelectItem value="beat">Beat</SelectItem>
+                <SelectItem value="Outline">Outline</SelectItem>
+                <SelectItem value="Act">Act</SelectItem>
+                <SelectItem value="Chapter">Chapter</SelectItem>
+                <SelectItem value="SceneBeats">Scene Beats</SelectItem>
+                <SelectItem value="Character">Character</SelectItem>
+                <SelectItem value="WorldLocation">World Location</SelectItem>
+                <SelectItem value="WorldObject">World Object</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -140,6 +144,17 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
           </div>
 
           <div>
+            <Label htmlFor="goal">Goal</Label>
+            <Textarea
+              id="goal"
+              value={formData.goal}
+              onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
+              placeholder="Enter the goal or purpose..."
+              rows={2}
+            />
+          </div>
+
+          <div>
             <Label htmlFor="status">Status</Label>
             <Select
               value={formData.status}
@@ -149,9 +164,8 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="completed">Completed</SelectItem>
-                <SelectItem value="in-progress">In Progress</SelectItem>
-                <SelectItem value="not-started">Not Started</SelectItem>
+                <SelectItem value="Completed">Completed</SelectItem>
+                <SelectItem value="Not Completed">Not Completed</SelectItem>
               </SelectContent>
             </Select>
           </div>

@@ -10,36 +10,16 @@ import {
   Node,
   Edge,
   Connection,
+  ConnectionMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import PlotNode from '@/components/PlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
-import { PlotNodeData } from '@/types/plotCanvas';
+import { PlotNodeData, CanvasNode, PlotCanvasData } from '@/types/plotCanvas';
 import { QuickNodeModal } from './QuickNodeModal';
 import { NodeEditModal } from './NodeEditModal';
 import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
-
-const initialNodes: Node<PlotNodeData>[] = [
-  {
-    id: '1',
-    type: 'plotNode',
-    position: { x: 50, y: 50 },
-    data: {
-      id: '1',
-      type: 'act',
-      name: 'Act 1',
-      detail: 'The beginning of the story',
-      status: 'not-started',
-      characters: [],
-      worlds: [],
-      onEdit: () => {},
-      onAddChild: () => {},
-    },
-  },
-];
-
-const initialEdges: Edge[] = [];
+import { Plus, ArrowLeft } from 'lucide-react';
 
 const nodeTypes = { plotNode: PlotNode };
 const edgeTypes = {
@@ -49,7 +29,7 @@ const edgeTypes = {
 interface PlotCanvasProps {
   bookId: string | undefined;
   versionId: string | undefined;
-  canvasData: any;
+  canvasData: PlotCanvasData | null;
   onCanvasUpdate: (data: any) => void;
 }
 
@@ -59,35 +39,101 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   canvasData,
   onCanvasUpdate,
 }) => {
-  const [nodes, setNodes, onNodesChange] = useNodesState<PlotNodeData>(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, setNodes, onNodesChange] = useNodesState<PlotNodeData>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
-  const [editingNode, setEditingNode] = useState<Node<PlotNodeData> | null>(null);
+  const [editingNode, setEditingNode] = useState<CanvasNode | null>(null);
+  const [currentViewNodeId, setCurrentViewNodeId] = useState<string | null>(null);
+  const [currentViewType, setCurrentViewType] = useState<string>('Outline');
 
   useEffect(() => {
     if (canvasData && canvasData.nodes) {
-      const reactFlowNodes = canvasData.nodes.map((nodeData: any) =>
-        createReactFlowNode(nodeData)
-      );
-      setNodes(reactFlowNodes);
-      setEdges(canvasData.edges || []);
+      loadNodesForCurrentView();
     }
-  }, [canvasData, setNodes, setEdges]);
+  }, [canvasData, currentViewNodeId, currentViewType]);
+
+  const loadNodesForCurrentView = () => {
+    if (!canvasData) return;
+
+    let nodesToShow: CanvasNode[] = [];
+    
+    if (!currentViewNodeId) {
+      // Show top-level nodes (Outline and Acts)
+      nodesToShow = canvasData.nodes.filter(node => 
+        node.type === 'Outline' || (node.type === 'Act' && !node.parentId)
+      );
+    } else {
+      // Show children of the selected node
+      const selectedNode = canvasData.nodes.find(n => n.id === currentViewNodeId);
+      if (selectedNode) {
+        nodesToShow = canvasData.nodes.filter(node => 
+          selectedNode.childIds.includes(node.id) || 
+          selectedNode.linkedNodeIds.includes(node.id) ||
+          node.id === currentViewNodeId
+        );
+      }
+    }
+
+    const reactFlowNodes = nodesToShow.map(nodeData => createReactFlowNode(nodeData));
+    setNodes(reactFlowNodes);
+
+    // Create edges for parent-child and linked relationships
+    const reactFlowEdges: Edge[] = [];
+    nodesToShow.forEach(node => {
+      // Parent-child edges
+      node.childIds.forEach(childId => {
+        if (nodesToShow.find(n => n.id === childId)) {
+          reactFlowEdges.push({
+            id: `${node.id}-${childId}`,
+            source: node.id,
+            target: childId,
+            type: 'custom',
+            data: {
+              type: 'parent-child',
+              onConvertEdge: handleConvertEdge,
+            },
+          });
+        }
+      });
+
+      // Linked edges
+      node.linkedNodeIds.forEach(linkedId => {
+        if (nodesToShow.find(n => n.id === linkedId)) {
+          reactFlowEdges.push({
+            id: `${node.id}-${linkedId}`,
+            source: node.id,
+            target: linkedId,
+            type: 'custom',
+            data: {
+              type: 'linked',
+              onConvertEdge: handleConvertEdge,
+            },
+          });
+        }
+      });
+    });
+
+    setEdges(reactFlowEdges);
+  };
 
   const handleNodeEdit = async (nodeId: string, updatedData: Partial<PlotNodeData>) => {
-    const updatedNodes = nodes.map(node => {
+    if (!canvasData) return;
+
+    const updatedNodes = canvasData.nodes.map(node => {
       if (node.id === nodeId) {
         return {
           ...node,
-          data: { ...node.data, ...updatedData }
+          name: updatedData.name || node.name,
+          detail: updatedData.detail || node.detail,
+          goal: updatedData.goal || node.goal,
+          status: updatedData.status || node.status,
         };
       }
       return node;
     });
 
-    const newCanvasData = { nodes: updatedNodes, edges };
-    setNodes(updatedNodes);
+    const newCanvasData = { ...canvasData, nodes: updatedNodes };
     await onCanvasUpdate(newCanvasData);
     setEditingNode(null);
   };
@@ -118,71 +164,88 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   };
 
   const handleQuickNodeSave = async (nodeData: any, position: { x: number; y: number }) => {
+    if (!canvasData) return;
+
     const newNodeId = `node-${Date.now()}`;
-    const newNode: Node<PlotNodeData> = createReactFlowNode({
+    const newNode: CanvasNode = {
       id: newNodeId,
-      type: nodeData.type || 'scene',
+      type: nodeData.type || 'Chapter',
       name: nodeData.name || 'New Node',
       detail: nodeData.detail || '',
-      status: nodeData.status || 'not-started',
-      characters: nodeData.characters || [],
-      worlds: nodeData.worlds || [],
+      goal: nodeData.goal || '',
+      status: nodeData.status || 'Not Completed',
+      timelineEventIds: [],
+      parentId: currentViewNodeId,
+      childIds: [],
+      linkedNodeIds: [],
       position
-    });
+    };
 
-    const updatedNodes = [...nodes, newNode];
-    setNodes(updatedNodes);
+    const updatedNodes = [...canvasData.nodes, newNode];
+    
+    // Update parent's childIds if applicable
+    if (currentViewNodeId) {
+      const parentIndex = updatedNodes.findIndex(n => n.id === currentViewNodeId);
+      if (parentIndex >= 0) {
+        updatedNodes[parentIndex].childIds.push(newNodeId);
+      }
+    }
 
-    const newCanvasData = { nodes: updatedNodes, edges };
+    const newCanvasData = { ...canvasData, nodes: updatedNodes };
     await onCanvasUpdate(newCanvasData);
     setShowQuickModal(false);
+    loadNodesForCurrentView();
   };
 
   const handleAddChild = async (parentId: string) => {
+    if (!canvasData) return;
+
     const newNodeId = `node-${Date.now()}`;
-    const parentNode = nodes.find(n => n.id === parentId);
+    const parentNode = canvasData.nodes.find(n => n.id === parentId);
     const childPosition = parentNode 
       ? { x: parentNode.position.x + 300, y: parentNode.position.y + 150 }
       : { x: Math.random() * 400, y: Math.random() * 400 };
 
-    const newNode: Node<PlotNodeData> = createReactFlowNode({
-      id: newNodeId,
-      type: 'scene',
-      name: 'New Scene',
-      detail: 'Details of the new scene',
-      status: 'not-started',
-      characters: [],
-      worlds: [],
-      position: childPosition
-    });
-
-    const updatedNodes = [...nodes, newNode];
-    setNodes(updatedNodes);
-
-    const newEdge = {
-      id: `${parentId}-${newNodeId}`,
-      source: parentId,
-      target: newNodeId,
-      type: 'custom',
-      data: {
-        type: 'parent-child',
-        onConvertEdge: handleConvertEdge,
-      },
+    const getChildType = (parentType: string): CanvasNode['type'] => {
+      switch (parentType) {
+        case 'Outline': return 'Act';
+        case 'Act': return 'Chapter';
+        case 'Chapter': return 'SceneBeats';
+        default: return 'SceneBeats';
+      }
     };
-    const updatedEdges = [...edges, newEdge];
-    setEdges(updatedEdges);
 
-    const newCanvasData = { nodes: updatedNodes, edges: updatedEdges };
+    const newNode: CanvasNode = {
+      id: newNodeId,
+      type: getChildType(parentNode?.type || 'Act'),
+      name: 'New Node',
+      detail: 'Details of the new node',
+      goal: '',
+      status: 'Not Completed',
+      timelineEventIds: [],
+      parentId: parentId,
+      childIds: [],
+      linkedNodeIds: [],
+      position: childPosition
+    };
+
+    const updatedNodes = [...canvasData.nodes, newNode];
+    
+    // Update parent's childIds
+    const parentIndex = updatedNodes.findIndex(n => n.id === parentId);
+    if (parentIndex >= 0) {
+      updatedNodes[parentIndex].childIds.push(newNodeId);
+    }
+
+    const newCanvasData = { ...canvasData, nodes: updatedNodes };
     await onCanvasUpdate(newCanvasData);
+    loadNodesForCurrentView();
   };
 
   const handleConvertEdge = async (edgeId: string, action: string) => {
     if (action === 'delete') {
       const updatedEdges = edges.filter(edge => edge.id !== edgeId);
       setEdges(updatedEdges);
-
-      const newCanvasData = { nodes, edges: updatedEdges };
-      await onCanvasUpdate(newCanvasData);
     } else {
       const updatedEdges = edges.map(edge => {
         if (edge.id === edgeId) {
@@ -197,29 +260,28 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         return edge;
       });
       setEdges(updatedEdges);
-
-      const newCanvasData = { nodes, edges: updatedEdges };
-      await onCanvasUpdate(newCanvasData);
     }
   };
 
-  const createReactFlowNode = (nodeData: any): Node<PlotNodeData> => ({
+  const createReactFlowNode = (nodeData: CanvasNode): Node<PlotNodeData> => ({
     id: nodeData.id,
     type: 'plotNode',
     position: nodeData.position || { x: Math.random() * 400, y: Math.random() * 400 },
     data: {
       id: nodeData.id,
-      type: nodeData.type || 'scene',
-      name: nodeData.name || 'Untitled',
-      detail: nodeData.detail || '',
-      status: nodeData.status || 'not-started',
-      characters: nodeData.characters || [],
-      worlds: nodeData.worlds || [],
+      type: nodeData.type,
+      name: nodeData.name,
+      detail: nodeData.detail,
+      goal: nodeData.goal,
+      status: nodeData.status,
+      parentId: nodeData.parentId,
+      childIds: nodeData.childIds,
+      linkedNodeIds: nodeData.linkedNodeIds,
+      characters: nodeData.linkedNodeIds?.filter(id => id.startsWith('character-')) || [],
+      worlds: nodeData.linkedNodeIds?.filter(id => id.startsWith('world-')) || [],
       onEdit: (nodeId: string) => {
-        console.log('Edit clicked for node:', nodeId);
-        const nodeToEdit = nodes.find(n => n.id === nodeId);
+        const nodeToEdit = canvasData?.nodes.find(n => n.id === nodeId);
         if (nodeToEdit) {
-          console.log('Setting editing node:', nodeToEdit);
           setEditingNode(nodeToEdit);
         }
       },
@@ -227,34 +289,83 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     },
   });
 
-  const handleAddFirstNode = () => {
-    const newNodeId = `node-${Date.now()}`;
-    const newNode: Node<PlotNodeData> = createReactFlowNode({
-      id: newNodeId,
-      type: 'act',
-      name: 'Act 1',
-      detail: 'The beginning of the story',
-      status: 'not-started',
-      characters: [],
-      worlds: [],
-      position: { x: 250, y: 250 }
-    });
+  const handleNodeClick = (node: Node<PlotNodeData>) => {
+    if (node.data.childIds.length > 0) {
+      setCurrentViewNodeId(node.data.id);
+      setCurrentViewType(node.data.type);
+    }
+  };
 
-    setNodes([newNode]);
-    const newCanvasData = { nodes: [newNode], edges: [] };
-    onCanvasUpdate(newCanvasData);
+  const handleBackNavigation = () => {
+    if (!canvasData || !currentViewNodeId) return;
+
+    const currentNode = canvasData.nodes.find(n => n.id === currentViewNodeId);
+    if (currentNode?.parentId) {
+      setCurrentViewNodeId(currentNode.parentId);
+      const parentNode = canvasData.nodes.find(n => n.id === currentNode.parentId);
+      setCurrentViewType(parentNode?.type || 'Outline');
+    } else {
+      setCurrentViewNodeId(null);
+      setCurrentViewType('Outline');
+    }
+  };
+
+  const handleAddFirstNode = async () => {
+    if (!canvasData) return;
+
+    const newNodeId = `outline-${Date.now()}`;
+    const newNode: CanvasNode = {
+      id: newNodeId,
+      type: 'Outline',
+      name: 'Story Outline',
+      detail: 'Main story outline',
+      goal: 'Tell the complete story',
+      status: 'Not Completed',
+      timelineEventIds: [],
+      parentId: null,
+      childIds: [],
+      linkedNodeIds: [],
+      position: { x: 250, y: 250 }
+    };
+
+    const newCanvasData = { ...canvasData, nodes: [newNode] };
+    await onCanvasUpdate(newCanvasData);
+  };
+
+  const getCurrentViewTitle = () => {
+    if (!currentViewNodeId || !canvasData) return 'Story Outline';
+    const currentNode = canvasData.nodes.find(n => n.id === currentViewNodeId);
+    return currentNode ? `${currentNode.name} - Children` : 'Story Outline';
   };
 
   return (
     <div className="h-full w-full relative">
-      {nodes.length === 0 && (
+      {/* Navigation Header */}
+      <div className="absolute top-4 left-4 z-10 flex items-center gap-2">
+        {currentViewNodeId && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleBackNavigation}
+            className="flex items-center gap-1"
+          >
+            <ArrowLeft size={16} />
+            Back
+          </Button>
+        )}
+        <div className="bg-background/80 backdrop-blur-sm rounded-md px-3 py-1 border">
+          <span className="text-sm font-medium">{getCurrentViewTitle()}</span>
+        </div>
+      </div>
+
+      {(!canvasData || canvasData.nodes.length === 0) && (
         <div className="absolute inset-0 flex items-center justify-center z-10 bg-background/80">
           <div className="text-center space-y-4">
             <h3 className="text-lg font-semibold text-muted-foreground">No story structure yet</h3>
-            <p className="text-sm text-muted-foreground">Start building your plot by adding your first act</p>
+            <p className="text-sm text-muted-foreground">Start building your plot by adding your first outline</p>
             <Button onClick={handleAddFirstNode} className="flex items-center gap-2">
               <Plus size={16} />
-              Add First Act
+              Add Story Outline
             </Button>
           </div>
         </div>
@@ -267,13 +378,14 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onPaneClick={handlePaneClick}
+        onNodeClick={(_, node) => handleNodeClick(node)}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
         className="bg-background"
         deleteKeyCode={['Backspace', 'Delete']}
         multiSelectionKeyCode={['Meta', 'Ctrl']}
-        connectionMode="loose"
+        connectionMode={ConnectionMode.Loose}
       >
         <Controls />
         <Background />
@@ -293,7 +405,21 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       {editingNode && (
         <NodeEditModal
           isOpen={!!editingNode}
-          node={editingNode.data}
+          node={{
+            id: editingNode.id,
+            type: editingNode.type,
+            name: editingNode.name,
+            detail: editingNode.detail,
+            goal: editingNode.goal,
+            status: editingNode.status,
+            parentId: editingNode.parentId,
+            childIds: editingNode.childIds,
+            linkedNodeIds: editingNode.linkedNodeIds,
+            characters: editingNode.linkedNodeIds?.filter(id => id.startsWith('character-')) || [],
+            worlds: editingNode.linkedNodeIds?.filter(id => id.startsWith('world-')) || [],
+            onEdit: () => {},
+            onAddChild: () => {},
+          }}
           onClose={() => setEditingNode(null)}
           onSave={handleNodeEdit}
           timelineEvents={[]}
