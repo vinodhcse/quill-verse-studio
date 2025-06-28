@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/api';
@@ -13,8 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { useUserContext } from '@/lib/UserContextProvider';
 import Header from '@/components/Header';
 
-interface Params {
-  [key: string]: string;
+interface Params extends Record<string, string> {
   bookId: string;
 }
 
@@ -45,7 +45,7 @@ const BookDetails: React.FC = () => {
   const [sharingVersion, setSharingVersion] = useState<ExtendedVersion | null>(null);
   const [deleteVersionDialogOpen, setDeleteVersionDialogOpen] = useState(false);
   const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
-  const { currentUser } = useUserContext();
+  const { user } = useUserContext();
 
   useEffect(() => {
     const fetchBookDetails = async () => {
@@ -124,8 +124,8 @@ const BookDetails: React.FC = () => {
     }
   };
 
-  const currentUserCollaborator = collaborators.find(c => c.user_id === currentUser?.id);
-  const canManageVersions = currentUserCollaborator?.permissions === 'owner' || currentUserCollaborator?.permissions === 'editor';
+  const currentUserCollaborator = collaborators.find(c => c.userId === user?.id);
+  const canManageVersions = currentUserCollaborator?.role === 'owner' || currentUserCollaborator?.role === 'editor';
 
   if (loading) {
     return (
@@ -201,7 +201,7 @@ const BookDetails: React.FC = () => {
                           <span>Created: {new Date(version.createdAt).toLocaleDateString()}</span>
                           <span>•</span>
                           <span>Updated: {new Date(version.updatedAt || version.createdAt).toLocaleDateString()}</span>
-                          {typeof version.createdBy === 'string' && (
+                          {version.createdBy && (
                             <>
                               <span>•</span>
                               <span>By: {version.createdBy}</span>
@@ -300,11 +300,11 @@ const BookDetails: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{collaborator.user_name || collaborator.name || 'Unknown User'}</div>
-                        <div className="text-sm text-muted-foreground">{collaborator.user_email || 'No email'}</div>
+                        <div className="font-medium">{collaborator.userName}</div>
+                        <div className="text-sm text-muted-foreground">{collaborator.userEmail}</div>
                       </div>
                       <Badge variant="outline" className="text-xs">
-                        {collaborator.permissions || 'viewer'}
+                        {collaborator.role}
                       </Badge>
                     </div>
                   </CardContent>
@@ -327,8 +327,7 @@ const BookDetails: React.FC = () => {
       <CreateVersionModal
         isOpen={createVersionModalOpen}
         onClose={() => setCreateVersionModalOpen(false)}
-        onCreateVersion={handleCreateVersion}
-        existingVersions={versions}
+        onSubmit={handleCreateVersion}
       />
 
       {editingVersion && (
@@ -351,9 +350,7 @@ const BookDetails: React.FC = () => {
             setSharingVersion(null);
           }}
           onShare={(data) => handleShareVersion(sharingVersion.id, data)}
-          versionId={sharingVersion.id}
-          bookTitle={book?.title || ''}
-          versionName={sharingVersion.name}
+          version={sharingVersion}
         />
       )}
 

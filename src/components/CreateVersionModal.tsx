@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   Dialog,
@@ -26,18 +25,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useForm } from 'react-hook-form';
 
-interface VersionForModal {
+interface Version {
   id: string;
   name: string;
-  type?: string;
-  status?: string;
+  type: 'Manuscript' | 'Edition';
+  status: 'Draft' | 'Final' | 'Published';
 }
 
 interface CreateVersionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateVersion: (versionData: { name: string; description?: string; baseVersionId?: string }) => void;
-  existingVersions?: VersionForModal[];
+  onCreateVersion: (versionData: { name: string; baseVersionId?: string }) => void;
+  existingVersions: Version[];
 }
 
 interface FormData {
@@ -49,13 +48,13 @@ export const CreateVersionModal: React.FC<CreateVersionModalProps> = ({
   isOpen,
   onClose,
   onCreateVersion,
-  existingVersions = [],
+  existingVersions,
 }) => {
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<FormData>({
     defaultValues: {
-      name: '',
+      name: 'Manuscript',
       baseVersionId: '',
     },
   });
@@ -119,7 +118,7 @@ export const CreateVersionModal: React.FC<CreateVersionModalProps> = ({
                           {existingVersions.map((version) => (
                             version.id && (
                               <SelectItem key={version.id} value={version.id}>
-                                {version.name} ({version.status || 'Draft'})
+                                {version.name} ({version.status})
                               </SelectItem>
                             )
                           ))}
