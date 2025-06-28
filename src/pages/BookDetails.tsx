@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '@/lib/api';
@@ -202,7 +201,7 @@ const BookDetails: React.FC = () => {
                           <span>Created: {new Date(version.createdAt).toLocaleDateString()}</span>
                           <span>•</span>
                           <span>Updated: {new Date(version.updatedAt || version.createdAt).toLocaleDateString()}</span>
-                          {version.createdBy && (
+                          {typeof version.createdBy === 'string' && (
                             <>
                               <span>•</span>
                               <span>By: {version.createdBy}</span>
@@ -301,7 +300,7 @@ const BookDetails: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{collaborator.user_name || 'Unknown User'}</div>
+                        <div className="font-medium">{collaborator.user_name || collaborator.name || 'Unknown User'}</div>
                         <div className="text-sm text-muted-foreground">{collaborator.user_email || 'No email'}</div>
                       </div>
                       <Badge variant="outline" className="text-xs">
@@ -352,7 +351,9 @@ const BookDetails: React.FC = () => {
             setSharingVersion(null);
           }}
           onShare={(data) => handleShareVersion(sharingVersion.id, data)}
-          version={sharingVersion}
+          versionId={sharingVersion.id}
+          bookTitle={book?.title || ''}
+          versionName={sharingVersion.name}
         />
       )}
 

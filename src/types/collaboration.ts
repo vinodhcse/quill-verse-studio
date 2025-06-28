@@ -60,11 +60,14 @@ export interface Version {
   name: string;
   description?: string;
   createdAt: string;
-  createdBy: User;
+  createdBy: User | string;
   content: string;
   wordCount?: number;
   isPublished?: boolean;
   collaborators: User[];
+  status?: string;
+  type?: string;
+  updatedAt?: string;
 }
 
 export interface Chapter {
@@ -84,10 +87,13 @@ export interface Book {
   bookImage?: string;
   lastModified: string;
   createdAt: string;
-  wordCount: number; // Made required to match Dashboard usage
+  wordCount: number;
   role?: 'author' | 'editor' | 'reviewer';
   subtitle?: string;
   language?: string;
+  description?: string;
+  authorName?: string;
+  updatedAt?: string;
 }
 
 export interface BookDetails extends Book {
@@ -109,8 +115,10 @@ export interface CollaboratorInfo {
   id: string;
   user_id: string;
   user_email: string;
-  name: string;
+  user_name?: string;
+  name?: string;
   collaborator_type: string;
+  permissions?: string;
   addedBy: string;
   addedAt: string;
   expiresAt: string | null;

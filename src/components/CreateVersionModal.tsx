@@ -26,18 +26,18 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useForm } from 'react-hook-form';
 
-interface Version {
+interface VersionForModal {
   id: string;
   name: string;
-  type?: 'Manuscript' | 'Edition';
-  status?: 'Draft' | 'Final' | 'Published';
+  type?: string;
+  status?: string;
 }
 
 interface CreateVersionModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCreateVersion: (versionData: { name: string; baseVersionId?: string }) => void;
-  existingVersions?: Version[];
+  onCreateVersion: (versionData: { name: string; description?: string; baseVersionId?: string }) => void;
+  existingVersions?: VersionForModal[];
 }
 
 interface FormData {
@@ -55,7 +55,7 @@ export const CreateVersionModal: React.FC<CreateVersionModalProps> = ({
 
   const form = useForm<FormData>({
     defaultValues: {
-      name: 'Manuscript',
+      name: '',
       baseVersionId: '',
     },
   });

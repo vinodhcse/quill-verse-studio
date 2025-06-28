@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from './api';
@@ -8,6 +9,12 @@ interface UserContextProps {
   email: string | null;
   globalRole: string | null;
   isAuthenticated: boolean;
+  currentUser: {
+    id: string;
+    name: string;
+    email: string;
+    globalRole: string;
+  } | null;
   setUser: (user: Partial<UserContextProps>) => void;
 }
 
@@ -20,6 +27,7 @@ export const UserContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
     email: null,
     globalRole: null,
     isAuthenticated: false,
+    currentUser: null,
     setUser: (userData) => setUser((prev) => ({ ...prev, ...userData })),
   });
 
@@ -39,14 +47,23 @@ export const UserContextProvider: React.FC<{ children: React.ReactNode }> = ({ c
             Authorization: `Bearer ${token}`,
           },
         });
-        setUser({
+
+        const userData = {
           userId: response.data.id,
           name: response.data.name,
           email: response.data.email,
           globalRole: response.data.globalRole,
           isAuthenticated: true,
+          currentUser: {
+            id: response.data.id,
+            name: response.data.name,
+            email: response.data.email,
+            globalRole: response.data.globalRole,
+          },
           setUser: user.setUser,
-        });
+        };
+
+        setUser(userData);
       } catch (error) {
         if (error.response?.status === 403 || error.response?.status === 401) {
           navigate('/login');
