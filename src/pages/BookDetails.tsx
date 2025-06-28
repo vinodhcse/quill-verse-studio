@@ -14,7 +14,8 @@ import { Badge } from '@/components/ui/badge';
 import { useUserContext } from '@/lib/UserContextProvider';
 import Header from '@/components/Header';
 
-interface Params extends Record<string, string> {
+interface Params {
+  [key: string]: string;
   bookId: string;
 }
 
@@ -45,7 +46,7 @@ const BookDetails: React.FC = () => {
   const [sharingVersion, setSharingVersion] = useState<ExtendedVersion | null>(null);
   const [deleteVersionDialogOpen, setDeleteVersionDialogOpen] = useState(false);
   const [deletingVersionId, setDeletingVersionId] = useState<string | null>(null);
-  const { user } = useUserContext();
+  const { currentUser } = useUserContext();
 
   useEffect(() => {
     const fetchBookDetails = async () => {
@@ -124,8 +125,8 @@ const BookDetails: React.FC = () => {
     }
   };
 
-  const currentUserCollaborator = collaborators.find(c => c.userId === user?.id);
-  const canManageVersions = currentUserCollaborator?.role === 'owner' || currentUserCollaborator?.role === 'editor';
+  const currentUserCollaborator = collaborators.find(c => c.user_id === currentUser?.id);
+  const canManageVersions = currentUserCollaborator?.permissions === 'owner' || currentUserCollaborator?.permissions === 'editor';
 
   if (loading) {
     return (
@@ -300,11 +301,11 @@ const BookDetails: React.FC = () => {
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
                       <div>
-                        <div className="font-medium">{collaborator.userName}</div>
-                        <div className="text-sm text-muted-foreground">{collaborator.userEmail}</div>
+                        <div className="font-medium">{collaborator.user_name || 'Unknown User'}</div>
+                        <div className="text-sm text-muted-foreground">{collaborator.user_email || 'No email'}</div>
                       </div>
                       <Badge variant="outline" className="text-xs">
-                        {collaborator.role}
+                        {collaborator.permissions || 'viewer'}
                       </Badge>
                     </div>
                   </CardContent>
@@ -327,7 +328,8 @@ const BookDetails: React.FC = () => {
       <CreateVersionModal
         isOpen={createVersionModalOpen}
         onClose={() => setCreateVersionModalOpen(false)}
-        onSubmit={handleCreateVersion}
+        onCreateVersion={handleCreateVersion}
+        existingVersions={versions}
       />
 
       {editingVersion && (
