@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -70,10 +71,6 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     if (data.onNavigateToEntity) {
       data.onNavigateToEntity(entityId);
     }
-  };
-
-  const getCharacterInitials = (name: string) => {
-    return name.split(' ').map(n => n[0]).join('').toUpperCase();
   };
 
   return (
@@ -163,10 +160,10 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                   onClick={() => handleEntityClick(character.id)}
                 >
                   <div className="flex items-center gap-2">
-                    <Avatar className="h-6 w-6" onClick={() => handleEntityClick(character.id)}>
+                    <Avatar className="h-6 w-6">
                       <AvatarImage src={character.image} />
-                      <AvatarFallback className="text-xs bg-blue-100 text-blue-800 cursor-pointer">
-                        {getCharacterInitials(character.name)}
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        {character.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-xs font-medium">{character.name}</span>
