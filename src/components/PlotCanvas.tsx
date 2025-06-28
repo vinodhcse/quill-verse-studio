@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
@@ -59,7 +58,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     let nodesToShow: CanvasNode[] = [];
     
     if (!currentViewNodeId) {
-      // Show top-level nodes (Outline and Characters/World entities)
+      // Show top-level nodes (Outline and standalone Characters/World entities)
       nodesToShow = canvasData.nodes.filter(node => 
         node.type === 'Outline' || 
         (node.parentId === null && ['Character', 'WorldLocation', 'WorldObject'].includes(node.type))
@@ -82,6 +81,24 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
           selectedNode.linkedNodeIds.includes(node.id)
         );
         nodesToShow.push(...linkedNodes);
+
+        // For SceneBeats specifically, also show linked characters/world entities
+        if (selectedNode.type === 'SceneBeats' || childNodes.some(n => n.type === 'SceneBeats')) {
+          const sceneBeatNodes = selectedNode.type === 'SceneBeats' ? [selectedNode] : childNodes.filter(n => n.type === 'SceneBeats');
+          
+          sceneBeatNodes.forEach(sceneBeat => {
+            const sceneBeatLinkedNodes = canvasData.nodes.filter(node => 
+              sceneBeat.linkedNodeIds.includes(node.id) && 
+              ['Character', 'WorldLocation', 'WorldObject'].includes(node.type)
+            );
+            
+            sceneBeatLinkedNodes.forEach(linkedNode => {
+              if (!nodesToShow.find(n => n.id === linkedNode.id)) {
+                nodesToShow.push(linkedNode);
+              }
+            });
+          });
+        }
       }
     }
 
@@ -284,13 +301,57 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     }
   };
 
-  const handleNavigateToEntity = (entityId: string) => {
+  const handleNavigateToEntity = async (entityId: string) => {
     console.log('Navigating to entity:', entityId);
     const entity = canvasData?.nodes.find(n => n.id === entityId);
     if (entity) {
       console.log('Setting current view to:', entityId, entity.type);
-      setCurrentViewNodeId(entityId);
-      setCurrentViewType(entity.type);
+      
+      // Check if entity has an arc (children nodes)
+      if (entity.childIds && entity.childIds.length > 0) {
+        // Entity has an arc, navigate to it
+        setCurrentViewNodeId(entityId);
+        setCurrentViewType(entity.type);
+      } else {
+        // Entity has no arc, create a basic arc structure
+        if (!canvasData) return;
+
+        const arcNodeId = `${entity.type.toLowerCase()}-arc-${Date.now()}`;
+        const arcNode: CanvasNode = {
+          id: arcNodeId,
+          type: entity.type === 'Character' ? 'Character' : entity.type,
+          name: `${entity.name} Arc`,
+          detail: `Character arc for ${entity.name}`,
+          goal: `Track ${entity.name}'s development throughout the story`,
+          status: 'Not Completed',
+          timelineEventIds: [],
+          parentId: entityId,
+          childIds: [],
+          linkedNodeIds: [],
+          position: { x: entity.position.x + 200, y: entity.position.y }
+        };
+
+        // Update the original entity to have this arc as a child
+        const updatedNodes = canvasData.nodes.map(node => {
+          if (node.id === entityId) {
+            return {
+              ...node,
+              childIds: [...node.childIds, arcNodeId]
+            };
+          }
+          return node;
+        });
+
+        // Add the new arc node
+        updatedNodes.push(arcNode);
+
+        const newCanvasData = { ...canvasData, nodes: updatedNodes };
+        await onCanvasUpdate(newCanvasData);
+        
+        // Navigate to the entity view
+        setCurrentViewNodeId(entityId);
+        setCurrentViewType(entity.type);
+      }
     }
   };
 
