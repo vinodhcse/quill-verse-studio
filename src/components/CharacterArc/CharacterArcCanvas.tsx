@@ -15,7 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import PlotNode from '@/components/PlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
-import { PlotNodeData, CanvasNode, PlotCanvasData, CharacterAttributes } from '@/types/plotCanvas';
+import { PlotNodeData, CanvasNode, PlotCanvasData, CharacterAttributes, TimelineEvent } from '@/types/plotCanvas';
 import { Button } from '@/components/ui/button';
 import { debounce } from 'lodash';
 import { apiClient } from '@/lib/api';
@@ -66,6 +66,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [editingNode, setEditingNode] = useState<CanvasNode | null>(null);
   const [isInteractive, setIsInteractive] = useState(true);
+  const [plotCanvasNodes, setPlotCanvasNodes] = useState<CanvasNode[]>([]);
 
   const canvasData = propCanvasData || internalCanvasData;
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
@@ -80,6 +81,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   useEffect(() => {
     if (characterId && bookId && versionId) {
       fetchCharacterDetails();
+      fetchPlotCanvasNodes();
     }
   }, [characterId, bookId, versionId]);
 
@@ -93,6 +95,40 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     } catch (error) {
       console.error('Failed to fetch character details:', error);
     }
+  };
+
+  const fetchPlotCanvasNodes = async () => {
+    if (!bookId || !versionId) return;
+    
+    try {
+      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plot-canvas`);
+      if (response.data && response.data.nodes) {
+        setPlotCanvasNodes(response.data.nodes);
+      }
+    } catch (error) {
+      console.error('Failed to fetch plot canvas nodes:', error);
+    }
+  };
+
+  const renderCharacterDetails = (node: CanvasNode) => {
+    // Load details from node.attributes instead of character object
+    const attributes = node.attributes as CharacterAttributes;
+    if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) {
+      return null;
+    }
+
+    return (
+      <div className="space-y-2 text-xs">
+        {attributes.age && <div><strong>Age:</strong> {attributes.age}</div>}
+        {attributes.gender && <div><strong>Gender:</strong> {attributes.gender}</div>}
+        {attributes.traits && attributes.traits.length > 0 && (
+          <div><strong>Traits:</strong> {attributes.traits.slice(0, 2).join(', ')}{attributes.traits.length > 2 ? '...' : ''}</div>
+        )}
+        {attributes.motivations && attributes.motivations.length > 0 && (
+          <div><strong>Motivations:</strong> {attributes.motivations.slice(0, 1).join(', ')}{attributes.motivations.length > 1 ? '...' : ''}</div>
+        )}
+      </div>
+    );
   };
 
   useEffect(() => {
@@ -111,6 +147,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
           onFetchCharacterDetails: handleFetchCharacterDetails,
           onAddLinkedNode: handleAddLinkedNode,
           selectedCharacter: selectedCharacter,
+          renderCharacterDetails: () => renderCharacterDetails(node),
         } as PlotNodeData,
       }));
 
@@ -385,6 +422,28 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     }
   }, [setEdges, canvasData, onCanvasUpdate]);
 
+  const handleCreateTimelineEvent = async (eventData: Partial<TimelineEvent>) => {
+    if (!canvasData) return;
+
+    const newEvent: TimelineEvent = {
+      id: `timeline_${Date.now()}`,
+      name: eventData.name || '',
+      date: eventData.date || '',
+      description: eventData.description || '',
+      type: eventData.type || 'character',
+      linkedNodeIds: []
+    };
+
+    const updatedCanvasData = {
+      ...canvasData,
+      timelineEvents: [...canvasData.timelineEvents, newEvent],
+      lastUpdated: new Date().toISOString()
+    };
+
+    await onCanvasUpdate(updatedCanvasData);
+    return newEvent.id;
+  };
+
   const getBreadcrumbItems = () => {
     const items = [
       { label: 'Character Arcs', href: '#' }
@@ -526,6 +585,9 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         }}
         onSave={handleNodeUpdate}
         node={editingNode}
+        plotCanvasNodes={plotCanvasNodes}
+        timelineEvents={canvasData?.timelineEvents || []}
+        onCreateTimelineEvent={handleCreateTimelineEvent}
       />
     </div>
   );

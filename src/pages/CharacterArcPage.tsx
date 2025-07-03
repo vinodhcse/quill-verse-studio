@@ -35,6 +35,7 @@ const CharacterArcPage: React.FC = () => {
         console.log('Found selected character:', selectedCharacter);
         
         if (selectedCharacter && selectedCharacter.arc && 
+            typeof selectedCharacter.arc === 'object' &&
             selectedCharacter.arc.nodes && Array.isArray(selectedCharacter.arc.nodes) &&
             selectedCharacter.arc.edges && Array.isArray(selectedCharacter.arc.edges)) {
           // Character has proper canvas data
