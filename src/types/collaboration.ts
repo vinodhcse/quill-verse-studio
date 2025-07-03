@@ -56,14 +56,18 @@ export type EditMode = 'view' | 'edit' | 'review' | 'track-changes' | 'suggest';
 
 export interface Version {
   id: string;
-  name: string;
+  title: string;
   description?: string;
   createdAt: string;
-  createdBy: User;
-  content: string;
-  wordCount?: number;
-  isPublished?: boolean;
-  collaborators: User[];
+  updatedAt?: string;
+  type: "Manuscript" | "Edition";
+  status: string;
+  collaborators?: CollaboratorInfo[];
+  permissions?: {
+    canEdit: boolean;
+    canComment: boolean;
+    canView: boolean;
+  };
 }
 
 export interface Chapter {
