@@ -269,8 +269,11 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     const baseCharacterId = characterId || parentNodeId || 'character';
     const newNodeId = `${baseCharacterId}-arc-${Date.now()}`;
     
-    // Get parent node to inherit characters and attributes
+    // Get parent node to inherit attributes from
     const parentNode = parentNodeId ? canvasData.nodes.find(n => n.id === parentNodeId) : null;
+    console.log('Parent node for inheritance:', parentNode);
+
+    // Inherit characters array
     const inheritedCharacters = parentNode?.characters || (characterId && selectedCharacter ? [{
       id: characterId,
       name: selectedCharacter.name,
@@ -279,17 +282,25 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       attributes: []
     }] : []);
 
-    // Inherit all attributes from parent node or use defaults
+    // Inherit ALL attributes from parent node or use defaults
     const inheritedAliases = parentNode?.aliases || [];
     const inheritedTraits = parentNode?.traits || [];
     const inheritedBeliefs = parentNode?.beliefs || [];
     const inheritedMotivations = parentNode?.motivations || [];
     const inheritedInternalConflicts = parentNode?.internalConflicts || [];
     const inheritedExternalConflicts = parentNode?.externalConflicts || [];
+    const inheritedAge = parentNode?.age;
+    const inheritedBirthday = parentNode?.birthday;
+    const inheritedGender = parentNode?.gender;
+    const inheritedImage = parentNode?.image;
+    const inheritedLocationId = parentNode?.locationId;
+    const inheritedBackstory = parentNode?.backstory;
+    const inheritedRelationships = parentNode?.relationships || [];
+    const inheritedGoals = parentNode?.goals || [];
 
     const newNode: CanvasNode = {
       id: newNodeId,
-      type: nodeData.type || 'Character',
+      type: 'Character',
       name: nodeData.name || 'New Character Arc Node',
       detail: 'Character state continues from previous node',
       goal: nodeData.goal || '',
@@ -308,14 +319,14 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       motivations: inheritedMotivations,
       internalConflicts: inheritedInternalConflicts,
       externalConflicts: inheritedExternalConflicts,
-      age: parentNode?.age,
-      birthday: parentNode?.birthday,
-      gender: parentNode?.gender,
-      image: parentNode?.image,
-      locationId: parentNode?.locationId,
-      backstory: parentNode?.backstory,
-      relationships: parentNode?.relationships || [],
-      goals: parentNode?.goals || [],
+      age: inheritedAge,
+      birthday: inheritedBirthday,
+      gender: inheritedGender,
+      image: inheritedImage,
+      locationId: inheritedLocationId,
+      backstory: inheritedBackstory,
+      relationships: inheritedRelationships,
+      goals: inheritedGoals,
       attributes: [
         { id: 'aliases', name: 'Aliases', value: inheritedAliases.join(', ') },
         { id: 'traits', name: 'Traits', value: inheritedTraits.join(', ') },
@@ -326,13 +337,18 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       ]
     };
 
+    console.log('Created new node with inherited attributes:', newNode);
+
     const updatedNodes = [...canvasData.nodes, newNode];
 
     // Update parent node relationships
     if (parentNodeId) {
       const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
       if (parentIndex >= 0) {
-        updatedNodes[parentIndex].linkedNodeIds.push(newNodeId);
+        updatedNodes[parentIndex] = {
+          ...updatedNodes[parentIndex],
+          linkedNodeIds: [...updatedNodes[parentIndex].linkedNodeIds, newNodeId]
+        };
       }
     }
 
@@ -348,6 +364,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         type: 'custom'
       };
       updatedEdges.push(newEdge);
+      console.log('Created edge:', newEdge);
     }
 
     const newCanvasData = { 
@@ -357,6 +374,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       lastUpdated: new Date().toISOString()
     };
     
+    console.log('Updated canvas data:', newCanvasData);
     await onCanvasUpdate(newCanvasData);
     setShowQuickModal(false);
     setConnectFromNodeId(null);
