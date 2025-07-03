@@ -1,641 +1,472 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   ReactFlow,
-  addEdge,
-  useNodesState,
-  useEdgesState,
   Controls,
   Background,
-  Node,
-  Edge,
+  useNodesState,
+  useEdgesState,
+  addEdge,
   Connection,
-  ConnectionMode,
+  Edge,
+  Node,
+  BackgroundVariant,
   useReactFlow,
+  ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+
+import { PlotCanvasData, CanvasNode, CanvasEdge } from '@/types/plotCanvas';
 import PlotNode from '@/components/PlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
-import { PlotNodeData, CanvasNode, PlotCanvasData, CharacterAttributes, TimelineEvent } from '@/types/plotCanvas';
-import { Button } from '@/components/ui/button';
-import { debounce } from 'lodash';
-import { apiClient } from '@/lib/api';
 import { QuickNodeModal } from '@/components/QuickNodeModal';
 import { CharacterNodeEditModal } from '@/components/CharacterArc/CharacterNodeEditModal';
-import { Character } from '@/types/character';
-import { 
-  Breadcrumb, 
-  BreadcrumbItem, 
-  BreadcrumbLink, 
-  BreadcrumbList, 
-  BreadcrumbSeparator 
-} from '@/components/ui/breadcrumb';
-import { ChevronRight, Home, Plus, ZoomIn, ZoomOut, Maximize2, ToggleLeft, MousePointer, Move } from 'lucide-react';
-
-const nodeTypes = { plotNode: PlotNode };
-const edgeTypes = {
-  custom: DeletableEdge,
-};
 
 interface CharacterArcCanvasProps {
   bookId?: string;
   versionId?: string;
   characterId?: string | null;
-  canvasData?: PlotCanvasData | null;
-  onCanvasUpdate?: (data: PlotCanvasData) => void;
+  canvasData: PlotCanvasData | null;
+  onCanvasUpdate: (canvasData: PlotCanvasData) => void;
+  plotCanvasNodes?: CanvasNode[];
+  timelineEvents?: any[];
 }
 
-const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ 
-  bookId, 
-  versionId, 
+const nodeTypes = {
+  default: PlotNode,
+};
+
+const edgeTypes = {
+  custom: DeletableEdge,
+};
+
+const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
+  bookId,
+  versionId,
   characterId,
-  canvasData: propCanvasData,
-  onCanvasUpdate: propOnCanvasUpdate
+  canvasData,
+  onCanvasUpdate,
+  plotCanvasNodes = [],
+  timelineEvents = []
 }) => {
-  const [internalCanvasData, setInternalCanvasData] = useState<PlotCanvasData>({ 
-    nodes: [], 
-    edges: [], 
-    timelineEvents: [], 
-    lastUpdated: '' 
-  });
-  const [loading, setLoading] = useState(false);
-  const [showQuickModal, setShowQuickModal] = useState(false);
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
-  const [currentViewNodeId, setCurrentViewNodeId] = useState<string | null>(null);
-  const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
-  const [editingNode, setEditingNode] = useState<CanvasNode | null>(null);
-  const [isInteractive, setIsInteractive] = useState(true);
-  const [plotCanvasData, setPlotCanvasData] = useState<PlotCanvasData>({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
-
-  const canvasData = propCanvasData || internalCanvasData;
-  const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
-
-  console.log('CharacterArcCanvas mounted with bookId:', bookId, 'versionId:', versionId, 'characterId:', characterId);
-
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-
-  const { fitView, zoomIn, zoomOut, zoomTo } = useReactFlow();
-
-  useEffect(() => {
-    if (characterId && bookId && versionId) {
-      fetchCharacterDetails();
-    }
-    if (bookId && versionId) {
-      fetchPlotCanvasData();
-    }
-  }, [characterId, bookId, versionId]);
-
-  const fetchCharacterDetails = async () => {
-    if (!characterId || !bookId || !versionId) return;
-    
-    try {
-      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/characters/${characterId}`);
-      console.log('Fetched character details:', response.data);
-      setSelectedCharacter(response.data);
-    } catch (error) {
-      console.error('Failed to fetch character details:', error);
-    }
-  };
-
-  const fetchPlotCanvasData = async () => {
-    if (!bookId || !versionId) return;
-    
-    try {
-      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plotCanvas`);
-      if (response.data) {
-        setPlotCanvasData(response.data);
-        console.log('Fetched plot canvas data:', response.data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch plot canvas data:', error);
-    }
-  };
-
-  const renderCharacterDetails = (node: CanvasNode) => {
-    const attributes = node.attributes as CharacterAttributes;
-    if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) {
-      return null;
-    }
-
-    const isFirstNode = node.parentId === null && (!node.linkedNodeIds || node.linkedNodeIds.length === 0);
-
-    return (
-      <div className="space-y-2 text-xs">
-        {attributes.age && <div><strong>Age:</strong> {attributes.age}</div>}
-        {attributes.gender && <div><strong>Gender:</strong> {attributes.gender}</div>}
-        {attributes.traits && attributes.traits.length > 0 && (
-          <div><strong>Traits:</strong> {attributes.traits.slice(0, 2).join(', ')}{attributes.traits.length > 2 ? '...' : ''}</div>
-        )}
-        {attributes.motivations && attributes.motivations.length > 0 && (
-          <div><strong>Motivations:</strong> {attributes.motivations.slice(0, 1).join(', ')}{attributes.motivations.length > 1 ? '...' : ''}</div>
-        )}
-        
-        {/* Display linked Plot Canvas nodes */}
-        {node.linkedNodeIds && node.linkedNodeIds.length > 0 && (
-          <div className="mt-2 pt-2 border-t">
-            <div><strong>Linked Plot Nodes:</strong></div>
-            {node.linkedNodeIds.map(nodeId => {
-              const plotNode = plotCanvasData.nodes.find(n => n.id === nodeId);
-              return plotNode ? (
-                <div key={nodeId} className="text-xs text-blue-600">• {plotNode.name}</div>
-              ) : null;
-            })}
-          </div>
-        )}
-        
-        {/* Display linked Timeline events */}
-        {node.timelineEventIds && node.timelineEventIds.length > 0 && (
-          <div className="mt-2 pt-2 border-t">
-            <div><strong>Timeline Events:</strong></div>
-            {node.timelineEventIds.map(eventId => {
-              const event = plotCanvasData.timelineEvents.find(e => e.id === eventId);
-              return event ? (
-                <div key={eventId} className="text-xs text-green-600">• {event.name}</div>
-              ) : null;
-            })}
-          </div>
-        )}
-      </div>
-    );
-  };
+  const [quickNodeModal, setQuickNodeModal] = useState({ isOpen: false, position: { x: 0, y: 0 }, sourceNodeId: undefined as string | undefined });
+  const [editModal, setEditModal] = useState({ isOpen: false, node: null as CanvasNode | null });
+  const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
   useEffect(() => {
     if (canvasData) {
-      const reactFlowNodes = canvasData.nodes.map((node: CanvasNode) => {
-        const isFirstNode = node.parentId === null && (!node.linkedNodeIds || node.linkedNodeIds.length === 0);
-        
-        return {
-          id: node.id,
-          type: 'plotNode',
-          position: node.position,
-          data: {
-            ...node,
-            onEdit: handleEditNode,
-            onAddChild: handleAddChild,
-            onNavigateToEntity: handleNavigateToEntity,
-            onDelete: handleDeleteNode,
-            onCharacterOrWorldClick: handleCharacterOrWorldClick,
-            onFetchCharacterDetails: handleFetchCharacterDetails,
-            onAddLinkedNode: handleAddLinkedNode,
-            selectedCharacter: selectedCharacter,
-            renderCharacterDetails: () => renderCharacterDetails(node),
-            showFullAttributes: isFirstNode, // First node shows full attributes by default
-          } as PlotNodeData,
-        };
-      });
-
-      const reactFlowEdges = (canvasData.edges || []).map((edge) => ({
-        ...edge,
+      const reactFlowNodes = convertToReactFlowNodes(canvasData.nodes);
+      const reactFlowEdges = canvasData.edges.map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
         type: 'custom',
+        data: edge
       }));
 
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
-
-      setTimeout(() => {
-        fitView();
-      }, 100);
     }
-  }, [canvasData, selectedCharacter, plotCanvasData, setNodes, setEdges, fitView]);
+  }, [canvasData, convertToReactFlowNodes]);
 
-  const debouncedUpdate = useCallback(
-    debounce(async (updatedCanvasData: PlotCanvasData) => {
-      await onCanvasUpdate(updatedCanvasData);
-    }, 1000),
-    [onCanvasUpdate]
-  );
+  const generateNodeId = useCallback(() => {
+    return `${characterId}-arc-${Date.now()}`;
+  }, [characterId]);
 
-  const handleEditNode = (nodeId: string) => {
-    console.log('Edit node:', nodeId);
-    const node = canvasData?.nodes.find(n => n.id === nodeId);
-    if (node && node.type === 'Character') {
-      setEditingNode(node);
-      setShowEditModal(true);
-    }
-  };
+  const onConnect = useCallback(
+    (params: Connection) => {
+      if (!characterId) return;
 
-  const handleNodeUpdate = async (updatedNode: CanvasNode) => {
-    if (!canvasData) return;
+      const newEdge: Edge = {
+        id: `edge-${params.source}-${params.target}`,
+        source: params.source || '',
+        target: params.target || '',
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        type: 'custom',
+        data: {
+          source: params.source || '',
+          target: params.target || '',
+          sourceHandle: params.sourceHandle,
+          targetHandle: params.targetHandle,
+        } as CanvasEdge,
+      };
 
-    const updatedNodes = canvasData.nodes.map(node => 
-      node.id === updatedNode.id ? updatedNode : node
-    );
+      setEdges((eds) => addEdge(newEdge, eds));
 
-    const updatedCanvasData = { 
-      ...canvasData, 
-      nodes: updatedNodes,
-      lastUpdated: new Date().toISOString()
-    };
-    
-    await onCanvasUpdate(updatedCanvasData);
-    
-    // Update plot canvas if there are linked nodes
-    if (updatedNode.linkedNodeIds && updatedNode.linkedNodeIds.length > 0) {
-      await updatePlotCanvasLinks(updatedNode);
-    }
-  };
-
-  const updatePlotCanvasLinks = async (characterNode: CanvasNode) => {
-    if (!bookId || !versionId) return;
-    
-    try {
-      // Update the plot canvas with character node links
-      const updatedPlotCanvasData = {
-        ...plotCanvasData,
+      // Update canvas data
+      const updatedCanvasData: PlotCanvasData = {
+        nodes: nodes.map(node => node.data as CanvasNode),
+        edges: [...edges, newEdge].map(edge => edge.data as CanvasEdge),
+        timelineEvents: canvasData?.timelineEvents || [],
         lastUpdated: new Date().toISOString()
       };
-      
-      await apiClient.patch(`/books/${bookId}/versions/${versionId}/plotCanvas`, updatedPlotCanvasData);
-      console.log('Plot canvas updated with character links');
-    } catch (error) {
-      console.error('Failed to update plot canvas:', error);
-    }
-  };
 
-  const handleAddChild = (parentId: string) => {
-    console.log('Add child to:', parentId);
-    setConnectFromNodeId(parentId);
-    setCurrentViewNodeId(parentId);
-    const parentNode = nodes.find(n => n.id === parentId);
-    if (parentNode) {
-      setQuickModalPosition({ 
-        x: parentNode.position.x + 300, 
-        y: parentNode.position.y 
-      });
-      setShowQuickModal(true);
-    }
-  };
+      onCanvasUpdate(updatedCanvasData);
+    },
+    [setEdges, nodes, edges, characterId, canvasData, onCanvasUpdate]
+  );
 
-  const handleNavigateToEntity = (entityId: string) => {
-    console.log('Navigate to entity:', entityId);
-  };
+  const handleNodeDelete = useCallback((nodeId: string) => {
+    setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
+    setEdges((prevEdges) => prevEdges.filter((edge) => edge.source !== nodeId && edge.target !== nodeId));
 
-  const handleDeleteNode = async (nodeId: string) => {
-    if (!canvasData) return;
-
-    const updatedNodes = canvasData.nodes.filter(node => node.id !== nodeId);
-    const updatedEdges = (canvasData.edges || []).filter(edge => 
-      edge.source !== nodeId && edge.target !== nodeId
-    );
-    const updatedCanvasData = { ...canvasData, nodes: updatedNodes, edges: updatedEdges };
-    await onCanvasUpdate(updatedCanvasData);
-  };
-
-  const handleCharacterOrWorldClick = async (entityId: string) => {
-    if (!bookId || !versionId) return;
-    console.log('handleCharacterOrWorldClick on entity:', entityId);
-
-    try {
-      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/characters/${entityId}`);
-      console.log('Fetched character data:', response.data);
-      const selectedCharacter = response.data;
-
-      if (!selectedCharacter) return;
-
-      if (selectedCharacter.arc && selectedCharacter.arc.nodes) {
-        console.log('Character has arc data:', selectedCharacter.arc);
-        await onCanvasUpdate(selectedCharacter.arc);
-      } else {
-        console.log('No arc data found for character:', entityId);
-      }
-    } catch (error) {
-      console.error('Failed to fetch character or load arcs:', error);
-    }
-  };
-
-  const handleFetchCharacterDetails = async (arcId: string) => {
-    console.log('Fetch character details for arc:', arcId);
-    return selectedCharacter || {};
-  };
-
-  const handleAddLinkedNode = async (parentNodeId: string, currentNodeType: string) => {
-    console.log('Adding linked node:', parentNodeId);
-    setConnectFromNodeId(parentNodeId);
-    setCurrentViewNodeId(parentNodeId);
-    
-    const parentNode = nodes.find(n => n.id === parentNodeId);
-    if (parentNode) {
-      setQuickModalPosition({ 
-        x: parentNode.position.x + 300, 
-        y: parentNode.position.y 
-      });
-      setShowQuickModal(true);
-    }
-  };
-
-  const handleQuickNodeSave = async (
-    nodeData: any,
-    position: { x: number; y: number },
-    parentNodeId?: string
-  ) => {
-    if (!canvasData) return;
-
-    const baseCharacterId = characterId || parentNodeId || 'character';
-    const newNodeId = `${baseCharacterId}-arc-${Date.now()}`;
-    
-    const parentNode = parentNodeId ? canvasData.nodes.find(n => n.id === parentNodeId) : null;
-    console.log('Parent node for inheritance:', parentNode);
-
-    const inheritedCharacters = parentNode?.characters || (characterId && selectedCharacter ? [{
-      id: characterId,
-      name: selectedCharacter.name,
-      type: 'Character',
-      image: selectedCharacter.image,
-      attributes: []
-    }] : []);
-
-    let inheritedAttributes: CharacterAttributes = {};
-    if (parentNode && parentNode.attributes && typeof parentNode.attributes === 'object' && !Array.isArray(parentNode.attributes)) {
-      inheritedAttributes = { ...parentNode.attributes as CharacterAttributes };
-    } else if (selectedCharacter) {
-      inheritedAttributes = {
-        age: selectedCharacter.age,
-        birthday: selectedCharacter.birthday,
-        gender: selectedCharacter.gender,
-        description: selectedCharacter.description,
-        image: selectedCharacter.image,
-        aliases: selectedCharacter.aliases || [],
-        traits: selectedCharacter.traits || [],
-        backstory: selectedCharacter.backstory,
-        beliefs: selectedCharacter.beliefs || [],
-        motivations: selectedCharacter.motivations || [],
-        internalConflicts: selectedCharacter.internalConflicts || [],
-        externalConflicts: selectedCharacter.externalConflicts || [],
-        relationships: selectedCharacter.relationships || [],
-        goals: selectedCharacter.goals || []
-      };
-    }
-
-    const newNode: CanvasNode = {
-      id: newNodeId,
-      type: 'Character',
-      name: nodeData.name || 'New Character Arc Node',
-      detail: parentNode ? 'Character state continues from previous node' : 'Initial character state',
-      goal: nodeData.goal || '',
-      status: nodeData.status || 'Not Completed',
-      timelineEventIds: [],
-      parentId: parentNodeId || null,
-      childIds: [],
-      linkedNodeIds: [],
-      position,
-      characters: inheritedCharacters,
-      worlds: [],
-      attributes: inheritedAttributes
-    };
-
-    console.log('Created new node with inherited attributes:', newNode);
-
-    const updatedNodes = [...canvasData.nodes, newNode];
-
-    if (parentNodeId) {
-      const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
-      if (parentIndex >= 0) {
-        updatedNodes[parentIndex] = {
-          ...updatedNodes[parentIndex],
-          linkedNodeIds: [...updatedNodes[parentIndex].linkedNodeIds, newNodeId]
-        };
-      }
-    }
-
-    const updatedEdges = [...(canvasData.edges || [])];
-    if (connectFromNodeId) {
-      const newEdge = {
-        id: `edge-${connectFromNodeId}-${newNodeId}`,
-        source: connectFromNodeId,
-        target: newNodeId,
-        sourceHandle: 'right',
-        targetHandle: 'left',
-        type: 'custom'
-      };
-      updatedEdges.push(newEdge);
-      console.log('Created edge:', newEdge);
-    }
-
-    const newCanvasData = { 
-      ...canvasData, 
-      nodes: updatedNodes, 
-      edges: updatedEdges,
+    // Update canvas data
+    const updatedCanvasData: PlotCanvasData = {
+      nodes: nodes.filter(node => node.id !== nodeId).map(node => node.data as CanvasNode),
+      edges: edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId).map(edge => edge.data as CanvasEdge),
+      timelineEvents: canvasData?.timelineEvents || [],
       lastUpdated: new Date().toISOString()
     };
-    
-    console.log('Updated canvas data:', newCanvasData);
-    await onCanvasUpdate(newCanvasData);
-    setShowQuickModal(false);
-    setConnectFromNodeId(null);
-    setCurrentViewNodeId(null);
-  };
 
-  const handlePaneClick = (event: any) => {
-    const bounds = event.currentTarget.getBoundingClientRect();
-    console.log('Pane clicked at:', event.clientX, event.clientY, 'Bounds:', bounds);
-    setQuickModalPosition({ 
-      x: event.clientX - bounds.left, 
-      y: event.clientY - bounds.top 
-    });
-    setShowQuickModal(true);
-    setCurrentViewNodeId(null);
-    setConnectFromNodeId(null);
-  };
+    onCanvasUpdate(updatedCanvasData);
+  }, [setNodes, setEdges, nodes, edges, canvasData, onCanvasUpdate]);
 
-  const onConnect = useCallback((params: Edge | Connection) => {
-    const newEdge = { 
-      ...params, 
-      type: 'custom',
-      sourceHandle: 'right',
-      targetHandle: 'left'
-    };
-    setEdges((eds) => addEdge(newEdge, eds));
-    
-    if (canvasData) {
-      const updatedEdges = [...(canvasData.edges || []), {
-        id: `edge-${params.source}-${params.target}`,
-        source: params.source!,
-        target: params.target!,
-        sourceHandle: 'right',
-        targetHandle: 'left',
-        type: 'custom'
-      }];
-      
-      const updatedNodes = canvasData.nodes.map(node => {
-        if (node.id === params.source) {
-          return { ...node, linkedNodeIds: [...node.linkedNodeIds, params.target!] };
+  const handlePaneClick = useCallback((event: any) => {
+    // console.log('Pane Clicked', event);
+  }, []);
+
+  const handlePaneContextMenu = useCallback(
+    (event: any) => {
+      event.preventDefault();
+
+      const panePosition = {
+        x: event.clientX - 200,
+        y: event.clientY - 50,
+      };
+
+      setQuickNodeModal({ isOpen: true, position: panePosition, sourceNodeId: undefined });
+    },
+    [setQuickNodeModal]
+  );
+
+  const handleQuickNodeSave = useCallback(
+    (nodeData: any, position: { x: number; y: number }) => {
+      if (!characterId) return;
+
+      const newNodeId = generateNodeId();
+      const newNode: Node = {
+        id: newNodeId,
+        type: 'default',
+        position,
+        data: {
+          ...nodeData,
+          id: newNodeId,
+          bookId,
+          versionId,
+          onEdit: handleNodeEdit,
+          onDelete: handleNodeDelete,
+          onAddChild: handleAddChildNode,
+          onAddLinkedNode: handleAddLinkedNode,
+          plotCanvasNodes: plotCanvasNodes,
+          timelineEvents: timelineEvents
+        }
+      };
+
+      setNodes((prevNodes) => [...prevNodes, newNode]);
+
+      // Update canvas data
+      const updatedCanvasData: PlotCanvasData = {
+        nodes: [...nodes, newNode].map(node => node.data as CanvasNode),
+        edges: edges.map(edge => edge.data as CanvasEdge),
+        timelineEvents: canvasData?.timelineEvents || [],
+        lastUpdated: new Date().toISOString()
+      };
+
+      onCanvasUpdate(updatedCanvasData);
+
+      setQuickNodeModal({ isOpen: false, position: { x: 0, y: 0 }, sourceNodeId: undefined });
+    },
+    [setNodes, nodes, edges, bookId, versionId, characterId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, setQuickNodeModal, handleAddChildNode, handleAddLinkedNode, plotCanvasNodes, timelineEvents]
+  );
+
+  const handleAddChildNode = useCallback(
+    (parentNodeId: string) => {
+      if (!characterId) return;
+
+      const newNodeId = generateNodeId();
+      const parentNode = nodes.find(node => node.id === parentNodeId);
+
+      if (!parentNode) {
+        console.error(`Parent node with id ${parentNodeId} not found.`);
+        return;
+      }
+
+      const childCount = parentNode.data.childIds ? parentNode.data.childIds.length : 0;
+      const childNodePosition = {
+        x: parentNode.position.x + 200,
+        y: parentNode.position.y + (childCount * 100),
+      };
+
+      const newNode: Node = {
+        id: newNodeId,
+        type: 'default',
+        position: childNodePosition,
+        data: {
+          type: 'Character',
+          name: 'New Node',
+          detail: 'New Node Detail',
+          goal: 'New Node Goal',
+          status: 'Not Completed',
+          id: newNodeId,
+          bookId,
+          versionId,
+          parentId: parentNodeId,
+          childIds: [],
+          linkedNodeIds: [],
+          onEdit: handleNodeEdit,
+          onDelete: handleNodeDelete,
+          onAddChild: handleAddChildNode,
+          onAddLinkedNode: handleAddLinkedNode,
+          plotCanvasNodes: plotCanvasNodes,
+          timelineEvents: timelineEvents
+        }
+      };
+
+      setNodes(prevNodes => [...prevNodes, newNode]);
+
+      // Update parent node with the new child ID
+      setNodes(prevNodes => {
+        return prevNodes.map(node => {
+          if (node.id === parentNodeId) {
+            const updatedChildIds = node.data.childIds ? [...node.data.childIds, newNodeId] : [newNodeId];
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                childIds: updatedChildIds
+              }
+            };
+          }
+          return node;
+        });
+      });
+
+      // Create an edge between the parent and the new node
+      const newEdge: Edge = {
+        id: `edge-${parentNodeId}-${newNodeId}`,
+        source: parentNodeId,
+        target: newNodeId,
+        type: 'custom',
+        data: {
+          source: parentNodeId,
+          target: newNodeId,
+        } as CanvasEdge,
+      };
+
+      setEdges(prevEdges => [...prevEdges, newEdge]);
+
+      // Update canvas data
+      const updatedCanvasData: PlotCanvasData = {
+        nodes: [...nodes, newNode].map(node => node.data as CanvasNode),
+        edges: [...edges, newEdge].map(edge => edge.data as CanvasEdge),
+        timelineEvents: canvasData?.timelineEvents || [],
+        lastUpdated: new Date().toISOString()
+      };
+
+      onCanvasUpdate(updatedCanvasData);
+    },
+    [setNodes, setEdges, nodes, edges, bookId, versionId, characterId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, handleAddLinkedNode, plotCanvasNodes, timelineEvents]
+  );
+
+  const handleAddLinkedNode = useCallback(
+    (parentNodeId: string, currentNodeType: string) => {
+      if (!bookId || !versionId) return;
+
+      const newNodeId = generateNodeId();
+      const parentNode = nodes.find(node => node.id === parentNodeId);
+
+      if (!parentNode) {
+        console.error(`Parent node with id ${parentNodeId} not found.`);
+        return;
+      }
+
+      const linkedNodeCount = parentNode.data.linkedNodeIds ? parentNode.data.linkedNodeIds.length : 0;
+      const linkedNodePosition = {
+        x: parentNode.position.x + 200,
+        y: parentNode.position.y + (linkedNodeCount * 100),
+      };
+
+      let newNodeType = 'Character';
+
+      if (currentNodeType === 'Character') {
+        newNodeType = 'Outline';
+      } else if (currentNodeType === 'WorldLocation') {
+        newNodeType = 'WorldObject';
+      } else if (currentNodeType === 'WorldObject') {
+        newNodeType = 'Character';
+      }
+
+      const newNode: Node = {
+        id: newNodeId,
+        type: 'default',
+        position: linkedNodePosition,
+        data: {
+          type: newNodeType,
+          name: `New ${newNodeType}`,
+          detail: `New ${newNodeType} Detail`,
+          goal: `New ${newNodeType} Goal`,
+          status: 'Not Completed',
+          id: newNodeId,
+          bookId,
+          versionId,
+          parentId: null,
+          childIds: [],
+          linkedNodeIds: [],
+          onEdit: handleNodeEdit,
+          onDelete: handleNodeDelete,
+          onAddChild: handleAddChildNode,
+          onAddLinkedNode: handleAddLinkedNode,
+          plotCanvasNodes: plotCanvasNodes,
+          timelineEvents: timelineEvents
+        }
+      };
+
+      setNodes(prevNodes => [...prevNodes, newNode]);
+
+      // Update parent node with the new linked node ID
+      setNodes(prevNodes => {
+        return prevNodes.map(node => {
+          if (node.id === parentNodeId) {
+            const updatedLinkedNodeIds = node.data.linkedNodeIds ? [...node.data.linkedNodeIds, newNodeId] : [newNodeId];
+            return {
+              ...node,
+              data: {
+                ...node.data,
+                linkedNodeIds: updatedLinkedNodeIds
+              }
+            };
+          }
+          return node;
+        });
+      });
+
+      // Create an edge between the parent and the new node
+      const newEdge: Edge = {
+        id: `edge-${parentNodeId}-${newNodeId}`,
+        source: parentNodeId,
+        target: newNodeId,
+        type: 'custom',
+        data: {
+          source: parentNodeId,
+          target: newNodeId,
+        } as CanvasEdge,
+      };
+
+      setEdges(prevEdges => [...prevEdges, newEdge]);
+
+      // Update canvas data
+      const updatedCanvasData: PlotCanvasData = {
+        nodes: [...nodes, newNode].map(node => node.data as CanvasNode),
+        edges: [...edges, newEdge].map(edge => edge.data as CanvasEdge),
+        timelineEvents: canvasData?.timelineEvents || [],
+        lastUpdated: new Date().toISOString()
+      };
+
+      onCanvasUpdate(updatedCanvasData);
+    },
+    [setNodes, setEdges, nodes, edges, bookId, versionId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, handleAddChildNode, plotCanvasNodes, timelineEvents]
+  );
+
+  const handleNodeEdit = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setEditModal({ isOpen: true, node: node.data as CanvasNode });
+    }
+  }, [nodes]);
+
+  const handleNodeSave = useCallback((updatedNode: CanvasNode) => {
+    setNodes(prevNodes => {
+      const updatedNodes = prevNodes.map(node => {
+        if (node.id === updatedNode.id) {
+          return {
+            ...node,
+            data: {
+              ...updatedNode,
+              plotCanvasNodes: plotCanvasNodes,
+              timelineEvents: timelineEvents
+            }
+          };
         }
         return node;
       });
-      
-      const updatedCanvasData = { ...canvasData, edges: updatedEdges, nodes: updatedNodes };
-      onCanvasUpdate(updatedCanvasData);
-    }
-  }, [setEdges, canvasData, onCanvasUpdate]);
+      return updatedNodes;
+    });
 
-  const handleCreateTimelineEvent = async (eventData: Partial<TimelineEvent>) => {
-    if (!canvasData) return;
-
-    const newEvent: TimelineEvent = {
-      id: `timeline_${Date.now()}`,
-      name: eventData.name || '',
-      date: eventData.date || '',
-      description: eventData.description || '',
-      type: eventData.type || 'character',
-      linkedNodeIds: []
-    };
-
-    const updatedCanvasData = {
-      ...canvasData,
-      timelineEvents: [...canvasData.timelineEvents, newEvent],
+    // Update canvas data
+    const updatedCanvasData: PlotCanvasData = {
+      nodes: nodes.map(node => {
+        if (node.id === updatedNode.id) {
+          return updatedNode;
+        }
+        return node.data as CanvasNode;
+      }),
+      edges: edges.map(edge => edge.data as CanvasEdge),
+      timelineEvents: canvasData?.timelineEvents || [],
       lastUpdated: new Date().toISOString()
     };
 
-    await onCanvasUpdate(updatedCanvasData);
-    return newEvent.id;
-  };
+    onCanvasUpdate(updatedCanvasData);
+    setEditModal({ isOpen: false, node: null });
+  }, [nodes, edges, canvasData, onCanvasUpdate, plotCanvasNodes, timelineEvents]);
 
-  const getBreadcrumbItems = () => {
-    const items = [
-      { label: 'Character Arcs', href: '#' }
-    ];
-
-    if (characterId && selectedCharacter) {
-      items.push({ label: selectedCharacter.name, href: '#' });
-    }
-
-    return items;
-  };
+  const convertToReactFlowNodes = useCallback((canvasNodes: CanvasNode[]): Node[] => {
+    return canvasNodes.map(node => ({
+      id: node.id,
+      type: 'default',
+      position: node.position,
+      data: {
+        ...node,
+        bookId,
+        versionId,
+        onEdit: handleNodeEdit,
+        onDelete: handleNodeDelete,
+        onAddChild: handleAddChildNode,
+        onAddLinkedNode: handleAddLinkedNode,
+        plotCanvasNodes: plotCanvasNodes,
+        timelineEvents: timelineEvents
+      }
+    }));
+  }, [bookId, versionId, handleNodeEdit, handleNodeDelete, handleAddChildNode, handleAddLinkedNode, plotCanvasNodes, timelineEvents]);
 
   return (
-    <div className="h-screen flex flex-col">
-      {/* Header with Breadcrumb and Controls */}
-      <div className="border-b bg-background p-4">
-        <div className="flex items-center justify-between">
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                <BreadcrumbLink href="#" className="flex items-center gap-2">
-                  <Home className="h-4 w-4" />
-                  Plan
-                </BreadcrumbLink>
-              </BreadcrumbItem>
-              <BreadcrumbSeparator>
-                <ChevronRight className="h-4 w-4" />
-              </BreadcrumbSeparator>
-              {getBreadcrumbItems().map((item, index) => (
-                <React.Fragment key={index}>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink href={item.href}>
-                      {item.label}
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  {index < getBreadcrumbItems().length - 1 && (
-                    <BreadcrumbSeparator>
-                      <ChevronRight className="h-4 w-4" />
-                    </BreadcrumbSeparator>
-                  )}
-                </React.Fragment>
-              ))}
-            </BreadcrumbList>
-          </Breadcrumb>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => zoomIn()}
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <ZoomIn className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={() => zoomOut()}
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <ZoomOut className="h-4 w-4" />
-            </Button>
-            <Button
-              onClick={() => fitView()}
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Maximize2 className="h-4 w-4" />
-              Fit View
-            </Button>
-            <Button
-              onClick={() => setIsInteractive(!isInteractive)}
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              {isInteractive ? <MousePointer className="h-4 w-4" /> : <Move className="h-4 w-4" />}
-              {isInteractive ? 'Selection' : 'Pan'}
-            </Button>
-            <Button
-              onClick={() => setShowQuickModal(true)}
-              size="sm"
-              className="flex items-center gap-2"
-            >
-              <Plus className="h-4 w-4" />
-              Add Node
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="h-full w-full">
+      <ReactFlow
+        nodes={nodes}
+        edges={edges}
+        onNodesChange={onNodesChange}
+        onEdgesChange={onEdgesChange}
+        onConnect={onConnect}
+        onInit={setReactFlowInstance}
+        nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        fitView
+        onPaneClick={handlePaneClick}
+        onPaneContextMenu={handlePaneContextMenu}
+        className="character-arc-canvas"
+      >
+        <Controls />
+        <Background variant={BackgroundVariant.Dots} />
+      </ReactFlow>
 
-      {/* Canvas */}
-      <div className="flex-1">
-        {loading ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-lg">Loading Character Arcs...</div>
-          </div>
-        ) : (
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onPaneClick={isInteractive ? handlePaneClick : undefined}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            connectionMode={ConnectionMode.Loose}
-            fitView
-            className="bg-background"
-            panOnDrag={!isInteractive}
-            nodesDraggable={isInteractive}
-            nodesConnectable={isInteractive}
-            elementsSelectable={isInteractive}
-          >
-            <Controls />
-            <Background />
-          </ReactFlow>
-        )}
-      </div>
-
-      <QuickNodeModal 
-        isOpen={showQuickModal}
-        position={quickModalPosition}
-        onClose={() => {
-          setShowQuickModal(false);
-          setConnectFromNodeId(null);
-          setCurrentViewNodeId(null);
-        }}
-        onSave={(nodeData, position) => handleQuickNodeSave(nodeData, position, currentViewNodeId)}
+      <QuickNodeModal
+        isOpen={quickNodeModal.isOpen}
+        onClose={() => setQuickNodeModal({ isOpen: false, position: { x: 0, y: 0 }, sourceNodeId: undefined })}
+        onSave={handleQuickNodeSave}
+        position={quickNodeModal.position}
+        sourceNodeId={quickNodeModal.sourceNodeId}
       />
 
       <CharacterNodeEditModal
-        isOpen={showEditModal}
-        onClose={() => {
-          setShowEditModal(false);
-          setEditingNode(null);
-        }}
-        onSave={handleNodeUpdate}
-        node={editingNode}
-        plotCanvasNodes={plotCanvasData.nodes}
-        timelineEvents={plotCanvasData.timelineEvents}
-        onCreateTimelineEvent={handleCreateTimelineEvent}
+        isOpen={editModal.isOpen}
+        onClose={() => setEditModal({ isOpen: false, node: null })}
+        onSave={handleNodeSave}
+        node={editModal.node}
+        plotCanvasNodes={plotCanvasNodes}
+        timelineEvents={timelineEvents}
       />
     </div>
   );

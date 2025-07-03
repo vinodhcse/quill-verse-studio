@@ -12,13 +12,45 @@ const CharacterArcPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const characterId = searchParams.get('characterId');
   const [canvasData, setCanvasData] = useState<PlotCanvasData | null>(null);
+  const [plotCanvasNodes, setPlotCanvasNodes] = useState<CanvasNode[]>([]);
+  const [timelineEvents, setTimelineEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   console.log('CharacterArcPage mounted with bookId:', bookId, 'versionId:', versionId, 'characterId:', characterId);
 
   useEffect(() => {
     fetchCharacterData();
+    fetchPlotCanvasData();
+    fetchTimelineEvents();
   }, [bookId, versionId, characterId]);
+
+  const fetchPlotCanvasData = async () => {
+    if (!bookId || !versionId) return;
+
+    try {
+      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plot-canvas`);
+      const plotData = response.data;
+      if (plotData && plotData.nodes) {
+        setPlotCanvasNodes(plotData.nodes);
+      }
+    } catch (error) {
+      console.error('Failed to fetch plot canvas data:', error);
+    }
+  };
+
+  const fetchTimelineEvents = async () => {
+    if (!bookId || !versionId) return;
+
+    try {
+      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/timeline`);
+      const timelineData = response.data;
+      if (timelineData && timelineData.events) {
+        setTimelineEvents(timelineData.events);
+      }
+    } catch (error) {
+      console.error('Failed to fetch timeline events:', error);
+    }
+  };
 
   const fetchCharacterData = async () => {
     if (!bookId || !versionId) return;
@@ -168,14 +200,26 @@ const CharacterArcPage: React.FC = () => {
     try {
       console.log('Updating character canvas data:', updatedCanvasData);
       
+      // Add plotCanvasNodes and timelineEvents data to each node
+      const updatedNodes = updatedCanvasData.nodes.map(node => ({
+        ...node,
+        plotCanvasNodes: plotCanvasNodes,
+        timelineEvents: timelineEvents
+      }));
+
+      const updatedCanvasWithData = {
+        ...updatedCanvasData,
+        nodes: updatedNodes
+      };
+      
       if (characterId) {
         // Update specific character's arc
         await apiClient.patch(`/books/${bookId}/versions/${versionId}/characters/${characterId}`, {
-          arc: updatedCanvasData
+          arc: updatedCanvasWithData
         });
       }
       
-      setCanvasData(updatedCanvasData);
+      setCanvasData(updatedCanvasWithData);
       console.log('Character canvas data updated successfully');
     } catch (error) {
       console.error('Failed to update character canvas data:', error);
@@ -190,6 +234,16 @@ const CharacterArcPage: React.FC = () => {
     );
   }
 
+  // Add plotCanvasNodes and timelineEvents to canvas data for display
+  const canvasDataWithExtraData = canvasData ? {
+    ...canvasData,
+    nodes: canvasData.nodes.map(node => ({
+      ...node,
+      plotCanvasNodes: plotCanvasNodes,
+      timelineEvents: timelineEvents
+    }))
+  } : null;
+
   return (
     <div className="h-screen">
       <ReactFlowProvider>
@@ -197,8 +251,10 @@ const CharacterArcPage: React.FC = () => {
           bookId={bookId} 
           versionId={versionId}
           characterId={characterId}
-          canvasData={canvasData}
+          canvasData={canvasDataWithExtraData}
           onCanvasUpdate={handleCanvasUpdate}
+          plotCanvasNodes={plotCanvasNodes}
+          timelineEvents={timelineEvents}
         />
       </ReactFlowProvider>
     </div>
