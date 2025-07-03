@@ -114,7 +114,8 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     useEffect(() => {
       const fetchDetails = async () => {
         const details = await data.onFetchCharacterDetails (arcId);
-        setCharacterDetails(details);
+        console.log('Render character details', details);
+        setCharacterDetails(details?.attributes);
       };
       fetchDetails();
     }, [arcId]);
