@@ -1,4 +1,3 @@
-
 export interface Attribute {
     id: string;
     name: string;
@@ -27,17 +26,6 @@ export interface CharacterAttributes {
     actions: string[];
     impact: string;
   }>;
-}
-
-export interface CanvasEdge {
-  id: string;
-  source: string;
-  target: string;
-  sourceHandle?: string;
-  targetHandle?: string;
-  type?: string;
-  animated?: boolean;
-  style?: Record<string, any>;
 }
 
 export interface CanvasNode {
@@ -130,7 +118,16 @@ export interface TimelineEvent {
 
 export interface PlotCanvasData {
   nodes: CanvasNode[];
-  edges?: CanvasEdge[];
+  edges?: Array<{
+    id: string;
+    source: string;
+    target: string;
+    type?: string;
+    animated?: boolean;
+    style?: Record<string, any>;
+    sourceHandle?: string;
+    targetHandle?: string;
+  }>;
   timelineEvents: TimelineEvent[];
   nodePositions?: Record<string, { x: number; y: number }>;
   lastUpdated: string;
