@@ -1,19 +1,68 @@
 import React, { useState, useEffect } from 'react';
-import { ReactFlowProvider } from '@xyflow/react';
-import CharacterArcPlotCanvas from '@/components/CharacterArc/CharacterArcPlotCanvas';
-import { CanvasNode} from '@/types/plotCanvas';
+import {
+  ReactFlow,
+  addEdge,
+  useNodesState,
+  useEdgesState,
+  Controls,
+  Background,
+  Node,
+  Edge,
+  Connection,
+  ConnectionMode,
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import PlotNode from '@/components/PlotNode';
+import DeletableEdge from '@/components/DeletableEdge';
+import { PlotNodeData, CanvasNode, PlotCanvasData } from '@/types/plotCanvas';
+import { Button } from '@/components/ui/button';
+import { debounce } from 'lodash';
+import { useReactFlow } from '@xyflow/react';
 import { apiClient } from '@/lib/api';
+import { QuickNodeModal } from '@/components/QuickNodeModal';
+import { Character } from '@/types/character';
+
+const nodeTypes = { plotNode: PlotNode };
+const edgeTypes = {
+  custom: DeletableEdge,
+};
 
 interface CharacterArcCanvasProps {
-  bookId: string;
-  versionId: string;
-  characterId?: string; // Added characterId as an optional prop
+  bookId?: string;
+  versionId?: string;
+  characterId?: string;
+  canvasData?: PlotCanvasData | null;
+  onCanvasUpdate?: (data: PlotCanvasData) => void;
 }
 
-const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ bookId, versionId, characterId }) => {
-  const [canvasData, setCanvasData] = useState({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
+const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ 
+  bookId, 
+  versionId, 
+  characterId,
+  canvasData: propCanvasData,
+  onCanvasUpdate: propOnCanvasUpdate
+}) => {
+  const [internalCanvasData, setInternalCanvasData] = useState<PlotCanvasData>({ 
+    nodes: [], 
+    edges: [], 
+    timelineEvents: [], 
+    lastUpdated: '' 
+  });
   const [loading, setLoading] = useState(false);
+
+  // Use prop data if available, otherwise use internal state
+  const canvasData = propCanvasData || internalCanvasData;
+  const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
+
   console.log('CharacterArcCanvas mounted with bookId:', bookId, 'versionId:', versionId);
+
+  useEffect(() => {
+    // Only fetch data if no prop data is provided
+    if (!propCanvasData && bookId && versionId) {
+      fetchCharacterArcData();
+    }
+  }, [bookId, versionId, characterId, propCanvasData]);
+
   const fetchCharacterArcData = async () => {
     if (!bookId || !versionId) return;
 
@@ -21,85 +70,107 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ bookId, version
     try {
       const endpoint = characterId
         ? `/books/${bookId}/versions/${versionId}/characters/${characterId}`
-        : `/books/${bookId}/versions/${versionId}/plotCanvas`;
+        : `/books/${bookId}/versions/${versionId}/characters/all`;
+      
       const response = await apiClient.get(endpoint);
-      const selectedCharacter = response.data;
+      
+      if (characterId) {
+        // Single character
+        const selectedCharacter = response.data;
+        let characterArcs = selectedCharacter?.arcs || [];
 
-      let characterArcs = selectedCharacter?.arcs || [];
+        if (characterArcs.length === 0) {
+          console.log('No arcs found for character:', characterId, 'Creating initial arc.');
 
-      if (characterArcs.length === 0 && characterId) {
-        console.log('No arcs found for character:', characterId, 'Creating initial arc.');
+          const newArcNodeId = `${characterId}-arc-${Date.now()}`;
+          const newArcNode: CanvasNode = {
+            id: newArcNodeId,
+            type: 'Character',
+            name: `${selectedCharacter?.name || 'Unnamed Character'} Arc`,
+            detail: 'Initial state',
+            goal: '',
+            status: 'Not Completed',
+            timelineEventIds: [],
+            parentId: null,
+            childIds: [],
+            linkedNodeIds: [],
+            position: { x: Math.random() * 400, y: Math.random() * 400 },
+            characters: [{ id: characterId, name: selectedCharacter?.name || 'Unnamed Character', type: 'Character' }],
+            worlds: [],
+          };
 
-        const newArcNodeId = `${characterId}-arc-${Date.now()}`;
-        const newArcNode: CanvasNode = {
-          id: newArcNodeId,
+          characterArcs = [newArcNode];
+        }
+
+        setInternalCanvasData({
+          nodes: characterArcs,
+          edges: [],
+          timelineEvents: [],
+          lastUpdated: response.data?.arc?.lastUpdated || '',
+        });
+      } else {
+        // All characters - convert to canvas nodes
+        const characters: Character[] = response.data || [];
+        const characterNodes: CanvasNode[] = characters.map((character, index) => ({
+          id: character.id,
           type: 'Character',
-          name: `${selectedCharacter?.name || 'Unnamed Character'} Arc`,
-          detail: 'Initial state',
-          goal: '',
+          name: character.name,
+          detail: character.description || '',
+          goal: character.goals?.map(g => g.goal).join(', ') || '',
           status: 'Not Completed',
           timelineEventIds: [],
           parentId: null,
           childIds: [],
           linkedNodeIds: [],
-          position: { x: Math.random() * 400, y: Math.random() * 400 },
-          characters: [{ id: characterId, name: selectedCharacter?.name || 'Unnamed Character', type: 'Character' }],
-          worlds: [],
-        };
+          position: { 
+            x: (index % 4) * 300 + 100, 
+            y: Math.floor(index / 4) * 200 + 100 
+          },
+          characters: [{ 
+            id: character.id, 
+            name: character.name, 
+            image: character.image,
+            type: 'Character',
+            attributes: []
+          }],
+          worlds: []
+        }));
 
-        characterArcs = [newArcNode];
-
-        const updatedCharacterData = {
-          ...selectedCharacter,
-          arcs: characterArcs,
-        };
-
-        await apiClient.patch(`/books/${bookId}/versions/${versionId}/characters/${characterId}`, updatedCharacterData);
-
-        console.log('Initial arc created and saved for character:', characterId);
+        setInternalCanvasData({
+          nodes: characterNodes,
+          edges: [],
+          timelineEvents: [],
+          lastUpdated: new Date().toISOString(),
+        });
       }
-
-      setCanvasData({
-        nodes: characterArcs,
-        edges: [],
-        timelineEvents: [],
-        lastUpdated: response.data?.arc?.lastUpdated || '',
-      });
-      console.log('Character arc data fetched successfully:', canvasData);
+      
+      console.log('Character arc data fetched successfully');
     } catch (error) {
       console.error('Failed to fetch character arc data:', error);
-      setCanvasData({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
+      setInternalCanvasData({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCanvasUpdate = async (updatedArcData: any) => {
-    if (!bookId || !versionId || !characterId) return;
+  const handleCanvasUpdate = async (updatedArcData: PlotCanvasData) => {
+    if (!bookId || !versionId) return;
 
     try {
-     console.log('Updating character arc data:', updatedArcData);
-      if (!updatedArcData) {
-        console.error('updatedArcData data not found');
-        return;
+      console.log('Updating character arc data:', updatedArcData);
+      
+      if (characterId) {
+        // Update specific character
+        const updatedCharacterData = {
+          arc: updatedArcData,
+        };
+
+        await apiClient.patch(`/books/${bookId}/versions/${versionId}/characters/${characterId}`, updatedCharacterData);
       }
 
-      // Update only the arc array
-      const updatedCharacterData = {
-        arc: updatedArcData, // Replace the arc array with the updated data
-      };
-
-      // Send the updated character data back to the server
-      await apiClient.patch(`/books/${bookId}/versions/${versionId}/characters/${characterId}`, updatedCharacterData);
-
-      // Update the local state
-      setCanvasData({
-        nodes: updatedArcData?.nodes || [],
-        edges: updatedArcData?.arc?.edges || [],
-        timelineEvents: updatedArcData?.arc?.timelineEvents || [],
-        lastUpdated: new Date().toISOString(),
-      });
-      console.log('Character arc data updated successfully:', canvasData);
+      // Update local state
+      onCanvasUpdate(updatedArcData);
+      console.log('Character arc data updated successfully');
     } catch (error) {
       console.error('Failed to update character arc data:', error);
     }
@@ -151,7 +222,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ bookId, version
         console.log('Initial arc created and saved for character:', entityId);
       }
 
-      setCanvasData({
+      setInternalCanvasData({
         nodes: characterArcs,
         edges: [],
         timelineEvents: [],
@@ -191,7 +262,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ bookId, version
         return;
       }
 
-      setCanvasData({
+      setInternalCanvasData({
         nodes: characterArcs,
         edges: [],
         timelineEvents: [],
@@ -260,7 +331,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ bookId, version
         console.log('Character arc saved successfully:', response.data);
 
         // Update the canvas data
-        setCanvasData((prevData) => ({
+        setInternalCanvasData((prevData) => ({
           ...prevData,
           nodes: [...(prevData?.nodes || []), newNode],
         }));
@@ -272,10 +343,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ bookId, version
     }
   };
 
-  useEffect(() => {
-    fetchCharacterArcData();
-  }, [bookId, versionId, characterId]);
-
   return (
     <div className="h-screen flex flex-col">
       <div className="flex-1">
@@ -284,14 +351,12 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({ bookId, version
             <div className="text-lg">Loading Character Arcs...</div>
           </div>
         ) : (
-          <ReactFlowProvider>
-            <CharacterArcPlotCanvas
-              bookId={bookId}
-              versionId={versionId}
-              canvasData={canvasData}
-              onCanvasUpdate={handleCanvasUpdate}
-            />
-          </ReactFlowProvider>
+          <CharacterArcPlotCanvas
+            bookId={bookId}
+            versionId={versionId}
+            canvasData={canvasData}
+            onCanvasUpdate={handleCanvasUpdate}
+          />
         )}
       </div>
     </div>

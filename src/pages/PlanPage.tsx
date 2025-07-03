@@ -3,7 +3,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
 import PlotCanvas from '@/components/PlotCanvas';
-import CharacterArcCanvas from '@/components/CharacterArc/CharacterArcCanvas';
+import CharacterArcPage from '@/pages/CharacterArcPage';
 import { CharacterGlossary } from '@/components/CharacterGlossary';
 import { WorldBuilding } from '@/components/WorldBuilding';
 import { useBookContext } from '@/lib/BookContextProvider';
@@ -206,19 +206,7 @@ const PlanPage: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="character-arcs" className="h-full m-0">
-                {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-lg">Loading Character Arcs...</div>
-                  </div>
-                ) : (
-                  <ReactFlowProvider>
-                    <CharacterArcCanvas
-                      bookId={bookId}
-                      versionId={versionId}
-                      characterId={characterId}
-                    />
-                  </ReactFlowProvider>
-                )}
+                <CharacterArcPage />
               </TabsContent>
 
               <TabsContent value="world-entity-arcs" className="h-full m-0">

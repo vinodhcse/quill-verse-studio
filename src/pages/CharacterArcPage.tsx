@@ -1,13 +1,127 @@
-import React from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { ReactFlowProvider } from '@xyflow/react';
 import CharacterArcCanvas from '@/components/CharacterArc/CharacterArcCanvas';
+import { PlotCanvasData, CanvasNode } from '@/types/plotCanvas';
+import { Character } from '@/types/character';
+import { apiClient } from '@/lib/api';
 
 const CharacterArcPage: React.FC = () => {
   const { bookId, versionId } = useParams<{ bookId: string; versionId: string }>();
-console.log('CharacterArcPage mounted with bookId:', bookId, 'versionId:', versionId);
+  const [canvasData, setCanvasData] = useState<PlotCanvasData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  console.log('CharacterArcPage mounted with bookId:', bookId, 'versionId:', versionId);
+
+  useEffect(() => {
+    fetchCharacterData();
+  }, [bookId, versionId]);
+
+  const fetchCharacterData = async () => {
+    if (!bookId || !versionId) return;
+
+    setLoading(true);
+    try {
+      // Fetch all characters from the API
+      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/characters/all`);
+      const characters: Character[] = response.data || [];
+      
+      console.log('Fetched characters:', characters);
+
+      // Convert characters to canvas nodes
+      const characterNodes: CanvasNode[] = characters.map((character, index) => ({
+        id: character.id,
+        type: 'Character',
+        name: character.name,
+        detail: character.description || '',
+        goal: character.goals?.map(g => g.goal).join(', ') || '',
+        status: 'Not Completed',
+        timelineEventIds: [],
+        parentId: null,
+        childIds: [],
+        linkedNodeIds: [],
+        position: { 
+          x: (index % 4) * 300 + 100, 
+          y: Math.floor(index / 4) * 200 + 100 
+        },
+        // Character-specific fields
+        aliases: character.aliases,
+        age: character.age,
+        birthday: character.birthday,
+        gender: character.gender,
+        image: character.image,
+        locationId: character.locationId,
+        traits: character.traits,
+        backstory: character.backstory,
+        beliefs: character.beliefs,
+        motivations: character.motivations,
+        relationships: character.relationships,
+        internalConflicts: character.internalConflicts,
+        externalConflicts: character.externalConflicts,
+        goals: character.goals,
+        arc: character.arc,
+        characters: [{ 
+          id: character.id, 
+          name: character.name, 
+          image: character.image,
+          type: 'Character',
+          attributes: []
+        }],
+        worlds: []
+      }));
+
+      const characterCanvasData: PlotCanvasData = {
+        nodes: characterNodes,
+        timelineEvents: [],
+        lastUpdated: new Date().toISOString()
+      };
+
+      setCanvasData(characterCanvasData);
+      console.log('Character canvas data set:', characterCanvasData);
+    } catch (error) {
+      console.error('Failed to fetch character data:', error);
+      setCanvasData({ nodes: [], timelineEvents: [], lastUpdated: '' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleCanvasUpdate = async (updatedCanvasData: PlotCanvasData) => {
+    if (!bookId || !versionId) return;
+
+    try {
+      console.log('Updating character canvas data:', updatedCanvasData);
+      
+      // For character arcs, we need to update individual characters
+      // This is a simplified approach - in practice, you might want to
+      // update characters individually through their specific endpoints
+      
+      setCanvasData(updatedCanvasData);
+      console.log('Character canvas data updated successfully');
+    } catch (error) {
+      console.error('Failed to update character canvas data:', error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full">
+        <div className="text-lg">Loading Character Arcs...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen">
-      <CharacterArcCanvas bookId={bookId} versionId={versionId} />
+      <ReactFlowProvider>
+        <CharacterArcCanvas 
+          bookId={bookId} 
+          versionId={versionId}
+          canvasData={canvasData}
+          onCanvasUpdate={handleCanvasUpdate}
+        />
+      </ReactFlowProvider>
     </div>
   );
 };

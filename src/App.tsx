@@ -13,6 +13,7 @@ import Signup from "./pages/Signup";
 import ForgotPassword from "./pages/ForgotPassword";
 import NotFound from "./pages/NotFound";
 import PlanPage from "./pages/PlanPage";
+import CharacterArcPage from "./pages/CharacterArcPage";
 import { BookProvider } from '@/lib/BookContextProvider';
 import { UserContextProvider } from '@/lib/UserContextProvider';
 import EditPage from "./pages/EditPage";
@@ -58,6 +59,11 @@ const App = () => (
                   <Route path="/plan/book/:bookId/version/:versionId" element={
                     <BookProvider>
                       <PlanPage />
+                    </BookProvider>
+                  } />
+                  <Route path="/character-arcs/book/:bookId/version/:versionId" element={
+                    <BookProvider>
+                      <CharacterArcPage />
                     </BookProvider>
                   } />
                   <Route path="/dashboard" element={<Dashboard />} />
