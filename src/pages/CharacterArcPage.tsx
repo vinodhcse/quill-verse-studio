@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider } from '@xyflow/react';
 import CharacterArcCanvas from '@/components/CharacterArc/CharacterArcCanvas';
+import { PlotCanvasProvider } from '@/contexts/PlotCanvasContext';
 import { PlotCanvasData, CanvasNode } from '@/types/plotCanvas';
 import { Character } from '@/types/character';
 import { apiClient } from '@/lib/api';
@@ -192,15 +193,17 @@ const CharacterArcPage: React.FC = () => {
 
   return (
     <div className="h-screen">
-      <ReactFlowProvider>
-        <CharacterArcCanvas 
-          bookId={bookId} 
-          versionId={versionId}
-          characterId={characterId}
-          canvasData={canvasData}
-          onCanvasUpdate={handleCanvasUpdate}
-        />
-      </ReactFlowProvider>
+      <PlotCanvasProvider bookId={bookId} versionId={versionId}>
+        <ReactFlowProvider>
+          <CharacterArcCanvas 
+            bookId={bookId} 
+            versionId={versionId}
+            characterId={characterId}
+            canvasData={canvasData}
+            onCanvasUpdate={handleCanvasUpdate}
+          />
+        </ReactFlowProvider>
+      </PlotCanvasProvider>
     </div>
   );
 };

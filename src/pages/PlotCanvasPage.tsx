@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { ReactFlowProvider } from '@xyflow/react';
 import PlotCanvas from '@/components/PlotCanvas';
+import { PlotCanvasProvider } from '@/contexts/PlotCanvasContext';
 import { apiClient } from '@/lib/api';
 
 const PlotCanvasPage: React.FC = () => {
@@ -39,14 +40,16 @@ const PlotCanvasPage: React.FC = () => {
   return (
     <div className="h-screen flex flex-col">
       <div className="flex-1">
-        <ReactFlowProvider>
-          <PlotCanvas
-            bookId={bookId}
-            versionId={versionId}
-            canvasData={canvasData}
-            onCanvasUpdate={handleCanvasUpdate}
-          />
-        </ReactFlowProvider>
+        <PlotCanvasProvider bookId={bookId} versionId={versionId}>
+          <ReactFlowProvider>
+            <PlotCanvas
+              bookId={bookId}
+              versionId={versionId}
+              canvasData={canvasData}
+              onCanvasUpdate={handleCanvasUpdate}
+            />
+          </ReactFlowProvider>
+        </PlotCanvasProvider>
       </div>
     </div>
   );

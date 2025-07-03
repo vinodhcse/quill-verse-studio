@@ -1,4 +1,3 @@
-
 import React, { ReactNode, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
+import { usePlotCanvasContext } from '@/contexts/PlotCanvasContext';
 import { apiClient } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -17,6 +17,9 @@ interface PlotNodeProps extends NodeProps {
 const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   const navigate = useNavigate();
   const [showFullAttributes, setShowFullAttributes] = useState(false);
+  
+  // Get plot canvas data from context
+  const { timelineEvents, plotCanvasNodes } = usePlotCanvasContext();
 
   // Determine if this is the first node (no parent and no incoming linked nodes)
   const isFirstNode = data.parentId === null && (!data.linkedNodeIds || data.linkedNodeIds.length === 0);
@@ -172,11 +175,10 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
-  // Function to render linked Plot Canvas nodes
+  // Function to render linked Plot Canvas nodes - now using context data
   const renderLinkedPlotNodes = () => {
     const nodeData = data as any;
-    const linkedPlotNodeIds = nodeData.linkedPlotNodeIds || [];
-    const plotCanvasNodes = nodeData.plotCanvasNodes || [];
+    const linkedPlotNodeIds = nodeData.linkedNodeIds || [];
     
     if (linkedPlotNodeIds.length === 0) return null;
 
@@ -197,18 +199,23 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                 <span className="text-xs font-medium">{plotNode.name}</span>
                 <Badge variant="outline" className="text-xs">{plotNode.type}</Badge>
               </div>
-            ) : null;
+            ) : (
+              <div key={nodeId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
+                <span className="text-xs">🔗</span>
+                <span className="text-xs font-medium">{nodeId}</span>
+                <Badge variant="outline" className="text-xs">Unknown</Badge>
+              </div>
+            );
           })}
         </div>
       </div>
     );
   };
 
-  // Function to render linked Timeline Events
+  // Function to render linked Timeline Events - now using context data
   const renderLinkedTimelineEvents = () => {
     const nodeData = data as any;
     const timelineEventIds = nodeData.timelineEventIds || [];
-    const timelineEvents = nodeData.timelineEvents || [];
     
     if (timelineEventIds.length === 0) return null;
 
@@ -229,7 +236,13 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                 <span className="text-xs font-medium">{event.name}</span>
                 <Badge variant="outline" className="text-xs">{event.type}</Badge>
               </div>
-            ) : null;
+            ) : (
+              <div key={eventId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
+                <span className="text-xs">📅</span>
+                <span className="text-xs font-medium">{eventId}</span>
+                <Badge variant="outline" className="text-xs">Unknown</Badge>
+              </div>
+            );
           })}
         </div>
       </div>
