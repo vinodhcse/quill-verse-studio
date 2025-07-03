@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
@@ -29,13 +30,15 @@ interface PlotCanvasProps {
   versionId?: string;
   canvasData?: PlotCanvasData | null;
   onCanvasUpdate?: (data: PlotCanvasData) => void;
+  canvasType?: 'plot-outline' | 'character-arcs' | 'world-entity-arcs' | 'timeline-arc' | 'timeline';
 }
 
 const PlotCanvas: React.FC<PlotCanvasProps> = ({ 
   bookId, 
   versionId, 
   canvasData: propCanvasData,  
-  onCanvasUpdate: propOnCanvasUpdate
+  onCanvasUpdate: propOnCanvasUpdate,
+  canvasType = 'plot-outline'
 }) => {
   const [internalCanvasData, setInternalCanvasData] = useState<PlotCanvasData>({ 
     nodes: [], 
@@ -63,36 +66,72 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 
   const { fitView, zoomTo } = useReactFlow();
 
+  // Filter nodes based on canvas type
+  const getFilteredNodes = (allNodes: CanvasNode[]) => {
+    switch (canvasType) {
+      case 'plot-outline':
+        return allNodes.filter(node => 
+          ['Outline', 'Act', 'Chapter', 'SceneBeats'].includes(node.type)
+        );
+      case 'character-arcs':
+        return allNodes.filter(node => 
+          node.type === 'Character' || 
+          (node.type === 'SceneBeats' && node.characters && node.characters.length > 0)
+        );
+      case 'world-entity-arcs':
+        return allNodes.filter(node => 
+          ['WorldLocation', 'WorldObject'].includes(node.type) ||
+          (node.type === 'SceneBeats' && node.worlds && node.worlds.length > 0)
+        );
+      case 'timeline-arc':
+      case 'timeline':
+        return allNodes.filter(node => 
+          node.timelineEventIds && node.timelineEventIds.length > 0
+        );
+      default:
+        return allNodes;
+    }
+  };
+
   useEffect(() => {
     if (canvasData) {
-      const reactFlowNodes = canvasData.nodes.map((node: CanvasNode) => ({
+      const filteredNodes = getFilteredNodes(canvasData.nodes);
+      
+      const reactFlowNodes = filteredNodes.map((node: CanvasNode) => ({
         id: node.id,
         type: 'plotNode',
         position: node.position,
         data: {
           ...node,
+          bookId,
+          versionId,
           // Pass context data through node data
           timelineEvents,
           plotCanvasNodes,
           onEdit: handleEditNode,
           onAddChild: handleAddChild,
+          onAddLinkedNode: handleAddLinkedNode,
           onNavigateToEntity: handleNavigateToEntity,
           onDelete: handleDeleteNode,
           onCharacterOrWorldClick: handleCharacterOrWorldClick,
         } as PlotNodeData,
       }));
 
-      const reactFlowEdges = (canvasData.edges || []).map((edge) => ({
-        ...edge,
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        type: edge.type,
-        animated: edge.animated,
-        style: edge.style,
-        sourceHandle: edge.sourceHandle,
-        targetHandle: edge.targetHandle,
-      }));
+      // Filter edges to only include those connecting visible nodes
+      const visibleNodeIds = new Set(filteredNodes.map(n => n.id));
+      const reactFlowEdges = (canvasData.edges || [])
+        .filter(edge => visibleNodeIds.has(edge.source) && visibleNodeIds.has(edge.target))
+        .map((edge) => ({
+          ...edge,
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          type: edge.type,
+          animated: edge.animated,
+          style: edge.style,
+          sourceHandle: edge.sourceHandle,
+          targetHandle: edge.targetHandle,
+        }));
 
       setNodes(reactFlowNodes);
       setEdges(reactFlowEdges);
@@ -101,7 +140,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         fitView();
       }, 100);
     }
-  }, [canvasData, timelineEvents, plotCanvasNodes, setNodes, setEdges, fitView]);
+  }, [canvasData, timelineEvents, plotCanvasNodes, canvasType, bookId, versionId, setNodes, setEdges, fitView]);
 
   const debouncedUpdate = useCallback(
     debounce(async (updatedCanvasData: PlotCanvasData) => {
@@ -120,6 +159,20 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
 
   const handleAddChild = (parentId: string) => {
     console.log('Add child to:', parentId);
+    setConnectFromNodeId(parentId);
+    setCurrentViewNodeId(parentId);
+    const parentNode = nodes.find(n => n.id === parentId);
+    if (parentNode) {
+      setQuickModalPosition({ 
+        x: parentNode.position.x + 300, 
+        y: parentNode.position.y 
+      });
+      setShowQuickModal(true);
+    }
+  };
+
+  const handleAddLinkedNode = (parentId: string, nodeType: string) => {
+    console.log('Add linked node to:', parentId, 'of type:', nodeType);
     setConnectFromNodeId(parentId);
     setCurrentViewNodeId(parentId);
     const parentNode = nodes.find(n => n.id === parentId);

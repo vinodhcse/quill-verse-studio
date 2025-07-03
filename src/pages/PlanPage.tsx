@@ -202,6 +202,7 @@ const PlanPage: React.FC = () => {
                         versionId={versionId}
                         canvasData={canvasData}
                         onCanvasUpdate={handleCanvasUpdate}
+                        canvasType="plot-outline"
                       />
                     </ReactFlowProvider>
                   </PlotCanvasProvider>
@@ -225,6 +226,7 @@ const PlanPage: React.FC = () => {
                         versionId={versionId}
                         canvasData={canvasData}
                         onCanvasUpdate={handleCanvasUpdate}
+                        canvasType="world-entity-arcs"
                       />
                     </ReactFlowProvider>
                   </PlotCanvasProvider>
@@ -244,6 +246,7 @@ const PlanPage: React.FC = () => {
                         versionId={versionId}
                         canvasData={canvasData}
                         onCanvasUpdate={handleCanvasUpdate}
+                        canvasType="timeline-arc"
                       />
                     </ReactFlowProvider>
                   </PlotCanvasProvider>
@@ -265,6 +268,7 @@ const PlanPage: React.FC = () => {
                 versionId={versionId}
                 canvasData={canvasData}
                 onCanvasUpdate={handleCanvasUpdate}
+                canvasType="timeline"
               />
             </ReactFlowProvider>
           </PlotCanvasProvider>
