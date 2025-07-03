@@ -63,7 +63,7 @@ export interface Version {
   createdAt: string;
   updatedAt?: string;
   type: "Manuscript" | "Edition";
-  status: string;
+  status: "Draft" | "Final" | "Published";
   wordCount?: number;
   createdBy?: string;
   collaborators?: CollaboratorInfo[];
@@ -91,7 +91,7 @@ export interface Book {
   bookImage?: string;
   lastModified: string;
   createdAt: string;
-  wordCount: number; // Made required to match Dashboard usage
+  wordCount: number;
   role?: 'author' | 'editor' | 'reviewer';
   subtitle?: string;
   language?: string;

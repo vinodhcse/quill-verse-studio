@@ -96,7 +96,17 @@ const CharacterArcPage: React.FC = () => {
             type: 'Character',
             attributes: []
           }],
-          worlds: []
+          worlds: [],
+          attributes: [
+            { id: 'aliases', name: 'Aliases', value: character.aliases?.join(', ') || '' },
+            { id: 'age', name: 'Age', value: character.age?.toString() || '' },
+            { id: 'gender', name: 'Gender', value: character.gender || '' },
+            { id: 'traits', name: 'Traits', value: character.traits?.join(', ') || '' },
+            { id: 'beliefs', name: 'Beliefs', value: character.beliefs?.join(', ') || '' },
+            { id: 'motivations', name: 'Motivations', value: character.motivations?.join(', ') || '' },
+            { id: 'internalConflicts', name: 'Internal Conflicts', value: character.internalConflicts?.join(', ') || '' },
+            { id: 'externalConflicts', name: 'External Conflicts', value: character.externalConflicts?.join(', ') || '' }
+          ]
         }));
 
         const characterCanvasData: PlotCanvasData = {

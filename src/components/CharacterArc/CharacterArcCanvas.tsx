@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
@@ -21,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { debounce } from 'lodash';
 import { apiClient } from '@/lib/api';
 import { QuickNodeModal } from '@/components/QuickNodeModal';
+import { CharacterNodeEditModal } from '@/components/CharacterArc/CharacterNodeEditModal';
 import { Character } from '@/types/character';
 import { 
   Breadcrumb, 
@@ -59,10 +59,12 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   });
   const [loading, setLoading] = useState(false);
   const [showQuickModal, setShowQuickModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
   const [currentViewNodeId, setCurrentViewNodeId] = useState<string | null>(null);
   const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [editingNode, setEditingNode] = useState<CanvasNode | null>(null);
   const [isInteractive, setIsInteractive] = useState(true);
 
   const canvasData = propCanvasData || internalCanvasData;
@@ -92,6 +94,31 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     } catch (error) {
       console.error('Failed to fetch character details:', error);
     }
+  };
+
+  const generateAttributeChangeSummary = (previousNode: CanvasNode, currentNode: CanvasNode): string => {
+    const changes: string[] = [];
+    
+    const compareArrays = (prev: string[] = [], curr: string[] = [], label: string) => {
+      const added = curr.filter(item => !prev.includes(item));
+      const removed = prev.filter(item => !curr.includes(item));
+      
+      if (added.length > 0) {
+        changes.push(`Added ${label.toLowerCase()}: ${added.join(', ')}`);
+      }
+      if (removed.length > 0) {
+        changes.push(`Removed ${label.toLowerCase()}: ${removed.join(', ')}`);
+      }
+    };
+
+    compareArrays(previousNode.aliases, currentNode.aliases, 'Aliases');
+    compareArrays(previousNode.traits, currentNode.traits, 'Traits');
+    compareArrays(previousNode.beliefs, currentNode.beliefs, 'Beliefs');
+    compareArrays(previousNode.motivations, currentNode.motivations, 'Motivations');
+    compareArrays(previousNode.internalConflicts, currentNode.internalConflicts, 'Internal Conflicts');
+    compareArrays(previousNode.externalConflicts, currentNode.externalConflicts, 'External Conflicts');
+
+    return changes.length > 0 ? changes.join('; ') : 'No attribute changes';
   };
 
   useEffect(() => {
@@ -136,6 +163,27 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
   const handleEditNode = (nodeId: string) => {
     console.log('Edit node:', nodeId);
+    const node = canvasData?.nodes.find(n => n.id === nodeId);
+    if (node && node.type === 'Character') {
+      setEditingNode(node);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleNodeUpdate = async (updatedNode: CanvasNode) => {
+    if (!canvasData) return;
+
+    const updatedNodes = canvasData.nodes.map(node => 
+      node.id === updatedNode.id ? updatedNode : node
+    );
+
+    const updatedCanvasData = { 
+      ...canvasData, 
+      nodes: updatedNodes,
+      lastUpdated: new Date().toISOString()
+    };
+    
+    await onCanvasUpdate(updatedCanvasData);
   };
 
   const handleAddChild = (parentId: string) => {
@@ -220,7 +268,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     const baseCharacterId = characterId || parentNodeId || 'character';
     const newNodeId = `${baseCharacterId}-arc-${Date.now()}`;
     
-    // Get parent node to inherit characters
+    // Get parent node to inherit characters and attributes
     const parentNode = parentNodeId ? canvasData.nodes.find(n => n.id === parentNodeId) : null;
     const inheritedCharacters = parentNode?.characters || (characterId && selectedCharacter ? [{
       id: characterId,
@@ -229,12 +277,27 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       image: selectedCharacter.image,
       attributes: []
     }] : []);
+
+    // Generate attribute change summary if this is a character node with a parent
+    let detail = nodeData.detail || '';
+    if (parentNode && parentNode.type === 'Character' && nodeData.type === 'Character') {
+      const changeSummary = generateAttributeChangeSummary(parentNode, {
+        ...parentNode,
+        aliases: nodeData.aliases || parentNode.aliases || [],
+        traits: nodeData.traits || parentNode.traits || [],
+        beliefs: nodeData.beliefs || parentNode.beliefs || [],
+        motivations: nodeData.motivations || parentNode.motivations || [],
+        internalConflicts: nodeData.internalConflicts || parentNode.internalConflicts || [],
+        externalConflicts: nodeData.externalConflicts || parentNode.externalConflicts || []
+      });
+      detail = changeSummary;
+    }
     
     const newNode: CanvasNode = {
       id: newNodeId,
       type: nodeData.type || 'Character',
       name: nodeData.name || 'New Character Arc Node',
-      detail: nodeData.detail || '',
+      detail: detail,
       goal: nodeData.goal || '',
       status: nodeData.status || 'Not Completed',
       timelineEventIds: [],
@@ -243,7 +306,22 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       linkedNodeIds: [],
       position,
       characters: inheritedCharacters,
-      worlds: []
+      worlds: [],
+      // Inherit character attributes from parent or use defaults
+      aliases: nodeData.aliases || parentNode?.aliases || [],
+      traits: nodeData.traits || parentNode?.traits || [],
+      beliefs: nodeData.beliefs || parentNode?.beliefs || [],
+      motivations: nodeData.motivations || parentNode?.motivations || [],
+      internalConflicts: nodeData.internalConflicts || parentNode?.internalConflicts || [],
+      externalConflicts: nodeData.externalConflicts || parentNode?.externalConflicts || [],
+      attributes: [
+        { id: 'aliases', name: 'Aliases', value: (nodeData.aliases || parentNode?.aliases || []).join(', ') },
+        { id: 'traits', name: 'Traits', value: (nodeData.traits || parentNode?.traits || []).join(', ') },
+        { id: 'beliefs', name: 'Beliefs', value: (nodeData.beliefs || parentNode?.beliefs || []).join(', ') },
+        { id: 'motivations', name: 'Motivations', value: (nodeData.motivations || parentNode?.motivations || []).join(', ') },
+        { id: 'internalConflicts', name: 'Internal Conflicts', value: (nodeData.internalConflicts || parentNode?.internalConflicts || []).join(', ') },
+        { id: 'externalConflicts', name: 'External Conflicts', value: (nodeData.externalConflicts || parentNode?.externalConflicts || []).join(', ') }
+      ]
     };
 
     const updatedNodes = [...canvasData.nodes, newNode];
@@ -309,7 +387,16 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         target: params.target!,
         type: 'custom'
       }];
-      const updatedCanvasData = { ...canvasData, edges: updatedEdges };
+      
+      // Update linked node IDs
+      const updatedNodes = canvasData.nodes.map(node => {
+        if (node.id === params.source) {
+          return { ...node, linkedNodeIds: [...node.linkedNodeIds, params.target!] };
+        }
+        return node;
+      });
+      
+      const updatedCanvasData = { ...canvasData, edges: updatedEdges, nodes: updatedNodes };
       onCanvasUpdate(updatedCanvasData);
     }
   }, [setEdges, canvasData, onCanvasUpdate]);
@@ -445,6 +532,16 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
           setCurrentViewNodeId(null);
         }}
         onSave={(nodeData, position) => handleQuickNodeSave(nodeData, position, currentViewNodeId)}
+      />
+
+      <CharacterNodeEditModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingNode(null);
+        }}
+        onSave={handleNodeUpdate}
+        node={editingNode}
       />
     </div>
   );
