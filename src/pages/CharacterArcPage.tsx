@@ -23,13 +23,11 @@ const CharacterArcPage: React.FC = () => {
 
     setLoading(true);
     try {
-      // Fetch all characters from the API
       const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/characters/all`);
       const characters: Character[] = response.data || [];
       
       console.log('Fetched characters:', characters);
 
-      // Convert characters to canvas nodes
       const characterNodes: CanvasNode[] = characters.map((character, index) => ({
         id: character.id,
         type: 'Character',
@@ -60,7 +58,11 @@ const CharacterArcPage: React.FC = () => {
         internalConflicts: character.internalConflicts,
         externalConflicts: character.externalConflicts,
         goals: character.goals,
-        arc: character.arc,
+        arc: character.arc?.map(arcItem => ({
+          actId: arcItem.actId,
+          timelineEventId: arcItem.timelineEventId,
+          descriptionChange: arcItem.summary || ''
+        })) || [],
         characters: [{ 
           id: character.id, 
           name: character.name, 
@@ -73,6 +75,7 @@ const CharacterArcPage: React.FC = () => {
 
       const characterCanvasData: PlotCanvasData = {
         nodes: characterNodes,
+        edges: [],
         timelineEvents: [],
         lastUpdated: new Date().toISOString()
       };
@@ -81,7 +84,7 @@ const CharacterArcPage: React.FC = () => {
       console.log('Character canvas data set:', characterCanvasData);
     } catch (error) {
       console.error('Failed to fetch character data:', error);
-      setCanvasData({ nodes: [], timelineEvents: [], lastUpdated: '' });
+      setCanvasData({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
     } finally {
       setLoading(false);
     }
@@ -92,10 +95,6 @@ const CharacterArcPage: React.FC = () => {
 
     try {
       console.log('Updating character canvas data:', updatedCanvasData);
-      
-      // For character arcs, we need to update individual characters
-      // This is a simplified approach - in practice, you might want to
-      // update characters individually through their specific endpoints
       
       setCanvasData(updatedCanvasData);
       console.log('Character canvas data updated successfully');

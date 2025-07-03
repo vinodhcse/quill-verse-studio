@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { QuickNodeModal } from '@/components/QuickNodeModal';
 import { CanvasNode, PlotCanvasData } from '@/types/plotCanvas';
@@ -5,13 +6,11 @@ import { CanvasNode, PlotCanvasData } from '@/types/plotCanvas';
 interface CharacterArcPlotCanvasProps {
   canvasData: PlotCanvasData;
   onCanvasUpdate: (data: PlotCanvasData) => void;
-  setShowQuickModal: (show: boolean) => void;
 }
 
 const CharacterArcPlotCanvas: React.FC<CharacterArcPlotCanvasProps> = ({
   canvasData,
-  onCanvasUpdate,
-  setShowQuickModal
+  onCanvasUpdate
 }) => {
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
@@ -41,7 +40,6 @@ const CharacterArcPlotCanvas: React.FC<CharacterArcPlotCanvasProps> = ({
 
     const updatedNodes = [...canvasData.nodes, newNode];
 
-    // Update parent's childIds if applicable
     if (parentNodeId) {
       const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
       if (parentIndex >= 0) {
@@ -62,12 +60,11 @@ const CharacterArcPlotCanvas: React.FC<CharacterArcPlotCanvasProps> = ({
       y: event.clientY - bounds.top 
     });
     setShowQuickModal(true);
-    setCurrentViewNodeId(sourceNodeId || null); // Pass the sourceNodeId as the parentNodeId
+    setCurrentViewNodeId(sourceNodeId || null);
   };
 
   return (
     <>
-      {/* Your existing canvas rendering logic */}
       <QuickNodeModal 
         isOpen={showQuickModal}
         position={quickModalPosition}

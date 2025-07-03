@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   ReactFlow,
@@ -21,6 +22,7 @@ import { useReactFlow } from '@xyflow/react';
 import { apiClient } from '@/lib/api';
 import { QuickNodeModal } from '@/components/QuickNodeModal';
 import { Character } from '@/types/character';
+import CharacterArcPlotCanvas from '@/components/CharacterArc/CharacterArcPlotCanvas';
 
 const nodeTypes = { plotNode: PlotNode };
 const edgeTypes = {
@@ -50,14 +52,12 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   });
   const [loading, setLoading] = useState(false);
 
-  // Use prop data if available, otherwise use internal state
   const canvasData = propCanvasData || internalCanvasData;
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
 
   console.log('CharacterArcCanvas mounted with bookId:', bookId, 'versionId:', versionId);
 
   useEffect(() => {
-    // Only fetch data if no prop data is provided
     if (!propCanvasData && bookId && versionId) {
       fetchCharacterArcData();
     }
@@ -75,7 +75,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       const response = await apiClient.get(endpoint);
       
       if (characterId) {
-        // Single character
         const selectedCharacter = response.data;
         let characterArcs = selectedCharacter?.arcs || [];
 
@@ -95,8 +94,13 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
             childIds: [],
             linkedNodeIds: [],
             position: { x: Math.random() * 400, y: Math.random() * 400 },
-            characters: [{ id: characterId, name: selectedCharacter?.name || 'Unnamed Character', type: 'Character' }],
-            worlds: [],
+            characters: [{ 
+              id: characterId, 
+              name: selectedCharacter?.name || 'Unnamed Character', 
+              type: 'Character',
+              attributes: []
+            }],
+            worlds: []
           };
 
           characterArcs = [newArcNode];
@@ -109,7 +113,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
           lastUpdated: response.data?.arc?.lastUpdated || '',
         });
       } else {
-        // All characters - convert to canvas nodes
         const characters: Character[] = response.data || [];
         const characterNodes: CanvasNode[] = characters.map((character, index) => ({
           id: character.id,
@@ -160,7 +163,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       console.log('Updating character arc data:', updatedArcData);
       
       if (characterId) {
-        // Update specific character
         const updatedCharacterData = {
           arc: updatedArcData,
         };
@@ -168,7 +170,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         await apiClient.patch(`/books/${bookId}/versions/${versionId}/characters/${characterId}`, updatedCharacterData);
       }
 
-      // Update local state
       onCanvasUpdate(updatedArcData);
       console.log('Character arc data updated successfully');
     } catch (error) {
@@ -193,22 +194,26 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         console.log('No arcs found for character:', entityId, 'Creating initial arc.');
 
         const newArcNodeId = `${selectedCharacter.id}-arc-${Date.now()}`;
-       
-         const newArcNode: CanvasNode = {
-                  id: newArcNodeId,
-                  type: 'Character',
-                  name: `${selectedCharacter.name} Arc`,
-                  detail: 'Initial state',
-                  goal: '',
-                  status: 'Not Completed',
-                  timelineEventIds: [],
-                  parentId: null,
-                  childIds: [],
-                  linkedNodeIds: [],
-                  position: { x: Math.random() * 400, y: Math.random() * 400 },
-                  characters: [{ id: selectedCharacter.id, name: selectedCharacter.name }],
-                  worlds: [],
-                };
+        const newArcNode: CanvasNode = {
+          id: newArcNodeId,
+          type: 'Character',
+          name: `${selectedCharacter.name} Arc`,
+          detail: 'Initial state',
+          goal: '',
+          status: 'Not Completed',
+          timelineEventIds: [],
+          parentId: null,
+          childIds: [],
+          linkedNodeIds: [],
+          position: { x: Math.random() * 400, y: Math.random() * 400 },
+          characters: [{ 
+            id: selectedCharacter.id, 
+            name: selectedCharacter.name, 
+            type: 'Character',
+            attributes: []
+          }],
+          worlds: []
+        };
 
         characterArcs = [newArcNode];
 
@@ -234,79 +239,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     }
   };
 
-  const handleSceneBeatNodeClick = async (sceneBeatNodeId: string) => {
-    if (!bookId || !versionId) return;
-    console.log('SceneBeat node clicked:', sceneBeatNodeId);
-
-    try {
-      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/sceneBeats/${sceneBeatNodeId}`);
-      const sceneBeatData = response.data;
-
-      if (!sceneBeatData || !sceneBeatData.characterId) {
-        console.error('No character associated with SceneBeat node:', sceneBeatNodeId);
-        return;
-      }
-
-      const characterResponse = await apiClient.get(`/books/${bookId}/versions/${versionId}/characters/${sceneBeatData.characterId}`);
-      const selectedCharacter = characterResponse.data;
-
-      if (!selectedCharacter) {
-        console.error('Character not found for SceneBeat node:', sceneBeatNodeId);
-        return;
-      }
-
-      const characterArcs = selectedCharacter.arcs || [];
-
-      if (characterArcs.length === 0) {
-        console.error('No arcs found for character:', sceneBeatData.characterId);
-        return;
-      }
-
-      setInternalCanvasData({
-        nodes: characterArcs,
-        edges: [],
-        timelineEvents: [],
-        lastUpdated: '',
-      });
-    } catch (error) {
-      console.error('Failed to load character arcs for SceneBeat node:', error);
-    }
-  };
-
-  const createReactFlowNode = (nodeData: any): any => {
-    return {
-      id: nodeData.id,
-      type: 'characterArcNode',
-      position: nodeData.position || { x: Math.random() * 400, y: Math.random() * 400 },
-      data: {
-        id: nodeData.id,
-        type: nodeData.type,
-        name: nodeData.name,
-        detail: nodeData.detail,
-        goal: nodeData.goal,
-        status: nodeData.status,
-        parentId: nodeData.parentId,
-        childIds: nodeData.childIds,
-        linkedNodeIds: nodeData.linkedNodeIds,
-        characters: nodeData.characters || [],
-        worlds: nodeData.worlds || [],
-        onEdit: (nodeId: string) => {
-          const nodeToEdit = canvasData?.nodes.find((n: any) => n.id === nodeId);
-          if (nodeToEdit) {
-            console.log('Editing node:', nodeToEdit);
-          }
-        },
-        onAddChild: (parentId: string) => {
-          console.log('Adding child to node:', parentId);
-        },
-        onNavigateToEntity: handleCharacterOrWorldClick,
-        onDelete: (nodeId: string) => {
-          console.log('Deleting node:', nodeId);
-        },
-      },
-    };
-  };
-
   const handleAddLinkedNode = async (parentNodeId: string, currentNodeType: string) => {
     console.log('Adding linked node:', parentNodeId);
 
@@ -314,23 +246,33 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       const characterId = parentNodeId.split('-')[0];
       const newNodeId = `${characterId}-arc-${Date.now()}`;
 
-      const newNode = {
+      const newNode: CanvasNode = {
         id: newNodeId,
-        type: 'CharacterArc',
-        data: {
-          characterId,
-          attributes: {}, // Populate with character attributes if available
-        },
+        type: 'Character',
+        name: `New Character Arc`,
+        detail: '',
+        goal: '',
+        status: 'Not Completed',
+        timelineEventIds: [],
+        parentId: null,
+        childIds: [],
+        linkedNodeIds: [],
+        position: { x: Math.random() * 400, y: Math.random() * 400 },
+        characters: [{ 
+          id: characterId, 
+          name: 'Character', 
+          type: 'Character',
+          attributes: []
+        }],
+        worlds: []
       };
 
-      // Save the new node via the character PATCH API
       try {
         const response = await apiClient.patch(`/books/${bookId}/versions/${versionId}/characters/${characterId}`, {
           arcs: [newNode],
         });
         console.log('Character arc saved successfully:', response.data);
 
-        // Update the canvas data
         setInternalCanvasData((prevData) => ({
           ...prevData,
           nodes: [...(prevData?.nodes || []), newNode],

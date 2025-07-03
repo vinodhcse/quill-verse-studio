@@ -1,3 +1,4 @@
+
 export interface Attribute {
     id: string;
     name: string;
@@ -22,7 +23,7 @@ export interface CanvasNode {
     name: string;
     image?: string;
     type: string;
-    attributes?: Attribute[]; // Added attributes property
+    attributes?: Attribute[];
   }>;
   worlds?: Array<{
     id: string;
@@ -79,7 +80,7 @@ export interface CanvasNode {
     date: string;
   }>;
 
-  attributes?: Attribute[]; // Added root-level attributes property
+  attributes?: Attribute[];
 }
 
 export interface TimelineEvent {
@@ -93,6 +94,14 @@ export interface TimelineEvent {
 
 export interface PlotCanvasData {
   nodes: CanvasNode[];
+  edges?: Array<{
+    id: string;
+    source: string;
+    target: string;
+    type?: string;
+    animated?: boolean;
+    style?: Record<string, any>;
+  }>;
   timelineEvents: TimelineEvent[];
   nodePositions?: Record<string, { x: number; y: number }>;
   lastUpdated: string;
@@ -113,7 +122,7 @@ export interface PlotNodeData extends Record<string, unknown> {
     name: string;
     image?: string;
     type: string;
-    attributes?: Attribute[]; // Added attributes property
+    attributes?: Attribute[];
   }>;
   worlds?: Array<{
     id: string;
@@ -134,15 +143,12 @@ export interface PlotNodeData extends Record<string, unknown> {
   onEdit: (nodeId: string) => void;
   onAddChild: (parentId: string) => void;
   onNavigateToEntity?: (entityId: string) => void;
-  onDelete?: (nodeId: string) => void; // Added onDelete definition
-  onCharacterOrWorldClick?: (entityId: string) => void; // Added onCharacterOrWorldClick definition
-  onFetchCharacterDetails?: (arcId: string) => Promise<any>; // Added onFetchCharacterDetails definition
-  onAddLinkedNode?: (parentNodeId: string, currentNodeType: string) => void; // Added onAddLinkedNode definition
+  onDelete?: (nodeId: string) => void;
+  onCharacterOrWorldClick?: (entityId: string) => void;
+  onFetchCharacterDetails?: (arcId: string) => Promise<any>;
+  onAddLinkedNode?: (parentNodeId: string, currentNodeType: string) => void;
 }
 
-
-
-// Removed logCharacters invocation and debugging logic
 export const initializePlotCanvas = (data: PlotCanvasData) => {
   console.log('Initializing PlotCanvas with data:', data);
   console.log('Characters in nodes:', data.nodes.map(node => node.characters));
