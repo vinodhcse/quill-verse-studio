@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff, ExternalLink } from 'lucide-react';
-import { PlotNodeData } from '@/types/plotCanvas';
+import { PlotNodeData, CharacterAttributes } from '@/types/plotCanvas';
 import { usePlotCanvasContext } from '@/contexts/PlotCanvasContext';
 import { apiClient } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
@@ -115,7 +115,8 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     const nodeData = data as any;
     const currentAttributes = nodeData.attributes;
     
-    if (!currentAttributes || typeof currentAttributes !== 'object' || Array.isArray(currentAttributes)) {
+    // Type guard to check if attributes is CharacterAttributes
+    if (!currentAttributes || Array.isArray(currentAttributes)) {
       return null;
     }
 
@@ -124,17 +125,17 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
       n.linkedNodeIds && n.linkedNodeIds.includes(nodeData.id)
     );
 
-    if (!parentNode || !parentNode.attributes) return null;
+    if (!parentNode || !parentNode.attributes || Array.isArray(parentNode.attributes)) return null;
 
-    const parentAttributes = parentNode.attributes;
+    const parentAttributes = parentNode.attributes as CharacterAttributes;
     const changes: string[] = [];
 
     // Compare key attributes
     const attributesToCheck = ['aliases', 'traits', 'beliefs', 'motivations', 'internalConflicts', 'externalConflicts'];
     
     attributesToCheck.forEach(attr => {
-      const currentValue = currentAttributes[attr] || [];
-      const parentValue = parentAttributes[attr] || [];
+      const currentValue = (currentAttributes as any)[attr] || [];
+      const parentValue = (parentAttributes as any)[attr] || [];
       
       if (Array.isArray(currentValue) && Array.isArray(parentValue)) {
         const added = currentValue.filter((item: string) => !parentValue.includes(item));
@@ -149,17 +150,20 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
       }
     });
 
-    // Check other attributes
-    if (currentAttributes.age !== parentAttributes.age) {
-      changes.push(`Age: ${parentAttributes.age} → ${currentAttributes.age}`);
+    // Check other attributes with proper type checking
+    const currentAttrs = currentAttributes as CharacterAttributes;
+    const parentAttrs = parentAttributes as CharacterAttributes;
+
+    if (currentAttrs.age !== parentAttrs.age) {
+      changes.push(`Age: ${parentAttrs.age} → ${currentAttrs.age}`);
     }
-    if (currentAttributes.gender !== parentAttributes.gender) {
-      changes.push(`Gender: ${parentAttributes.gender} → ${currentAttributes.gender}`);
+    if (currentAttrs.gender !== parentAttrs.gender) {
+      changes.push(`Gender: ${parentAttrs.gender} → ${currentAttrs.gender}`);
     }
-    if (currentAttributes.description !== parentAttributes.description) {
+    if (currentAttrs.description !== parentAttrs.description) {
       changes.push(`Description changed`);
     }
-    if (currentAttributes.backstory !== parentAttributes.backstory) {
+    if (currentAttrs.backstory !== parentAttrs.backstory) {
       changes.push(`Backstory updated`);
     }
 
@@ -189,49 +193,52 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     const nodeData = data as any;
     const attributes = nodeData.attributes;
     
-    if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) {
+    // Type guard to check if attributes is CharacterAttributes
+    if (!attributes || Array.isArray(attributes)) {
       return null;
     }
+
+    const characterAttrs = attributes as CharacterAttributes;
 
     if (showFullAttributes) {
       // Show full attributes
       return (
         <div className="space-y-2">
-          {attributes.age && <p className="text-xs font-medium">Age: {attributes.age}</p>}
-          {attributes.gender && <p className="text-xs font-medium">Gender: {attributes.gender}</p>}
-          {attributes.description && <p className="text-xs font-medium">Description: {attributes.description}</p>}
-          {attributes.traits && attributes.traits.length > 0 && (
-            <p className="text-xs font-medium">Traits: {attributes.traits.join(', ')}</p>
+          {characterAttrs.age && <p className="text-xs font-medium">Age: {characterAttrs.age}</p>}
+          {characterAttrs.gender && <p className="text-xs font-medium">Gender: {characterAttrs.gender}</p>}
+          {characterAttrs.description && <p className="text-xs font-medium">Description: {characterAttrs.description}</p>}
+          {characterAttrs.traits && characterAttrs.traits.length > 0 && (
+            <p className="text-xs font-medium">Traits: {characterAttrs.traits.join(', ')}</p>
           )}
-          {attributes.backstory && <p className="text-xs font-medium">Backstory: {attributes.backstory}</p>}
-          {attributes.beliefs && attributes.beliefs.length > 0 && (
-            <p className="text-xs font-medium">Beliefs: {attributes.beliefs.join(', ')}</p>
+          {characterAttrs.backstory && <p className="text-xs font-medium">Backstory: {characterAttrs.backstory}</p>}
+          {characterAttrs.beliefs && characterAttrs.beliefs.length > 0 && (
+            <p className="text-xs font-medium">Beliefs: {characterAttrs.beliefs.join(', ')}</p>
           )}
-          {attributes.motivations && attributes.motivations.length > 0 && (
-            <p className="text-xs font-medium">Motivations: {attributes.motivations.join(', ')}</p>
+          {characterAttrs.motivations && characterAttrs.motivations.length > 0 && (
+            <p className="text-xs font-medium">Motivations: {characterAttrs.motivations.join(', ')}</p>
           )}
-          {attributes.internalConflicts && attributes.internalConflicts.length > 0 && (
-            <p className="text-xs font-medium">Internal Conflicts: {attributes.internalConflicts.join(', ')}</p>
+          {characterAttrs.internalConflicts && characterAttrs.internalConflicts.length > 0 && (
+            <p className="text-xs font-medium">Internal Conflicts: {characterAttrs.internalConflicts.join(', ')}</p>
           )}
-          {attributes.externalConflicts && attributes.externalConflicts.length > 0 && (
-            <p className="text-xs font-medium">External Conflicts: {attributes.externalConflicts.join(', ')}</p>
+          {characterAttrs.externalConflicts && characterAttrs.externalConflicts.length > 0 && (
+            <p className="text-xs font-medium">External Conflicts: {characterAttrs.externalConflicts.join(', ')}</p>
           )}
         </div>
       );
     } else {
       // Show condensed view
-      const condensedTraits = attributes.traits && attributes.traits.length > 0 
-        ? attributes.traits.slice(0, 2).join(', ') + (attributes.traits.length > 2 ? '...' : '')
+      const condensedTraits = characterAttrs.traits && characterAttrs.traits.length > 0 
+        ? characterAttrs.traits.slice(0, 2).join(', ') + (characterAttrs.traits.length > 2 ? '...' : '')
         : null;
       
-      const condensedMotivations = attributes.motivations && attributes.motivations.length > 0
-        ? attributes.motivations.slice(0, 1).join(', ') + (attributes.motivations.length > 1 ? '...' : '')
+      const condensedMotivations = characterAttrs.motivations && characterAttrs.motivations.length > 0
+        ? characterAttrs.motivations.slice(0, 1).join(', ') + (characterAttrs.motivations.length > 1 ? '...' : '')
         : null;
 
       return (
         <div className="space-y-1">
-          {attributes.age && <div className="text-xs"><strong>Age:</strong> {attributes.age}</div>}
-          {attributes.gender && <div className="text-xs"><strong>Gender:</strong> {attributes.gender}</div>}
+          {characterAttrs.age && <div className="text-xs"><strong>Age:</strong> {characterAttrs.age}</div>}
+          {characterAttrs.gender && <div className="text-xs"><strong>Gender:</strong> {characterAttrs.gender}</div>}
           {condensedTraits && <div className="text-xs"><strong>Traits:</strong> {condensedTraits}</div>}
           {condensedMotivations && <div className="text-xs"><strong>Motivations:</strong> {condensedMotivations}</div>}
         </div>
