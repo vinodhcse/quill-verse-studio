@@ -58,7 +58,7 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
   const [newTimelineEvent, setNewTimelineEvent] = useState({ name: '', date: '', description: '' });
   const [showCreateTimeline, setShowCreateTimeline] = useState(false);
 
-  const isFirstNode = node?.parentId === null && node?.linkedNodeIds?.length === 0;
+  const isFirstNode = node?.parentId === null && (!node?.linkedNodeIds || node.linkedNodeIds.length === 0);
 
   useEffect(() => {
     if (node && isOpen) {

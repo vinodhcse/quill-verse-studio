@@ -36,8 +36,8 @@ const CharacterArcPage: React.FC = () => {
         
         if (selectedCharacter && selectedCharacter.arc && 
             typeof selectedCharacter.arc === 'object' &&
-            selectedCharacter.arc.nodes && Array.isArray(selectedCharacter.arc.nodes) &&
-            selectedCharacter.arc.edges && Array.isArray(selectedCharacter.arc.edges)) {
+            'nodes' in selectedCharacter.arc && Array.isArray(selectedCharacter.arc.nodes) &&
+            'edges' in selectedCharacter.arc && Array.isArray(selectedCharacter.arc.edges)) {
           // Character has proper canvas data
           console.log('Loading character arc canvas data:', selectedCharacter.arc);
           setCanvasData(selectedCharacter.arc as PlotCanvasData);

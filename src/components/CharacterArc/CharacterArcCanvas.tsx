@@ -66,7 +66,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [editingNode, setEditingNode] = useState<CanvasNode | null>(null);
   const [isInteractive, setIsInteractive] = useState(true);
-  const [plotCanvasNodes, setPlotCanvasNodes] = useState<CanvasNode[]>([]);
+  const [plotCanvasData, setPlotCanvasData] = useState<PlotCanvasData>({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
 
   const canvasData = propCanvasData || internalCanvasData;
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
@@ -81,7 +81,9 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   useEffect(() => {
     if (characterId && bookId && versionId) {
       fetchCharacterDetails();
-      fetchPlotCanvasNodes();
+    }
+    if (bookId && versionId) {
+      fetchPlotCanvasData();
     }
   }, [characterId, bookId, versionId]);
 
@@ -97,16 +99,17 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     }
   };
 
-  const fetchPlotCanvasNodes = async () => {
+  const fetchPlotCanvasData = async () => {
     if (!bookId || !versionId) return;
     
     try {
       const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plot-canvas`);
-      if (response.data && response.data.nodes) {
-        setPlotCanvasNodes(response.data.nodes);
+      if (response.data) {
+        setPlotCanvasData(response.data);
+        console.log('Fetched plot canvas data:', response.data);
       }
     } catch (error) {
-      console.error('Failed to fetch plot canvas nodes:', error);
+      console.error('Failed to fetch plot canvas data:', error);
     }
   };
 
@@ -195,6 +198,28 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     };
     
     await onCanvasUpdate(updatedCanvasData);
+    
+    // Also update plot canvas if there are linked nodes
+    if (updatedNode.linkedNodeIds && updatedNode.linkedNodeIds.length > 0) {
+      await updatePlotCanvasLinks(updatedNode);
+    }
+  };
+
+  const updatePlotCanvasLinks = async (characterNode: CanvasNode) => {
+    if (!bookId || !versionId) return;
+    
+    try {
+      // Update the plot canvas with character node links
+      const updatedPlotCanvasData = {
+        ...plotCanvasData,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await apiClient.patch(`/books/${bookId}/versions/${versionId}/plot-canvas`, updatedPlotCanvasData);
+      console.log('Plot canvas updated with character links');
+    } catch (error) {
+      console.error('Failed to update plot canvas:', error);
+    }
   };
 
   const handleAddChild = (parentId: string) => {
@@ -585,8 +610,8 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         }}
         onSave={handleNodeUpdate}
         node={editingNode}
-        plotCanvasNodes={plotCanvasNodes}
-        timelineEvents={canvasData?.timelineEvents || []}
+        plotCanvasNodes={plotCanvasData.nodes}
+        timelineEvents={plotCanvasData.timelineEvents}
         onCreateTimelineEvent={handleCreateTimelineEvent}
       />
     </div>
