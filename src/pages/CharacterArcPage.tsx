@@ -84,11 +84,11 @@ const CharacterArcPage: React.FC = () => {
           internalConflicts: character.internalConflicts,
           externalConflicts: character.externalConflicts,
           goals: character.goals,
-          arc: character.arc?.nodes?.map(arcNode => ({
-            actId: arcNode.id,
-            timelineEventId: arcNode.timelineEventIds?.[0] || '',
-            descriptionChange: arcNode.detail || ''
-          })) || [],
+          arc: character.arc ? character.arc.map(arcItem => ({
+            actId: arcItem.actId,
+            timelineEventId: arcItem.timelineEventId,
+            descriptionChange: arcItem.summary || arcItem.note || ''
+          })) : [],
           characters: [{ 
             id: character.id, 
             name: character.name, 

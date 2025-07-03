@@ -58,7 +58,15 @@ const BookDetails = () => {
         ]);
         const bookData = bookResponse.data;
         setBookDetails(bookData);
-        setVersions(versionsResponse.data);
+        
+        // Transform versions to match the expected Version type
+        const transformedVersions = versionsResponse.data.map((version: any) => ({
+          ...version,
+          name: version.name || version.title || 'Untitled Version',
+          type: version.type || 'Manuscript',
+          status: version.status || 'Draft'
+        }));
+        setVersions(transformedVersions);
 
         // Determine user role
         const loggedInUserId = currentUserId || getLoggedInUserId();
@@ -196,6 +204,8 @@ const BookDetails = () => {
     try {
       const response = await apiClient.post(`/books/${bookId}/versions`, {
         name: versionData.name,
+        type: 'Manuscript',
+        status: 'Draft',
         lastModifiedBy: bookDetails?.authorname,
         metaData: {
           totalWords: 0,
@@ -204,9 +214,14 @@ const BookDetails = () => {
         },
       });
 
-      // Refresh versions list
       const versionsResponse = await apiClient.get(`/books/${bookId}/versions`);
-      setVersions(versionsResponse.data);
+      const transformedVersions = versionsResponse.data.map((version: any) => ({
+        ...version,
+        name: version.name || version.title || 'Untitled Version',
+        type: version.type || 'Manuscript',
+        status: version.status || 'Draft'
+      }));
+      setVersions(transformedVersions);
       setIsCreateVersionOpen(false);
       
       toast({
@@ -436,7 +451,7 @@ const BookDetails = () => {
                           </div>
                           <div className="flex items-center space-x-1">
                             <User size={12} />
-                            <span>{version.createdBy?.name || 'Unknown'}</span>
+                            <span>{version.createdBy || 'Unknown'}</span>
                           </div>
                         </div>
                       </div>

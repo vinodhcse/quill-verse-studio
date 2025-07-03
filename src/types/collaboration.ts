@@ -57,8 +57,8 @@ export type EditMode = 'view' | 'edit' | 'review' | 'track-changes' | 'suggest';
 
 export interface Version {
   id: string;
-  title: string;
-  name?: string;
+  title?: string;
+  name: string;
   description?: string;
   createdAt: string;
   updatedAt?: string;

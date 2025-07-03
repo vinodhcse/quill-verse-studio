@@ -29,7 +29,7 @@ import {
   BreadcrumbList, 
   BreadcrumbSeparator 
 } from '@/components/ui/breadcrumb';
-import { ChevronRight, Home, Plus, ZoomIn, ZoomOut, Maximize2, ToggleLeft } from 'lucide-react';
+import { ChevronRight, Home, Plus, ZoomIn, ZoomOut, Maximize2, ToggleLeft, MousePointer, Move } from 'lucide-react';
 
 const nodeTypes = { plotNode: PlotNode };
 const edgeTypes = {
@@ -62,6 +62,8 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
   const [currentViewNodeId, setCurrentViewNodeId] = useState<string | null>(null);
   const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
+  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [isInteractive, setIsInteractive] = useState(true);
 
   const canvasData = propCanvasData || internalCanvasData;
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
@@ -73,6 +75,24 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
   const { fitView, zoomIn, zoomOut, zoomTo } = useReactFlow();
+
+  useEffect(() => {
+    if (characterId && bookId && versionId) {
+      fetchCharacterDetails();
+    }
+  }, [characterId, bookId, versionId]);
+
+  const fetchCharacterDetails = async () => {
+    if (!characterId || !bookId || !versionId) return;
+    
+    try {
+      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/characters/${characterId}`);
+      console.log('Fetched character details:', response.data);
+      setSelectedCharacter(response.data);
+    } catch (error) {
+      console.error('Failed to fetch character details:', error);
+    }
+  };
 
   useEffect(() => {
     if (canvasData) {
@@ -89,6 +109,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
           onCharacterOrWorldClick: handleCharacterOrWorldClick,
           onFetchCharacterDetails: handleFetchCharacterDetails,
           onAddLinkedNode: handleAddLinkedNode,
+          selectedCharacter: selectedCharacter,
         } as PlotNodeData,
       }));
 
@@ -104,7 +125,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         fitView();
       }, 100);
     }
-  }, [canvasData, setNodes, setEdges, fitView]);
+  }, [canvasData, selectedCharacter, setNodes, setEdges, fitView]);
 
   const debouncedUpdate = useCallback(
     debounce(async (updatedCanvasData: PlotCanvasData) => {
@@ -170,7 +191,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
   const handleFetchCharacterDetails = async (arcId: string) => {
     console.log('Fetch character details for arc:', arcId);
-    return {};
+    return selectedCharacter || {};
   };
 
   const handleAddLinkedNode = async (parentNodeId: string, currentNodeType: string) => {
@@ -199,10 +220,20 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     const baseCharacterId = characterId || parentNodeId || 'character';
     const newNodeId = `${baseCharacterId}-arc-${Date.now()}`;
     
+    // Get parent node to inherit characters
+    const parentNode = parentNodeId ? canvasData.nodes.find(n => n.id === parentNodeId) : null;
+    const inheritedCharacters = parentNode?.characters || (characterId && selectedCharacter ? [{
+      id: characterId,
+      name: selectedCharacter.name,
+      type: 'Character',
+      image: selectedCharacter.image,
+      attributes: []
+    }] : []);
+    
     const newNode: CanvasNode = {
       id: newNodeId,
       type: nodeData.type || 'Character',
-      name: nodeData.name || 'New Character Arc',
+      name: nodeData.name || 'New Character Arc Node',
       detail: nodeData.detail || '',
       goal: nodeData.goal || '',
       status: nodeData.status || 'Not Completed',
@@ -211,12 +242,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       childIds: [],
       linkedNodeIds: [],
       position,
-      characters: characterId ? [{
-        id: characterId,
-        name: nodeData.name || 'Character Arc',
-        type: 'Character',
-        attributes: []
-      }] : [],
+      characters: inheritedCharacters,
       worlds: []
     };
 
@@ -293,11 +319,8 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       { label: 'Character Arcs', href: '#' }
     ];
 
-    if (characterId && canvasData) {
-      const character = canvasData.nodes.find(node => node.id === characterId);
-      if (character) {
-        items.push({ label: character.name, href: '#' });
-      }
+    if (characterId && selectedCharacter) {
+      items.push({ label: selectedCharacter.name, href: '#' });
     }
 
     return items;
@@ -363,6 +386,15 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
               Fit View
             </Button>
             <Button
+              onClick={() => setIsInteractive(!isInteractive)}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              {isInteractive ? <MousePointer className="h-4 w-4" /> : <Move className="h-4 w-4" />}
+              {isInteractive ? 'Selection' : 'Pan'}
+            </Button>
+            <Button
               onClick={() => setShowQuickModal(true)}
               size="sm"
               className="flex items-center gap-2"
@@ -387,12 +419,16 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onPaneClick={handlePaneClick}
+            onPaneClick={isInteractive ? handlePaneClick : undefined}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             connectionMode={ConnectionMode.Loose}
             fitView
             className="bg-background"
+            panOnDrag={!isInteractive}
+            nodesDraggable={isInteractive}
+            nodesConnectable={isInteractive}
+            elementsSelectable={isInteractive}
           >
             <Controls />
             <Background />
