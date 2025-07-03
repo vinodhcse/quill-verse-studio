@@ -1,36 +1,18 @@
 
-import React, { ReactNode, useState, useEffect } from 'react';
+import React from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff, ExternalLink } from 'lucide-react';
-import { PlotNodeData, CharacterAttributes } from '@/types/plotCanvas';
-import { useNavigate } from 'react-router-dom';
+import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight } from 'lucide-react';
+import { PlotNodeData } from '@/types/plotCanvas';
 
 interface PlotNodeProps extends NodeProps {
   data: PlotNodeData;
 }
 
 const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
-  const navigate = useNavigate();
-  const [showFullAttributes, setShowFullAttributes] = useState(false);
-  
-  // Get plot canvas data from props instead of context
-  const timelineEvents = data.timelineEvents || [];
-  const plotCanvasNodes = data.plotCanvasNodes || [];
-
-  // Determine if this is the first node (no parent and no incoming linked nodes)
-  const isFirstNode = data.parentId === null && (!data.linkedNodeIds || data.linkedNodeIds.length === 0);
-
-  // Set initial state for showFullAttributes based on whether it's the first node
-  useEffect(() => {
-    if (data.type === 'Character') {
-      setShowFullAttributes(isFirstNode);
-    }
-  }, [data.type, isFirstNode]);
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Completed':
@@ -84,249 +66,12 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
-  const handleEntityClick = async (entityId: string) => {
+  const handleEntityClick = (entityId: string) => {
     console.log('Entity clicked:', entityId);
-
-    if (data.type === 'SceneBeats') {
-      console.log('SceneBeat node clicked:', entityId);
-
-      try {
-        // Navigate to Character Canvas Page
-        navigate(`/books/${data.bookId}/versions/${data.versionId}/characters/${entityId}/arcs`);
-      } catch (error) {
-        console.error('Failed to load character arcs for SceneBeat node:', error);
-      }
-    } else if (typeof data.onCharacterOrWorldClick === 'function') {
-      data.onCharacterOrWorldClick(entityId);
+    if (data.onNavigateToEntity) {
+      data.onNavigateToEntity(entityId);
     }
   };
-
-  const handlePlotNodeClick = (plotNodeId: string) => {
-    // Navigate to plot outline page with the specific node focused
-    const url = `/books/${data.bookId}/versions/${data.versionId}/plan?boards=plot-arcs&tab=plot-outline&focusNode=${plotNodeId}`;
-    navigate(url);
-  };
-
-  // Function to compare attributes and show changes
-  const getAttributeChanges = () => {
-    if (data.type !== 'Character' || isFirstNode) return null;
-
-    const nodeData = data as any;
-    const currentAttributes = nodeData.attributes;
-    
-    // Type guard to check if attributes is CharacterAttributes
-    if (!currentAttributes || Array.isArray(currentAttributes)) {
-      return null;
-    }
-
-    // Find parent node to compare attributes
-    const parentNode = plotCanvasNodes.find((n: any) => 
-      Array.isArray(n.linkedNodeIds) && n.linkedNodeIds.includes(nodeData.id)
-    );
-
-    if (!parentNode || !parentNode.attributes || Array.isArray(parentNode.attributes)) return null;
-
-    const parentAttributes = parentNode.attributes as CharacterAttributes;
-    const changes: string[] = [];
-
-    // Compare key attributes
-    const attributesToCheck = ['aliases', 'traits', 'beliefs', 'motivations', 'internalConflicts', 'externalConflicts'];
-    
-    attributesToCheck.forEach(attr => {
-      const currentValue = (currentAttributes as any)[attr] || [];
-      const parentValue = (parentAttributes as any)[attr] || [];
-      
-      if (Array.isArray(currentValue) && Array.isArray(parentValue)) {
-        const added = currentValue.filter((item: string) => !parentValue.includes(item));
-        const removed = parentValue.filter((item: string) => !currentValue.includes(item));
-        
-        if (added.length > 0) {
-          changes.push(`Added ${attr}: ${added.join(', ')}`);
-        }
-        if (removed.length > 0) {
-          changes.push(`Removed ${attr}: ${removed.join(', ')}`);
-        }
-      }
-    });
-
-    // Check other attributes with proper type checking
-    const currentAttrs = currentAttributes as CharacterAttributes;
-    const parentAttrs = parentAttributes as CharacterAttributes;
-
-    if (currentAttrs.age !== parentAttrs.age) {
-      changes.push(`Age: ${parentAttrs.age} → ${currentAttrs.age}`);
-    }
-    if (currentAttrs.gender !== parentAttrs.gender) {
-      changes.push(`Gender: ${parentAttrs.gender} → ${currentAttrs.gender}`);
-    }
-    if (currentAttrs.description !== parentAttrs.description) {
-      changes.push(`Description changed`);
-    }
-    if (currentAttrs.backstory !== parentAttrs.backstory) {
-      changes.push(`Backstory updated`);
-    }
-
-    return changes.length > 0 ? changes : null;
-  };
-  
-  // Add logic to create linked node with specific ID pattern
-  const handleAddLinkedNode = (parentNodeId: string, currentNodeType: string) => {
-    
-    console.log('Adding linked node:', parentNodeId);
-
-    
-    if (currentNodeType === 'Character' || currentNodeType === 'WorldLocation' || currentNodeType === 'WorldObject' ) {
-      if (typeof data.onAddLinkedNode === 'function') {
-        data.onAddLinkedNode(parentNodeId, currentNodeType);
-      }
-    }   else {
-       data.onAddChild(parentNodeId);
-    }
-  };
-
-  // Function to render character details from node attributes
-  const renderCharacterDetails = (): ReactNode => {
-    if (data.type !== 'Character') return null;
-
-    // Get attributes from the node data
-    const nodeData = data as any;
-    const attributes = nodeData.attributes;
-    
-    // Type guard to check if attributes is CharacterAttributes
-    if (!attributes || Array.isArray(attributes)) {
-      return null;
-    }
-
-    const characterAttrs = attributes as CharacterAttributes;
-
-    if (showFullAttributes) {
-      // Show full attributes
-      return (
-        <div className="space-y-2">
-          {characterAttrs.age && <p className="text-xs font-medium">Age: {characterAttrs.age}</p>}
-          {characterAttrs.gender && <p className="text-xs font-medium">Gender: {characterAttrs.gender}</p>}
-          {characterAttrs.description && <p className="text-xs font-medium">Description: {characterAttrs.description}</p>}
-          {Array.isArray(characterAttrs.traits) && characterAttrs.traits.length > 0 && (
-            <p className="text-xs font-medium">Traits: {characterAttrs.traits.join(', ')}</p>
-          )}
-          {characterAttrs.backstory && <p className="text-xs font-medium">Backstory: {characterAttrs.backstory}</p>}
-          {Array.isArray(characterAttrs.beliefs) && characterAttrs.beliefs.length > 0 && (
-            <p className="text-xs font-medium">Beliefs: {characterAttrs.beliefs.join(', ')}</p>
-          )}
-          {Array.isArray(characterAttrs.motivations) && characterAttrs.motivations.length > 0 && (
-            <p className="text-xs font-medium">Motivations: {characterAttrs.motivations.join(', ')}</p>
-          )}
-          {Array.isArray(characterAttrs.internalConflicts) && characterAttrs.internalConflicts.length > 0 && (
-            <p className="text-xs font-medium">Internal Conflicts: {characterAttrs.internalConflicts.join(', ')}</p>
-          )}
-          {Array.isArray(characterAttrs.externalConflicts) && characterAttrs.externalConflicts.length > 0 && (
-            <p className="text-xs font-medium">External Conflicts: {characterAttrs.externalConflicts.join(', ')}</p>
-          )}
-        </div>
-      );
-    } else {
-      // Show condensed view
-      const condensedTraits = Array.isArray(characterAttrs.traits) && characterAttrs.traits.length > 0 
-        ? characterAttrs.traits.slice(0, 2).join(', ') + (characterAttrs.traits.length > 2 ? '...' : '')
-        : null;
-      
-      const condensedMotivations = Array.isArray(characterAttrs.motivations) && characterAttrs.motivations.length > 0
-        ? characterAttrs.motivations.slice(0, 1).join(', ') + (characterAttrs.motivations.length > 1 ? '...' : '')
-        : null;
-
-      return (
-        <div className="space-y-1">
-          {characterAttrs.age && <div className="text-xs"><strong>Age:</strong> {characterAttrs.age}</div>}
-          {characterAttrs.gender && <div className="text-xs"><strong>Gender:</strong> {characterAttrs.gender}</div>}
-          {condensedTraits && <div className="text-xs"><strong>Traits:</strong> {condensedTraits}</div>}
-          {condensedMotivations && <div className="text-xs"><strong>Motivations:</strong> {condensedMotivations}</div>}
-        </div>
-      );
-    }
-  };
-
-  // Function to render linked Plot Canvas nodes - now using props data
-  const renderLinkedPlotNodes = () => {
-    const nodeData = data as any;
-    const linkedPlotNodeIds = nodeData.linkedNodeIds || [];
-    
-    if (linkedPlotNodeIds.length === 0) return null;
-
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-1">
-          <Target size={12} className="text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">
-            Linked Plot Nodes ({linkedPlotNodeIds.length})
-          </span>
-        </div>
-        <div className="space-y-1">
-          {linkedPlotNodeIds.map((nodeId: string) => {
-            const plotNode = plotCanvasNodes.find((n: any) => n.id === nodeId);
-            return plotNode ? (
-              <div 
-                key={nodeId} 
-                className="flex items-center gap-2 p-1 rounded-md bg-background border hover:bg-accent transition-colors cursor-pointer"
-                onClick={() => handlePlotNodeClick(nodeId)}
-              >
-                <span className="text-xs">{getNodeIcon(plotNode.type)}</span>
-                <span className="text-xs font-medium">{plotNode.name}</span>
-                <Badge variant="outline" className="text-xs">{plotNode.type}</Badge>
-                <ExternalLink size={10} className="ml-auto text-muted-foreground" />
-              </div>
-            ) : (
-              <div key={nodeId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
-                <span className="text-xs">🔗</span>
-                <span className="text-xs font-medium">{nodeId}</span>
-                <Badge variant="outline" className="text-xs">Unknown</Badge>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  // Function to render linked Timeline Events - now using props data
-  const renderLinkedTimelineEvents = () => {
-    const nodeData = data as any;
-    const timelineEventIds = nodeData.timelineEventIds || [];
-    
-    if (timelineEventIds.length === 0) return null;
-
-    return (
-      <div className="space-y-2">
-        <div className="flex items-center gap-1">
-          <ChevronDown size={12} className="text-muted-foreground" />
-          <span className="text-xs font-medium text-muted-foreground">
-            Timeline Events ({timelineEventIds.length})
-          </span>
-        </div>
-        <div className="space-y-1">
-          {timelineEventIds.map((eventId: string) => {
-            const event = timelineEvents.find((e: any) => e.id === eventId);
-            return event ? (
-              <div key={eventId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
-                <span className="text-xs">📅</span>
-                <span className="text-xs font-medium">{event.name}</span>
-                <Badge variant="outline" className="text-xs">{event.type}</Badge>
-              </div>
-            ) : (
-              <div key={eventId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
-                <span className="text-xs">📅</span>
-                <span className="text-xs font-medium">{eventId}</span>
-                <Badge variant="outline" className="text-xs">Unknown</Badge>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
-
-  console.log('PlotNode data:', data);
-
-  const attributeChanges = getAttributeChanges();
 
   return (
     <Card className={`min-w-[320px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
@@ -396,49 +141,8 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           </div>
         )}
 
-        {/* Attribute Changes Summary (for non-first character nodes) */}
-        {data.type === 'Character' && !isFirstNode && attributeChanges && attributeChanges.length > 0 && (
-          <div className="space-y-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
-            <div className="flex items-center gap-1">
-              <span className="text-xs font-medium text-yellow-800">Character Changes:</span>
-            </div>
-            <div className="space-y-1">
-              {attributeChanges.slice(0, 3).map((change, index) => (
-                <div key={index} className="text-xs text-yellow-700">• {change}</div>
-              ))}
-              {attributeChanges.length > 3 && (
-                <div className="text-xs text-yellow-600">...and {attributeChanges.length - 3} more changes</div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Character Details Section with Show/Hide Button */}
-        {data.type === 'Character' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-muted-foreground">Character Details</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-6 w-6 p-0"
-                onClick={() => setShowFullAttributes(!showFullAttributes)}
-              >
-                {showFullAttributes ? <EyeOff size={12} /> : <Eye size={12} />}
-              </Button>
-            </div>
-            {renderCharacterDetails()}
-          </div>
-        )}
-
-        {/* Linked Plot Canvas Nodes */}
-        {renderLinkedPlotNodes()}
-
-        {/* Linked Timeline Events */}
-        {renderLinkedTimelineEvents()}
-
         {/* Characters Section with Images and Drill-down buttons */}
-        {Array.isArray(data.characters) && data.characters.length > 0 && (
+        {data.characters && data.characters.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
@@ -459,7 +163,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={character.image} />
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                        {character?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                        {character.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-xs font-medium">{character.name}</span>
@@ -483,7 +187,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         )}
 
         {/* World Entities Section with Drill-down buttons */}
-        {Array.isArray(data.worlds) && data.worlds.length > 0 && (
+        {data.worlds && data.worlds.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
@@ -567,23 +271,13 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             className="h-7 px-2 text-xs flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              handleAddLinkedNode(data.id, data.type);
+              data.onAddChild(data.id);
             }}
           >
             <Plus size={10} className="mr-1" />
-            Add Linked Node
+            Add
           </Button>
         </div>
-
-        {/* Delete Button */}
-        <Button
-          variant="destructive"
-          size="sm"
-          className="w-full mt-2"
-          onClick={() => data.onDelete && data.onDelete(data.id)}
-        >
-          Delete Node
-        </Button>
       </CardContent>
     </Card>
   );
