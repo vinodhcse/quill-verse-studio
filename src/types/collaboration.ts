@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   name: string;
@@ -57,11 +58,14 @@ export type EditMode = 'view' | 'edit' | 'review' | 'track-changes' | 'suggest';
 export interface Version {
   id: string;
   title: string;
+  name?: string;
   description?: string;
   createdAt: string;
   updatedAt?: string;
   type: "Manuscript" | "Edition";
   status: string;
+  wordCount?: number;
+  createdBy?: string;
   collaborators?: CollaboratorInfo[];
   permissions?: {
     canEdit: boolean;

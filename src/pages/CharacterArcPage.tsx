@@ -34,7 +34,7 @@ const CharacterArcPage: React.FC = () => {
         const selectedCharacter = characters.find(char => char.id === characterId);
         console.log('Found selected character:', selectedCharacter);
         
-        if (selectedCharacter && selectedCharacter.arc) {
+        if (selectedCharacter && selectedCharacter.arc && selectedCharacter.arc.nodes) {
           console.log('Loading character arc data:', selectedCharacter.arc);
           setCanvasData(selectedCharacter.arc);
         } else {

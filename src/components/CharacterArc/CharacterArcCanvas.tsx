@@ -29,7 +29,7 @@ import {
   BreadcrumbList, 
   BreadcrumbSeparator 
 } from '@/components/ui/breadcrumb';
-import { ChevronRight, Home, Plus } from 'lucide-react';
+import { ChevronRight, Home, Plus, ZoomIn, ZoomOut, Maximize2, ToggleLeft } from 'lucide-react';
 
 const nodeTypes = { plotNode: PlotNode };
 const edgeTypes = {
@@ -61,6 +61,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [quickModalPosition, setQuickModalPosition] = useState({ x: 0, y: 0 });
   const [currentViewNodeId, setCurrentViewNodeId] = useState<string | null>(null);
+  const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
 
   const canvasData = propCanvasData || internalCanvasData;
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
@@ -71,7 +72,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
 
-  const { fitView } = useReactFlow();
+  const { fitView, zoomIn, zoomOut, zoomTo } = useReactFlow();
 
   useEffect(() => {
     if (canvasData) {
@@ -118,6 +119,16 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
   const handleAddChild = (parentId: string) => {
     console.log('Add child to:', parentId);
+    setConnectFromNodeId(parentId);
+    setCurrentViewNodeId(parentId);
+    const parentNode = nodes.find(n => n.id === parentId);
+    if (parentNode) {
+      setQuickModalPosition({ 
+        x: parentNode.position.x + 200, 
+        y: parentNode.position.y + 100 
+      });
+      setShowQuickModal(true);
+    }
   };
 
   const handleNavigateToEntity = (entityId: string) => {
@@ -128,7 +139,10 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     if (!canvasData) return;
 
     const updatedNodes = canvasData.nodes.filter(node => node.id !== nodeId);
-    const updatedCanvasData = { ...canvasData, nodes: updatedNodes };
+    const updatedEdges = (canvasData.edges || []).filter(edge => 
+      edge.source !== nodeId && edge.target !== nodeId
+    );
+    const updatedCanvasData = { ...canvasData, nodes: updatedNodes, edges: updatedEdges };
     await onCanvasUpdate(updatedCanvasData);
   };
 
@@ -161,43 +175,16 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
   const handleAddLinkedNode = async (parentNodeId: string, currentNodeType: string) => {
     console.log('Adding linked node:', parentNodeId);
-
-    if (currentNodeType === 'Character') {
-      const newNodeId = `${parentNodeId}-linked-${Date.now()}`;
-
-      const newNode: CanvasNode = {
-        id: newNodeId,
-        type: 'Character',
-        name: `New Character Arc`,
-        detail: '',
-        goal: '',
-        status: 'Not Completed',
-        timelineEventIds: [],
-        parentId: null,
-        childIds: [],
-        linkedNodeIds: [],
-        position: { x: Math.random() * 400, y: Math.random() * 400 },
-        characters: [{ 
-          id: parentNodeId, 
-          name: 'Character', 
-          type: 'Character',
-          attributes: []
-        }],
-        worlds: []
-      };
-
-      if (!canvasData) return;
-
-      const updatedNodes = [...canvasData.nodes, newNode];
-      
-      // Update parent node's linkedNodeIds
-      const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
-      if (parentIndex >= 0) {
-        updatedNodes[parentIndex].linkedNodeIds.push(newNodeId);
-      }
-
-      const updatedCanvasData = { ...canvasData, nodes: updatedNodes };
-      await onCanvasUpdate(updatedCanvasData);
+    setConnectFromNodeId(parentNodeId);
+    setCurrentViewNodeId(parentNodeId);
+    
+    const parentNode = nodes.find(n => n.id === parentNodeId);
+    if (parentNode) {
+      setQuickModalPosition({ 
+        x: parentNode.position.x + 300, 
+        y: parentNode.position.y 
+      });
+      setShowQuickModal(true);
     }
   };
 
@@ -208,11 +195,14 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   ) => {
     if (!canvasData) return;
 
-    const newNodeId = `node-${Date.now()}`;
+    // Create proper character arc node ID format
+    const baseCharacterId = characterId || parentNodeId || 'character';
+    const newNodeId = `${baseCharacterId}-arc-${Date.now()}`;
+    
     const newNode: CanvasNode = {
       id: newNodeId,
       type: nodeData.type || 'Character',
-      name: nodeData.name || 'New Node',
+      name: nodeData.name || 'New Character Arc',
       detail: nodeData.detail || '',
       goal: nodeData.goal || '',
       status: nodeData.status || 'Not Completed',
@@ -221,22 +211,52 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       childIds: [],
       linkedNodeIds: [],
       position,
-      characters: [],
+      characters: characterId ? [{
+        id: characterId,
+        name: nodeData.name || 'Character Arc',
+        type: 'Character',
+        attributes: []
+      }] : [],
       worlds: []
     };
 
     const updatedNodes = [...canvasData.nodes, newNode];
 
+    // Update parent node relationships
     if (parentNodeId) {
       const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
       if (parentIndex >= 0) {
-        updatedNodes[parentIndex].childIds.push(newNodeId);
+        if (connectFromNodeId === parentNodeId) {
+          updatedNodes[parentIndex].linkedNodeIds.push(newNodeId);
+        } else {
+          updatedNodes[parentIndex].childIds.push(newNodeId);
+        }
       }
     }
 
-    const newCanvasData = { ...canvasData, nodes: updatedNodes };
+    // Create edge if connecting from a node
+    const updatedEdges = [...(canvasData.edges || [])];
+    if (connectFromNodeId) {
+      const newEdge = {
+        id: `edge-${connectFromNodeId}-${newNodeId}`,
+        source: connectFromNodeId,
+        target: newNodeId,
+        type: 'custom'
+      };
+      updatedEdges.push(newEdge);
+    }
+
+    const newCanvasData = { 
+      ...canvasData, 
+      nodes: updatedNodes, 
+      edges: updatedEdges,
+      lastUpdated: new Date().toISOString()
+    };
+    
     await onCanvasUpdate(newCanvasData);
     setShowQuickModal(false);
+    setConnectFromNodeId(null);
+    setCurrentViewNodeId(null);
   };
 
   const handlePaneClick = (event: any) => {
@@ -248,11 +268,25 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     });
     setShowQuickModal(true);
     setCurrentViewNodeId(null);
+    setConnectFromNodeId(null);
   };
 
   const onConnect = useCallback((params: Edge | Connection) => {
-    setEdges((eds) => addEdge(params, eds));
-  }, [setEdges]);
+    const newEdge = { ...params, type: 'custom' };
+    setEdges((eds) => addEdge(newEdge, eds));
+    
+    // Update canvas data with new edge
+    if (canvasData) {
+      const updatedEdges = [...(canvasData.edges || []), {
+        id: `edge-${params.source}-${params.target}`,
+        source: params.source!,
+        target: params.target!,
+        type: 'custom'
+      }];
+      const updatedCanvasData = { ...canvasData, edges: updatedEdges };
+      onCanvasUpdate(updatedCanvasData);
+    }
+  }, [setEdges, canvasData, onCanvasUpdate]);
 
   const getBreadcrumbItems = () => {
     const items = [
@@ -271,7 +305,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
   return (
     <div className="h-screen flex flex-col">
-      {/* Header with Breadcrumb */}
+      {/* Header with Breadcrumb and Controls */}
       <div className="border-b bg-background p-4">
         <div className="flex items-center justify-between">
           <Breadcrumb>
@@ -303,6 +337,31 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
           </Breadcrumb>
           
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => zoomIn()}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => zoomOut()}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <Button
+              onClick={() => fitView()}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <Maximize2 className="h-4 w-4" />
+              Fit View
+            </Button>
             <Button
               onClick={() => setShowQuickModal(true)}
               size="sm"
@@ -344,7 +403,11 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       <QuickNodeModal 
         isOpen={showQuickModal}
         position={quickModalPosition}
-        onClose={() => setShowQuickModal(false)}
+        onClose={() => {
+          setShowQuickModal(false);
+          setConnectFromNodeId(null);
+          setCurrentViewNodeId(null);
+        }}
         onSave={(nodeData, position) => handleQuickNodeSave(nodeData, position, currentViewNodeId)}
       />
     </div>
