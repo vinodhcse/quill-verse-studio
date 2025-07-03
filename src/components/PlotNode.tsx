@@ -1,10 +1,11 @@
+
 import React, { ReactNode, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight } from 'lucide-react';
+import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
 import { apiClient } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
@@ -15,6 +16,17 @@ interface PlotNodeProps extends NodeProps {
 
 const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   const navigate = useNavigate();
+  const [showFullAttributes, setShowFullAttributes] = useState(false);
+
+  // Determine if this is the first node (no parent and no incoming linked nodes)
+  const isFirstNode = data.parentId === null && (!data.linkedNodeIds || data.linkedNodeIds.length === 0);
+
+  // Set initial state for showFullAttributes based on whether it's the first node
+  useEffect(() => {
+    if (data.type === 'Character') {
+      setShowFullAttributes(isFirstNode);
+    }
+  }, [data.type, isFirstNode]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -100,47 +112,131 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }   else {
        data.onAddChild(parentNodeId);
     }
-    
-
-
-    
   };
 
+  // Function to render character details from node attributes
+  const renderCharacterDetails = (): ReactNode => {
+    if (data.type !== 'Character') return null;
 
-  
-  const renderCharacterDetails = (arcId: string): ReactNode => {
-    const [characterDetails, setCharacterDetails] = useState(null);
-    console.log('Fetching character details for arcId:', arcId);
-    useEffect(() => {
-      const fetchDetails = async () => {
-        const details = await data.onFetchCharacterDetails (arcId);
-        console.log('Render character details', details);
-        setCharacterDetails(details?.attributes);
-      };
-      fetchDetails();
-    }, [arcId]);
+    // Get attributes from the node data
+    const nodeData = data as any;
+    const attributes = nodeData.attributes;
+    
+    if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) {
+      return null;
+    }
 
-    if (characterDetails) {
+    if (showFullAttributes) {
+      // Show full attributes
       return (
         <div className="space-y-2">
-          <p className="text-xs font-medium">Aliases: {characterDetails.aliases?.join(', ')}</p>
-          <p className="text-xs font-medium">Age: {characterDetails.age}</p>
-          <p className="text-xs font-medium">Gender: {characterDetails.gender}</p>
-          <p className="text-xs font-medium">Description: {characterDetails.description}</p>
-          <p className="text-xs font-medium">Traits: {characterDetails.traits?.join(', ')}</p>
-          <p className="text-xs font-medium">Backstory: {characterDetails.backstory}</p>
-          <p className="text-xs font-medium">Beliefs: {characterDetails.beliefs?.join(', ')}</p>
-          <p className="text-xs font-medium">Motivations: {characterDetails.motivations?.join(', ')}</p>
-          <p className="text-xs font-medium">Internal Conflicts: {characterDetails.internalConflicts?.join(', ')}</p>
-          <p className="text-xs font-medium">External Conflicts: {characterDetails.externalConflicts?.join(', ')}</p>
+          {attributes.age && <p className="text-xs font-medium">Age: {attributes.age}</p>}
+          {attributes.gender && <p className="text-xs font-medium">Gender: {attributes.gender}</p>}
+          {attributes.description && <p className="text-xs font-medium">Description: {attributes.description}</p>}
+          {attributes.traits && attributes.traits.length > 0 && (
+            <p className="text-xs font-medium">Traits: {attributes.traits.join(', ')}</p>
+          )}
+          {attributes.backstory && <p className="text-xs font-medium">Backstory: {attributes.backstory}</p>}
+          {attributes.beliefs && attributes.beliefs.length > 0 && (
+            <p className="text-xs font-medium">Beliefs: {attributes.beliefs.join(', ')}</p>
+          )}
+          {attributes.motivations && attributes.motivations.length > 0 && (
+            <p className="text-xs font-medium">Motivations: {attributes.motivations.join(', ')}</p>
+          )}
+          {attributes.internalConflicts && attributes.internalConflicts.length > 0 && (
+            <p className="text-xs font-medium">Internal Conflicts: {attributes.internalConflicts.join(', ')}</p>
+          )}
+          {attributes.externalConflicts && attributes.externalConflicts.length > 0 && (
+            <p className="text-xs font-medium">External Conflicts: {attributes.externalConflicts.join(', ')}</p>
+          )}
+        </div>
+      );
+    } else {
+      // Show condensed view
+      const condensedTraits = attributes.traits && attributes.traits.length > 0 
+        ? attributes.traits.slice(0, 2).join(', ') + (attributes.traits.length > 2 ? '...' : '')
+        : null;
+      
+      const condensedMotivations = attributes.motivations && attributes.motivations.length > 0
+        ? attributes.motivations.slice(0, 1).join(', ') + (attributes.motivations.length > 1 ? '...' : '')
+        : null;
+
+      return (
+        <div className="space-y-1">
+          {attributes.age && <div className="text-xs"><strong>Age:</strong> {attributes.age}</div>}
+          {attributes.gender && <div className="text-xs"><strong>Gender:</strong> {attributes.gender}</div>}
+          {condensedTraits && <div className="text-xs"><strong>Traits:</strong> {condensedTraits}</div>}
+          {condensedMotivations && <div className="text-xs"><strong>Motivations:</strong> {condensedMotivations}</div>}
         </div>
       );
     }
-    return null;
+  };
+
+  // Function to render linked Plot Canvas nodes
+  const renderLinkedPlotNodes = () => {
+    const nodeData = data as any;
+    const linkedPlotNodeIds = nodeData.linkedPlotNodeIds || [];
+    const plotCanvasNodes = nodeData.plotCanvasNodes || [];
+    
+    if (linkedPlotNodeIds.length === 0) return null;
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-1">
+          <Target size={12} className="text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">
+            Linked Plot Nodes ({linkedPlotNodeIds.length})
+          </span>
+        </div>
+        <div className="space-y-1">
+          {linkedPlotNodeIds.map((nodeId: string) => {
+            const plotNode = plotCanvasNodes.find((n: any) => n.id === nodeId);
+            return plotNode ? (
+              <div key={nodeId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
+                <span className="text-xs">{getNodeIcon(plotNode.type)}</span>
+                <span className="text-xs font-medium">{plotNode.name}</span>
+                <Badge variant="outline" className="text-xs">{plotNode.type}</Badge>
+              </div>
+            ) : null;
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Function to render linked Timeline Events
+  const renderLinkedTimelineEvents = () => {
+    const nodeData = data as any;
+    const timelineEventIds = nodeData.timelineEventIds || [];
+    const timelineEvents = nodeData.timelineEvents || [];
+    
+    if (timelineEventIds.length === 0) return null;
+
+    return (
+      <div className="space-y-2">
+        <div className="flex items-center gap-1">
+          <ChevronDown size={12} className="text-muted-foreground" />
+          <span className="text-xs font-medium text-muted-foreground">
+            Timeline Events ({timelineEventIds.length})
+          </span>
+        </div>
+        <div className="space-y-1">
+          {timelineEventIds.map((eventId: string) => {
+            const event = timelineEvents.find((e: any) => e.id === eventId);
+            return event ? (
+              <div key={eventId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
+                <span className="text-xs">📅</span>
+                <span className="text-xs font-medium">{event.name}</span>
+                <Badge variant="outline" className="text-xs">{event.type}</Badge>
+              </div>
+            ) : null;
+          })}
+        </div>
+      </div>
+    );
   };
 
   console.log('PlotNode data:', data);
-  console.log('Characters in PlotNode:', data.characters);
 
   return (
     <Card className={`min-w-[320px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
@@ -210,9 +306,29 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           </div>
         )}
 
-        {/* Characters Section with Images and Drill-down buttons */}
-        {data.type === 'Character' && typeof data.id === 'string' && renderCharacterDetails(data.id)}
+        {/* Character Details Section with Show/Hide Button */}
+        {data.type === 'Character' && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Character Details</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-6 w-6 p-0"
+                onClick={() => setShowFullAttributes(!showFullAttributes)}
+              >
+                {showFullAttributes ? <EyeOff size={12} /> : <Eye size={12} />}
+              </Button>
+            </div>
+            {renderCharacterDetails()}
+          </div>
+        )}
 
+        {/* Linked Plot Canvas Nodes */}
+        {renderLinkedPlotNodes()}
+
+        {/* Linked Timeline Events */}
+        {renderLinkedTimelineEvents()}
 
         {/* Characters Section with Images and Drill-down buttons */}
         {data.characters && data.characters.length > 0 && (
@@ -357,7 +473,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           variant="destructive"
           size="sm"
           className="w-full mt-2"
-          onClick={() => data.onDelete(data.id)}
+          onClick={() => data.onDelete && data.onDelete(data.id)}
         >
           Delete Node
         </Button>

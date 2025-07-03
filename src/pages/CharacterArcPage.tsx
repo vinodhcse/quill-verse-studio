@@ -38,9 +38,16 @@ const CharacterArcPage: React.FC = () => {
             typeof selectedCharacter.arc === 'object' &&
             'nodes' in selectedCharacter.arc && Array.isArray(selectedCharacter.arc.nodes) &&
             'edges' in selectedCharacter.arc && Array.isArray(selectedCharacter.arc.edges)) {
-          // Character has proper canvas data
-          console.log('Loading character arc canvas data:', selectedCharacter.arc);
-          setCanvasData(selectedCharacter.arc as PlotCanvasData);
+          // Character has proper canvas data - ensure it has required properties
+          const arcData = selectedCharacter.arc as any;
+          const properCanvasData: PlotCanvasData = {
+            nodes: arcData.nodes || [],
+            edges: arcData.edges || [],
+            timelineEvents: arcData.timelineEvents || [],
+            lastUpdated: arcData.lastUpdated || new Date().toISOString()
+          };
+          console.log('Loading character arc canvas data:', properCanvasData);
+          setCanvasData(properCanvasData);
         } else {
           // Create initial node from character data with proper attributes structure
           const initialNode: CanvasNode = {
