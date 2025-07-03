@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
@@ -193,8 +194,8 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     const parentNode = nodes.find(n => n.id === parentId);
     if (parentNode) {
       setQuickModalPosition({ 
-        x: parentNode.position.x + 200, 
-        y: parentNode.position.y + 100 
+        x: parentNode.position.x + 300, 
+        y: parentNode.position.y 
       });
       setShowQuickModal(true);
     }
@@ -278,26 +279,19 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       attributes: []
     }] : []);
 
-    // Generate attribute change summary if this is a character node with a parent
-    let detail = nodeData.detail || '';
-    if (parentNode && parentNode.type === 'Character' && nodeData.type === 'Character') {
-      const changeSummary = generateAttributeChangeSummary(parentNode, {
-        ...parentNode,
-        aliases: nodeData.aliases || parentNode.aliases || [],
-        traits: nodeData.traits || parentNode.traits || [],
-        beliefs: nodeData.beliefs || parentNode.beliefs || [],
-        motivations: nodeData.motivations || parentNode.motivations || [],
-        internalConflicts: nodeData.internalConflicts || parentNode.internalConflicts || [],
-        externalConflicts: nodeData.externalConflicts || parentNode.externalConflicts || []
-      });
-      detail = changeSummary;
-    }
-    
+    // Inherit all attributes from parent node or use defaults
+    const inheritedAliases = parentNode?.aliases || [];
+    const inheritedTraits = parentNode?.traits || [];
+    const inheritedBeliefs = parentNode?.beliefs || [];
+    const inheritedMotivations = parentNode?.motivations || [];
+    const inheritedInternalConflicts = parentNode?.internalConflicts || [];
+    const inheritedExternalConflicts = parentNode?.externalConflicts || [];
+
     const newNode: CanvasNode = {
       id: newNodeId,
       type: nodeData.type || 'Character',
       name: nodeData.name || 'New Character Arc Node',
-      detail: detail,
+      detail: 'Character state continues from previous node',
       goal: nodeData.goal || '',
       status: nodeData.status || 'Not Completed',
       timelineEventIds: [],
@@ -307,20 +301,28 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       position,
       characters: inheritedCharacters,
       worlds: [],
-      // Inherit character attributes from parent or use defaults
-      aliases: nodeData.aliases || parentNode?.aliases || [],
-      traits: nodeData.traits || parentNode?.traits || [],
-      beliefs: nodeData.beliefs || parentNode?.beliefs || [],
-      motivations: nodeData.motivations || parentNode?.motivations || [],
-      internalConflicts: nodeData.internalConflicts || parentNode?.internalConflicts || [],
-      externalConflicts: nodeData.externalConflicts || parentNode?.externalConflicts || [],
+      // Inherit all character attributes from parent
+      aliases: inheritedAliases,
+      traits: inheritedTraits,
+      beliefs: inheritedBeliefs,
+      motivations: inheritedMotivations,
+      internalConflicts: inheritedInternalConflicts,
+      externalConflicts: inheritedExternalConflicts,
+      age: parentNode?.age,
+      birthday: parentNode?.birthday,
+      gender: parentNode?.gender,
+      image: parentNode?.image,
+      locationId: parentNode?.locationId,
+      backstory: parentNode?.backstory,
+      relationships: parentNode?.relationships || [],
+      goals: parentNode?.goals || [],
       attributes: [
-        { id: 'aliases', name: 'Aliases', value: (nodeData.aliases || parentNode?.aliases || []).join(', ') },
-        { id: 'traits', name: 'Traits', value: (nodeData.traits || parentNode?.traits || []).join(', ') },
-        { id: 'beliefs', name: 'Beliefs', value: (nodeData.beliefs || parentNode?.beliefs || []).join(', ') },
-        { id: 'motivations', name: 'Motivations', value: (nodeData.motivations || parentNode?.motivations || []).join(', ') },
-        { id: 'internalConflicts', name: 'Internal Conflicts', value: (nodeData.internalConflicts || parentNode?.internalConflicts || []).join(', ') },
-        { id: 'externalConflicts', name: 'External Conflicts', value: (nodeData.externalConflicts || parentNode?.externalConflicts || []).join(', ') }
+        { id: 'aliases', name: 'Aliases', value: inheritedAliases.join(', ') },
+        { id: 'traits', name: 'Traits', value: inheritedTraits.join(', ') },
+        { id: 'beliefs', name: 'Beliefs', value: inheritedBeliefs.join(', ') },
+        { id: 'motivations', name: 'Motivations', value: inheritedMotivations.join(', ') },
+        { id: 'internalConflicts', name: 'Internal Conflicts', value: inheritedInternalConflicts.join(', ') },
+        { id: 'externalConflicts', name: 'External Conflicts', value: inheritedExternalConflicts.join(', ') }
       ]
     };
 
@@ -330,21 +332,19 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     if (parentNodeId) {
       const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
       if (parentIndex >= 0) {
-        if (connectFromNodeId === parentNodeId) {
-          updatedNodes[parentIndex].linkedNodeIds.push(newNodeId);
-        } else {
-          updatedNodes[parentIndex].childIds.push(newNodeId);
-        }
+        updatedNodes[parentIndex].linkedNodeIds.push(newNodeId);
       }
     }
 
-    // Create edge if connecting from a node
+    // Create edge connecting parent to new node (right handle to left handle)
     const updatedEdges = [...(canvasData.edges || [])];
     if (connectFromNodeId) {
       const newEdge = {
         id: `edge-${connectFromNodeId}-${newNodeId}`,
         source: connectFromNodeId,
         target: newNodeId,
+        sourceHandle: 'right',
+        targetHandle: 'left',
         type: 'custom'
       };
       updatedEdges.push(newEdge);
@@ -376,7 +376,12 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   };
 
   const onConnect = useCallback((params: Edge | Connection) => {
-    const newEdge = { ...params, type: 'custom' };
+    const newEdge = { 
+      ...params, 
+      type: 'custom',
+      sourceHandle: 'right',
+      targetHandle: 'left'
+    };
     setEdges((eds) => addEdge(newEdge, eds));
     
     // Update canvas data with new edge
@@ -385,6 +390,8 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         id: `edge-${params.source}-${params.target}`,
         source: params.source!,
         target: params.target!,
+        sourceHandle: 'right',
+        targetHandle: 'left',
         type: 'custom'
       }];
       

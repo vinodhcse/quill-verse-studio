@@ -59,13 +59,53 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
     }
   }, [node, isOpen]);
 
+  const generateAttributeChangeSummary = (originalData: typeof formData, newData: typeof formData): string => {
+    const changes: string[] = [];
+    
+    const compareArrays = (original: string[], updated: string[], label: string) => {
+      const added = updated.filter(item => !original.includes(item));
+      const removed = original.filter(item => !updated.includes(item));
+      
+      if (added.length > 0) {
+        changes.push(`Added ${label.toLowerCase()}: ${added.join(', ')}`);
+      }
+      if (removed.length > 0) {
+        changes.push(`Removed ${label.toLowerCase()}: ${removed.join(', ')}`);
+      }
+    };
+
+    compareArrays(originalData.aliases, newData.aliases, 'aliases');
+    compareArrays(originalData.traits, newData.traits, 'traits');
+    compareArrays(originalData.beliefs, newData.beliefs, 'beliefs');
+    compareArrays(originalData.motivations, newData.motivations, 'motivations');
+    compareArrays(originalData.internalConflicts, newData.internalConflicts, 'internal conflicts');
+    compareArrays(originalData.externalConflicts, newData.externalConflicts, 'external conflicts');
+
+    return changes.length > 0 ? changes.join('; ') : 'No attribute changes';
+  };
+
   const handleSave = () => {
     if (!node) return;
+
+    // Generate summary of changes
+    const originalData = {
+      name: node.name || '',
+      detail: node.detail || '',
+      goal: node.goal || '',
+      aliases: node.aliases || [],
+      traits: node.traits || [],
+      beliefs: node.beliefs || [],
+      motivations: node.motivations || [],
+      internalConflicts: node.internalConflicts || [],
+      externalConflicts: node.externalConflicts || []
+    };
+
+    const changeSummary = generateAttributeChangeSummary(originalData, formData);
 
     const updatedNode: CanvasNode = {
       ...node,
       name: formData.name,
-      detail: formData.detail,
+      detail: changeSummary,
       goal: formData.goal,
       aliases: formData.aliases,
       traits: formData.traits,
@@ -166,17 +206,6 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Character name..."
-            />
-          </div>
-
-          <div>
-            <Label htmlFor="detail">Detail</Label>
-            <Textarea
-              id="detail"
-              value={formData.detail}
-              onChange={(e) => setFormData(prev => ({ ...prev, detail: e.target.value }))}
-              placeholder="Character description..."
-              rows={3}
             />
           </div>
 
