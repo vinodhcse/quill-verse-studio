@@ -10,6 +10,7 @@ import { useBookContext } from '@/lib/BookContextProvider';
 import { apiClient } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlotCanvasData } from '@/types/plotCanvas';
+import { PlotCanvasProvider } from '@/contexts/PlotCanvasContext';
 
 // Sample data for demonstration
 const SAMPLE_CANVAS_DATA: PlotCanvasData = {
@@ -194,14 +195,16 @@ const PlanPage: React.FC = () => {
                     <div className="text-lg">Loading Plot Outline...</div>
                   </div>
                 ) : (
-                  <ReactFlowProvider>
-                    <PlotCanvas
-                      bookId={bookId}
-                      versionId={versionId}
-                      canvasData={canvasData}
-                      onCanvasUpdate={handleCanvasUpdate}
-                    />
-                  </ReactFlowProvider>
+                  <PlotCanvasProvider bookId={bookId} versionId={versionId}>
+                    <ReactFlowProvider>
+                      <PlotCanvas
+                        bookId={bookId}
+                        versionId={versionId}
+                        canvasData={canvasData}
+                        onCanvasUpdate={handleCanvasUpdate}
+                      />
+                    </ReactFlowProvider>
+                  </PlotCanvasProvider>
                 )}
               </TabsContent>
 
@@ -215,14 +218,16 @@ const PlanPage: React.FC = () => {
                     <div className="text-lg">Loading World Entity Arcs...</div>
                   </div>
                 ) : (
-                  <ReactFlowProvider>
-                    <PlotCanvas
-                      bookId={bookId}
-                      versionId={versionId}
-                      canvasData={canvasData}
-                      onCanvasUpdate={handleCanvasUpdate}
-                    />
-                  </ReactFlowProvider>
+                  <PlotCanvasProvider bookId={bookId} versionId={versionId}>
+                    <ReactFlowProvider>
+                      <PlotCanvas
+                        bookId={bookId}
+                        versionId={versionId}
+                        canvasData={canvasData}
+                        onCanvasUpdate={handleCanvasUpdate}
+                      />
+                    </ReactFlowProvider>
+                  </PlotCanvasProvider>
                 )}
               </TabsContent>
 
@@ -232,14 +237,16 @@ const PlanPage: React.FC = () => {
                     <div className="text-lg">Loading Timeline Arc...</div>
                   </div>
                 ) : (
-                  <ReactFlowProvider>
-                    <PlotCanvas
-                      bookId={bookId}
-                      versionId={versionId}
-                      canvasData={canvasData}
-                      onCanvasUpdate={handleCanvasUpdate}
-                    />
-                  </ReactFlowProvider>
+                  <PlotCanvasProvider bookId={bookId} versionId={versionId}>
+                    <ReactFlowProvider>
+                      <PlotCanvas
+                        bookId={bookId}
+                        versionId={versionId}
+                        canvasData={canvasData}
+                        onCanvasUpdate={handleCanvasUpdate}
+                      />
+                    </ReactFlowProvider>
+                  </PlotCanvasProvider>
                 )}
               </TabsContent>
             </div>
@@ -251,14 +258,16 @@ const PlanPage: React.FC = () => {
         return <WorldBuilding bookId={bookId} versionId={versionId} />;
       case 'timeline':
         return (
-          <ReactFlowProvider>
-            <PlotCanvas
-              bookId={bookId}
-              versionId={versionId}
-              canvasData={canvasData}
-              onCanvasUpdate={handleCanvasUpdate}
-            />
-          </ReactFlowProvider>
+          <PlotCanvasProvider bookId={bookId} versionId={versionId}>
+            <ReactFlowProvider>
+              <PlotCanvas
+                bookId={bookId}
+                versionId={versionId}
+                canvasData={canvasData}
+                onCanvasUpdate={handleCanvasUpdate}
+              />
+            </ReactFlowProvider>
+          </PlotCanvasProvider>
         );
       default:
         return null;

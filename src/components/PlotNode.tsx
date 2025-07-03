@@ -18,8 +18,8 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   const [showFullAttributes, setShowFullAttributes] = useState(false);
   
   // Get plot canvas data from props instead of context
-  const timelineEvents = data.timelineEvents || [];
-  const plotCanvasNodes = data.plotCanvasNodes || [];
+  const timelineEvents = Array.isArray(data.timelineEvents) ? data.timelineEvents : [];
+  const plotCanvasNodes = Array.isArray(data.plotCanvasNodes) ? data.plotCanvasNodes : [];
 
   // Determine if this is the first node (no parent and no incoming linked nodes)
   const isFirstNode = data.parentId === null && (!data.linkedNodeIds || data.linkedNodeIds.length === 0);
@@ -121,7 +121,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
 
     // Find parent node to compare attributes
     const parentNode = plotCanvasNodes.find((n: any) => 
-      n.linkedNodeIds && n.linkedNodeIds.includes(nodeData.id)
+      Array.isArray(n.linkedNodeIds) && n.linkedNodeIds.includes(nodeData.id)
     );
 
     if (!parentNode || !parentNode.attributes || Array.isArray(parentNode.attributes)) return null;
