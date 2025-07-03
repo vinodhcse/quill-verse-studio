@@ -103,7 +103,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     if (!bookId || !versionId) return;
     
     try {
-      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plot-canvas`);
+      const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plotCanvas`);
       if (response.data) {
         setPlotCanvasData(response.data);
         console.log('Fetched plot canvas data:', response.data);
@@ -215,7 +215,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         lastUpdated: new Date().toISOString()
       };
       
-      await apiClient.patch(`/books/${bookId}/versions/${versionId}/plot-canvas`, updatedPlotCanvasData);
+      await apiClient.patch(`/books/${bookId}/versions/${versionId}/plotCanvas`, updatedPlotCanvasData);
       console.log('Plot canvas updated with character links');
     } catch (error) {
       console.error('Failed to update plot canvas:', error);
