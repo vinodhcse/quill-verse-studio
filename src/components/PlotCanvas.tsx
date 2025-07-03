@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
@@ -21,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { debounce } from 'lodash';
 import { QuickNodeModal } from '@/components/QuickNodeModal';
+import { usePlotCanvasContext } from '@/contexts/PlotCanvasContext';
 
 const nodeTypes = { plotNode: PlotNode };
 
@@ -48,6 +48,9 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   const [currentViewNodeId, setCurrentViewNodeId] = useState<string | null>(null);
   const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
 
+  // Get context data
+  const { timelineEvents, plotCanvasNodes } = usePlotCanvasContext();
+
   const canvasData = propCanvasData || internalCanvasData;
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
 
@@ -68,6 +71,9 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         position: node.position,
         data: {
           ...node,
+          // Pass context data through node data
+          timelineEvents,
+          plotCanvasNodes,
           onEdit: handleEditNode,
           onAddChild: handleAddChild,
           onNavigateToEntity: handleNavigateToEntity,
@@ -95,7 +101,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         fitView();
       }, 100);
     }
-  }, [canvasData, setNodes, setEdges, fitView]);
+  }, [canvasData, timelineEvents, plotCanvasNodes, setNodes, setEdges, fitView]);
 
   const debouncedUpdate = useCallback(
     debounce(async (updatedCanvasData: PlotCanvasData) => {

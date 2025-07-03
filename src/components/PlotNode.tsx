@@ -1,4 +1,3 @@
-
 import React, { ReactNode, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { PlotNodeData, CharacterAttributes } from '@/types/plotCanvas';
-import { usePlotCanvasContext } from '@/contexts/PlotCanvasContext';
 import { apiClient } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 
@@ -19,8 +17,9 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   const navigate = useNavigate();
   const [showFullAttributes, setShowFullAttributes] = useState(false);
   
-  // Get plot canvas data from context
-  const { timelineEvents, plotCanvasNodes } = usePlotCanvasContext();
+  // Get plot canvas data from props instead of context
+  const timelineEvents = data.timelineEvents || [];
+  const plotCanvasNodes = data.plotCanvasNodes || [];
 
   // Determine if this is the first node (no parent and no incoming linked nodes)
   const isFirstNode = data.parentId === null && (!data.linkedNodeIds || data.linkedNodeIds.length === 0);
@@ -246,7 +245,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
-  // Function to render linked Plot Canvas nodes - now using context data
+  // Function to render linked Plot Canvas nodes - now using props data
   const renderLinkedPlotNodes = () => {
     const nodeData = data as any;
     const linkedPlotNodeIds = nodeData.linkedNodeIds || [];
@@ -288,7 +287,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     );
   };
 
-  // Function to render linked Timeline Events - now using context data
+  // Function to render linked Timeline Events - now using props data
   const renderLinkedTimelineEvents = () => {
     const nodeData = data as any;
     const timelineEventIds = nodeData.timelineEventIds || [];
