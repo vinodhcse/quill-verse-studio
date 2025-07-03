@@ -1,8 +1,31 @@
-
 export interface Attribute {
     id: string;
     name: string;
     value: string;
+}
+
+export interface CharacterAttributes {
+  age?: number;
+  birthday?: string;
+  gender?: string;
+  description?: string;
+  image?: string;
+  aliases?: string[];
+  traits?: string[];
+  backstory?: string;
+  beliefs?: string[];
+  motivations?: string[];
+  internalConflicts?: string[];
+  externalConflicts?: string[];
+  relationships?: Array<{
+    with: string;
+    type: string;
+  }>;
+  goals?: Array<{
+    goal: string;
+    actions: string[];
+    impact: string;
+  }>;
 }
 
 export interface CanvasNode {
@@ -42,7 +65,7 @@ export interface CanvasNode {
     }>;
   }>;
 
-  // Character-specific fields
+  // Character-specific fields (legacy support)
   aliases?: string[];
   age?: number;
   birthday?: string;
@@ -80,7 +103,8 @@ export interface CanvasNode {
     date: string;
   }>;
 
-  attributes?: Attribute[];
+  // New structured attributes for character arcs
+  attributes?: CharacterAttributes | Attribute[];
 }
 
 export interface TimelineEvent {
@@ -101,6 +125,8 @@ export interface PlotCanvasData {
     type?: string;
     animated?: boolean;
     style?: Record<string, any>;
+    sourceHandle?: string;
+    targetHandle?: string;
   }>;
   timelineEvents: TimelineEvent[];
   nodePositions?: Record<string, { x: number; y: number }>;

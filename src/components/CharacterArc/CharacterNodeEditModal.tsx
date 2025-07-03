@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { X, Plus } from 'lucide-react';
-import { CanvasNode } from '@/types/plotCanvas';
+import { CanvasNode, CharacterAttributes } from '@/types/plotCanvas';
 
 interface CharacterNodeEditModalProps {
   isOpen: boolean;
@@ -22,16 +22,13 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
   onSave,
   node
 }) => {
-  const [formData, setFormData] = useState({
-    name: '',
-    detail: '',
-    goal: '',
-    aliases: [] as string[],
-    traits: [] as string[],
-    beliefs: [] as string[],
-    motivations: [] as string[],
-    internalConflicts: [] as string[],
-    externalConflicts: [] as string[]
+  const [formData, setFormData] = useState<CharacterAttributes>({
+    aliases: [],
+    traits: [],
+    beliefs: [],
+    motivations: [],
+    internalConflicts: [],
+    externalConflicts: []
   });
 
   const [newInputs, setNewInputs] = useState({
@@ -45,24 +42,51 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
 
   useEffect(() => {
     if (node && isOpen) {
-      setFormData({
-        name: node.name || '',
-        detail: node.detail || '',
-        goal: node.goal || '',
-        aliases: node.aliases || [],
-        traits: node.traits || [],
-        beliefs: node.beliefs || [],
-        motivations: node.motivations || [],
-        internalConflicts: node.internalConflicts || [],
-        externalConflicts: node.externalConflicts || []
-      });
+      // Get attributes from the new structure
+      const nodeAttributes = node.attributes as CharacterAttributes;
+      if (nodeAttributes && typeof nodeAttributes === 'object' && !Array.isArray(nodeAttributes)) {
+        setFormData({
+          age: nodeAttributes.age,
+          birthday: nodeAttributes.birthday,
+          gender: nodeAttributes.gender,
+          description: nodeAttributes.description,
+          image: nodeAttributes.image,
+          backstory: nodeAttributes.backstory,
+          aliases: nodeAttributes.aliases || [],
+          traits: nodeAttributes.traits || [],
+          beliefs: nodeAttributes.beliefs || [],
+          motivations: nodeAttributes.motivations || [],
+          internalConflicts: nodeAttributes.internalConflicts || [],
+          externalConflicts: nodeAttributes.externalConflicts || [],
+          relationships: nodeAttributes.relationships || [],
+          goals: nodeAttributes.goals || []
+        });
+      } else {
+        // Fallback to legacy structure
+        setFormData({
+          age: node.age,
+          birthday: node.birthday,
+          gender: node.gender,
+          description: node.description,
+          image: node.image,
+          backstory: node.backstory,
+          aliases: node.aliases || [],
+          traits: node.traits || [],
+          beliefs: node.beliefs || [],
+          motivations: node.motivations || [],
+          internalConflicts: node.internalConflicts || [],
+          externalConflicts: node.externalConflicts || [],
+          relationships: node.relationships || [],
+          goals: node.goals || []
+        });
+      }
     }
   }, [node, isOpen]);
 
-  const generateAttributeChangeSummary = (originalData: typeof formData, newData: typeof formData): string => {
+  const generateAttributeChangeSummary = (originalAttributes: CharacterAttributes, newAttributes: CharacterAttributes): string => {
     const changes: string[] = [];
     
-    const compareArrays = (original: string[], updated: string[], label: string) => {
+    const compareArrays = (original: string[] = [], updated: string[] = [], label: string) => {
       const added = updated.filter(item => !original.includes(item));
       const removed = original.filter(item => !updated.includes(item));
       
@@ -74,12 +98,12 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
       }
     };
 
-    compareArrays(originalData.aliases, newData.aliases, 'aliases');
-    compareArrays(originalData.traits, newData.traits, 'traits');
-    compareArrays(originalData.beliefs, newData.beliefs, 'beliefs');
-    compareArrays(originalData.motivations, newData.motivations, 'motivations');
-    compareArrays(originalData.internalConflicts, newData.internalConflicts, 'internal conflicts');
-    compareArrays(originalData.externalConflicts, newData.externalConflicts, 'external conflicts');
+    compareArrays(originalAttributes.aliases, newAttributes.aliases, 'aliases');
+    compareArrays(originalAttributes.traits, newAttributes.traits, 'traits');
+    compareArrays(originalAttributes.beliefs, newAttributes.beliefs, 'beliefs');
+    compareArrays(originalAttributes.motivations, newAttributes.motivations, 'motivations');
+    compareArrays(originalAttributes.internalConflicts, newAttributes.internalConflicts, 'internal conflicts');
+    compareArrays(originalAttributes.externalConflicts, newAttributes.externalConflicts, 'external conflicts');
 
     return changes.length > 0 ? changes.join('; ') : 'No attribute changes';
   };
@@ -87,67 +111,44 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
   const handleSave = () => {
     if (!node) return;
 
-    // Generate summary of changes
-    const originalData = {
-      name: node.name || '',
-      detail: node.detail || '',
-      goal: node.goal || '',
-      aliases: node.aliases || [],
-      traits: node.traits || [],
-      beliefs: node.beliefs || [],
-      motivations: node.motivations || [],
-      internalConflicts: node.internalConflicts || [],
-      externalConflicts: node.externalConflicts || []
-    };
-
-    const changeSummary = generateAttributeChangeSummary(originalData, formData);
+    // Get original attributes for comparison
+    const originalAttributes = node.attributes as CharacterAttributes;
+    const changeSummary = generateAttributeChangeSummary(originalAttributes || {}, formData);
 
     const updatedNode: CanvasNode = {
       ...node,
-      name: formData.name,
+      name: node.name, // Keep original name
       detail: changeSummary,
-      goal: formData.goal,
-      aliases: formData.aliases,
-      traits: formData.traits,
-      beliefs: formData.beliefs,
-      motivations: formData.motivations,
-      internalConflicts: formData.internalConflicts,
-      externalConflicts: formData.externalConflicts,
-      attributes: [
-        { id: 'aliases', name: 'Aliases', value: formData.aliases.join(', ') },
-        { id: 'traits', name: 'Traits', value: formData.traits.join(', ') },
-        { id: 'beliefs', name: 'Beliefs', value: formData.beliefs.join(', ') },
-        { id: 'motivations', name: 'Motivations', value: formData.motivations.join(', ') },
-        { id: 'internalConflicts', name: 'Internal Conflicts', value: formData.internalConflicts.join(', ') },
-        { id: 'externalConflicts', name: 'External Conflicts', value: formData.externalConflicts.join(', ') }
-      ]
+      goal: node.goal || '',
+      // Update the new attributes structure
+      attributes: formData
     };
 
     onSave(updatedNode);
     onClose();
   };
 
-  const addItem = (field: keyof typeof newInputs, targetArray: keyof typeof formData) => {
+  const addItem = (field: keyof typeof newInputs, targetArray: keyof CharacterAttributes) => {
     const value = newInputs[field].trim();
     if (value) {
       setFormData(prev => ({
         ...prev,
-        [targetArray]: [...(prev[targetArray] as string[]), value]
+        [targetArray]: [...(prev[targetArray] as string[] || []), value]
       }));
       setNewInputs(prev => ({ ...prev, [field]: '' }));
     }
   };
 
-  const removeItem = (targetArray: keyof typeof formData, index: number) => {
+  const removeItem = (targetArray: keyof CharacterAttributes, index: number) => {
     setFormData(prev => ({
       ...prev,
-      [targetArray]: (prev[targetArray] as string[]).filter((_, i) => i !== index)
+      [targetArray]: (prev[targetArray] as string[] || []).filter((_, i) => i !== index)
     }));
   };
 
   const renderArrayField = (
     label: string,
-    arrayKey: keyof typeof formData,
+    arrayKey: keyof CharacterAttributes,
     inputKey: keyof typeof newInputs
   ) => (
     <div className="space-y-2">
@@ -174,7 +175,7 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
         </Button>
       </div>
       <div className="flex flex-wrap gap-2">
-        {(formData[arrayKey] as string[]).map((item, index) => (
+        {(formData[arrayKey] as string[] || []).map((item, index) => (
           <Badge key={index} variant="secondary" className="flex items-center gap-1">
             {item}
             <Button
@@ -195,36 +196,66 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Edit Character Node</DialogTitle>
+          <DialogTitle>Edit Character Node: {node?.name}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="age">Age</Label>
+              <Input
+                id="age"
+                type="number"
+                value={formData.age || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, age: parseInt(e.target.value) || undefined }))}
+                placeholder="Character age..."
+              />
+            </div>
+            <div>
+              <Label htmlFor="gender">Gender</Label>
+              <Input
+                id="gender"
+                value={formData.gender || ''}
+                onChange={(e) => setFormData(prev => ({ ...prev, gender: e.target.value }))}
+                placeholder="Character gender..."
+              />
+            </div>
+          </div>
+
           <div>
-            <Label htmlFor="name">Name</Label>
-            <Input
-              id="name"
-              value={formData.name}
-              onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-              placeholder="Character name..."
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              value={formData.description || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
+              placeholder="Character description..."
             />
           </div>
 
           <div>
-            <Label htmlFor="goal">Goal</Label>
-            <Input
-              id="goal"
-              value={formData.goal}
-              onChange={(e) => setFormData(prev => ({ ...prev, goal: e.target.value }))}
-              placeholder="Character goal..."
+            <Label htmlFor="backstory">Backstory</Label>
+            <Textarea
+              id="backstory"
+              value={formData.backstory || ''}
+              onChange={(e) => setFormData(prev => ({ ...prev, backstory: e.target.value }))}
+              placeholder="Character backstory..."
             />
           </div>
 
-          {renderArrayField('Aliases', 'aliases', 'alias')}
-          {renderArrayField('Traits', 'traits', 'trait')}
-          {renderArrayField('Beliefs', 'beliefs', 'belief')}
-          {renderArrayField('Motivations', 'motivations', 'motivation')}
-          {renderArrayField('Internal Conflicts', 'internalConflicts', 'internalConflict')}
-          {renderArrayField('External Conflicts', 'externalConflicts', 'externalConflict')}
+          <div className="grid grid-cols-2 gap-4">
+            {renderArrayField('Aliases', 'aliases', 'alias')}
+            {renderArrayField('Traits', 'traits', 'trait')}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {renderArrayField('Beliefs', 'beliefs', 'belief')}
+            {renderArrayField('Motivations', 'motivations', 'motivation')}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            {renderArrayField('Internal Conflicts', 'internalConflicts', 'internalConflict')}
+            {renderArrayField('External Conflicts', 'externalConflicts', 'externalConflict')}
+          </div>
 
           <div className="flex justify-end gap-2 pt-4">
             <Button variant="outline" onClick={onClose}>

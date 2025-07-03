@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
@@ -16,7 +15,7 @@ import {
 import '@xyflow/react/dist/style.css';
 import PlotNode from '@/components/PlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
-import { PlotNodeData, CanvasNode, PlotCanvasData } from '@/types/plotCanvas';
+import { PlotNodeData, CanvasNode, PlotCanvasData, CharacterAttributes } from '@/types/plotCanvas';
 import { Button } from '@/components/ui/button';
 import { debounce } from 'lodash';
 import { apiClient } from '@/lib/api';
@@ -72,7 +71,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
 
   console.log('CharacterArcCanvas mounted with bookId:', bookId, 'versionId:', versionId, 'characterId:', characterId);
-  console.log('Loading nodes for current view:', characterId, 'CharacterArcs');
 
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
@@ -95,31 +93,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     } catch (error) {
       console.error('Failed to fetch character details:', error);
     }
-  };
-
-  const generateAttributeChangeSummary = (previousNode: CanvasNode, currentNode: CanvasNode): string => {
-    const changes: string[] = [];
-    
-    const compareArrays = (prev: string[] = [], curr: string[] = [], label: string) => {
-      const added = curr.filter(item => !prev.includes(item));
-      const removed = prev.filter(item => !curr.includes(item));
-      
-      if (added.length > 0) {
-        changes.push(`Added ${label.toLowerCase()}: ${added.join(', ')}`);
-      }
-      if (removed.length > 0) {
-        changes.push(`Removed ${label.toLowerCase()}: ${removed.join(', ')}`);
-      }
-    };
-
-    compareArrays(previousNode.aliases, currentNode.aliases, 'Aliases');
-    compareArrays(previousNode.traits, currentNode.traits, 'Traits');
-    compareArrays(previousNode.beliefs, currentNode.beliefs, 'Beliefs');
-    compareArrays(previousNode.motivations, currentNode.motivations, 'Motivations');
-    compareArrays(previousNode.internalConflicts, currentNode.internalConflicts, 'Internal Conflicts');
-    compareArrays(previousNode.externalConflicts, currentNode.externalConflicts, 'External Conflicts');
-
-    return changes.length > 0 ? changes.join('; ') : 'No attribute changes';
   };
 
   useEffect(() => {
@@ -282,27 +255,35 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       attributes: []
     }] : []);
 
-    // Inherit ALL attributes from parent node or use defaults
-    const inheritedAliases = parentNode?.aliases || [];
-    const inheritedTraits = parentNode?.traits || [];
-    const inheritedBeliefs = parentNode?.beliefs || [];
-    const inheritedMotivations = parentNode?.motivations || [];
-    const inheritedInternalConflicts = parentNode?.internalConflicts || [];
-    const inheritedExternalConflicts = parentNode?.externalConflicts || [];
-    const inheritedAge = parentNode?.age;
-    const inheritedBirthday = parentNode?.birthday;
-    const inheritedGender = parentNode?.gender;
-    const inheritedImage = parentNode?.image;
-    const inheritedLocationId = parentNode?.locationId;
-    const inheritedBackstory = parentNode?.backstory;
-    const inheritedRelationships = parentNode?.relationships || [];
-    const inheritedGoals = parentNode?.goals || [];
+    // Inherit ALL attributes from parent node
+    let inheritedAttributes: CharacterAttributes = {};
+    if (parentNode && parentNode.attributes && typeof parentNode.attributes === 'object' && !Array.isArray(parentNode.attributes)) {
+      inheritedAttributes = { ...parentNode.attributes as CharacterAttributes };
+    } else if (selectedCharacter) {
+      // Fallback to character data if no parent
+      inheritedAttributes = {
+        age: selectedCharacter.age,
+        birthday: selectedCharacter.birthday,
+        gender: selectedCharacter.gender,
+        description: selectedCharacter.description,
+        image: selectedCharacter.image,
+        aliases: selectedCharacter.aliases || [],
+        traits: selectedCharacter.traits || [],
+        backstory: selectedCharacter.backstory,
+        beliefs: selectedCharacter.beliefs || [],
+        motivations: selectedCharacter.motivations || [],
+        internalConflicts: selectedCharacter.internalConflicts || [],
+        externalConflicts: selectedCharacter.externalConflicts || [],
+        relationships: selectedCharacter.relationships || [],
+        goals: selectedCharacter.goals || []
+      };
+    }
 
     const newNode: CanvasNode = {
       id: newNodeId,
       type: 'Character',
       name: nodeData.name || 'New Character Arc Node',
-      detail: 'Character state continues from previous node',
+      detail: parentNode ? 'Character state continues from previous node' : 'Initial character state',
       goal: nodeData.goal || '',
       status: nodeData.status || 'Not Completed',
       timelineEventIds: [],
@@ -312,29 +293,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       position,
       characters: inheritedCharacters,
       worlds: [],
-      // Inherit all character attributes from parent
-      aliases: inheritedAliases,
-      traits: inheritedTraits,
-      beliefs: inheritedBeliefs,
-      motivations: inheritedMotivations,
-      internalConflicts: inheritedInternalConflicts,
-      externalConflicts: inheritedExternalConflicts,
-      age: inheritedAge,
-      birthday: inheritedBirthday,
-      gender: inheritedGender,
-      image: inheritedImage,
-      locationId: inheritedLocationId,
-      backstory: inheritedBackstory,
-      relationships: inheritedRelationships,
-      goals: inheritedGoals,
-      attributes: [
-        { id: 'aliases', name: 'Aliases', value: inheritedAliases.join(', ') },
-        { id: 'traits', name: 'Traits', value: inheritedTraits.join(', ') },
-        { id: 'beliefs', name: 'Beliefs', value: inheritedBeliefs.join(', ') },
-        { id: 'motivations', name: 'Motivations', value: inheritedMotivations.join(', ') },
-        { id: 'internalConflicts', name: 'Internal Conflicts', value: inheritedInternalConflicts.join(', ') },
-        { id: 'externalConflicts', name: 'External Conflicts', value: inheritedExternalConflicts.join(', ') }
-      ]
+      attributes: inheritedAttributes
     };
 
     console.log('Created new node with inherited attributes:', newNode);

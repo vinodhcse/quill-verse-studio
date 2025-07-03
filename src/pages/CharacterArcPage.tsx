@@ -34,12 +34,14 @@ const CharacterArcPage: React.FC = () => {
         const selectedCharacter = characters.find(char => char.id === characterId);
         console.log('Found selected character:', selectedCharacter);
         
-        if (selectedCharacter && selectedCharacter.arc && selectedCharacter.arc.nodes && Array.isArray(selectedCharacter.arc.nodes)) {
+        if (selectedCharacter && selectedCharacter.arc && 
+            selectedCharacter.arc.nodes && Array.isArray(selectedCharacter.arc.nodes) &&
+            selectedCharacter.arc.edges && Array.isArray(selectedCharacter.arc.edges)) {
           // Character has proper canvas data
           console.log('Loading character arc canvas data:', selectedCharacter.arc);
           setCanvasData(selectedCharacter.arc as PlotCanvasData);
         } else {
-          // Create initial node from character data
+          // Create initial node from character data with proper attributes structure
           const initialNode: CanvasNode = {
             id: `${characterId}-arc-initial`,
             type: 'Character',
@@ -52,20 +54,6 @@ const CharacterArcPage: React.FC = () => {
             childIds: [],
             linkedNodeIds: [],
             position: { x: 100, y: 100 },
-            aliases: selectedCharacter?.aliases || [],
-            age: selectedCharacter?.age,
-            birthday: selectedCharacter?.birthday,
-            gender: selectedCharacter?.gender,
-            image: selectedCharacter?.image,
-            locationId: selectedCharacter?.locationId,
-            traits: selectedCharacter?.traits || [],
-            backstory: selectedCharacter?.backstory,
-            beliefs: selectedCharacter?.beliefs || [],
-            motivations: selectedCharacter?.motivations || [],
-            relationships: selectedCharacter?.relationships || [],
-            internalConflicts: selectedCharacter?.internalConflicts || [],
-            externalConflicts: selectedCharacter?.externalConflicts || [],
-            goals: selectedCharacter?.goals || [],
             characters: selectedCharacter ? [{ 
               id: selectedCharacter.id, 
               name: selectedCharacter.name, 
@@ -74,16 +62,22 @@ const CharacterArcPage: React.FC = () => {
               attributes: []
             }] : [],
             worlds: [],
-            attributes: [
-              { id: 'aliases', name: 'Aliases', value: (selectedCharacter?.aliases || []).join(', ') },
-              { id: 'age', name: 'Age', value: selectedCharacter?.age?.toString() || '' },
-              { id: 'gender', name: 'Gender', value: selectedCharacter?.gender || '' },
-              { id: 'traits', name: 'Traits', value: (selectedCharacter?.traits || []).join(', ') },
-              { id: 'beliefs', name: 'Beliefs', value: (selectedCharacter?.beliefs || []).join(', ') },
-              { id: 'motivations', name: 'Motivations', value: (selectedCharacter?.motivations || []).join(', ') },
-              { id: 'internalConflicts', name: 'Internal Conflicts', value: (selectedCharacter?.internalConflicts || []).join(', ') },
-              { id: 'externalConflicts', name: 'External Conflicts', value: (selectedCharacter?.externalConflicts || []).join(', ') }
-            ]
+            attributes: {
+              age: selectedCharacter?.age,
+              birthday: selectedCharacter?.birthday,
+              gender: selectedCharacter?.gender,
+              description: selectedCharacter?.description,
+              image: selectedCharacter?.image,
+              aliases: selectedCharacter?.aliases || [],
+              traits: selectedCharacter?.traits || [],
+              backstory: selectedCharacter?.backstory,
+              beliefs: selectedCharacter?.beliefs || [],
+              motivations: selectedCharacter?.motivations || [],
+              internalConflicts: selectedCharacter?.internalConflicts || [],
+              externalConflicts: selectedCharacter?.externalConflicts || [],
+              relationships: selectedCharacter?.relationships || [],
+              goals: selectedCharacter?.goals || []
+            }
           };
 
           setCanvasData({ 
@@ -116,21 +110,6 @@ const CharacterArcPage: React.FC = () => {
             x: (index % 4) * 300 + 100, 
             y: Math.floor(index / 4) * 200 + 100 
           },
-          // Character-specific fields
-          aliases: character.aliases,
-          age: character.age,
-          birthday: character.birthday,
-          gender: character.gender,
-          image: character.image,
-          locationId: character.locationId,
-          traits: character.traits,
-          backstory: character.backstory,
-          beliefs: character.beliefs,
-          motivations: character.motivations,
-          relationships: character.relationships,
-          internalConflicts: character.internalConflicts,
-          externalConflicts: character.externalConflicts,
-          goals: character.goals,
           characters: [{ 
             id: character.id, 
             name: character.name, 
@@ -139,16 +118,22 @@ const CharacterArcPage: React.FC = () => {
             attributes: []
           }],
           worlds: [],
-          attributes: [
-            { id: 'aliases', name: 'Aliases', value: character.aliases?.join(', ') || '' },
-            { id: 'age', name: 'Age', value: character.age?.toString() || '' },
-            { id: 'gender', name: 'Gender', value: character.gender || '' },
-            { id: 'traits', name: 'Traits', value: character.traits?.join(', ') || '' },
-            { id: 'beliefs', name: 'Beliefs', value: character.beliefs?.join(', ') || '' },
-            { id: 'motivations', name: 'Motivations', value: character.motivations?.join(', ') || '' },
-            { id: 'internalConflicts', name: 'Internal Conflicts', value: character.internalConflicts?.join(', ') || '' },
-            { id: 'externalConflicts', name: 'External Conflicts', value: character.externalConflicts?.join(', ') || '' }
-          ]
+          attributes: {
+            age: character.age,
+            birthday: character.birthday,
+            gender: character.gender,
+            description: character.description,
+            image: character.image,
+            aliases: character.aliases || [],
+            traits: character.traits || [],
+            backstory: character.backstory,
+            beliefs: character.beliefs || [],
+            motivations: character.motivations || [],
+            internalConflicts: character.internalConflicts || [],
+            externalConflicts: character.externalConflicts || [],
+            relationships: character.relationships || [],
+            goals: character.goals || []
+          }
         }));
 
         const characterCanvasData: PlotCanvasData = {
