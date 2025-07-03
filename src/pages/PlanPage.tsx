@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider } from '@xyflow/react';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
 import PlotCanvas from '@/components/PlotCanvas';
+import CharacterArcCanvas from '@/components/CharacterArc/CharacterArcCanvas';
 import { CharacterGlossary } from '@/components/CharacterGlossary';
 import { WorldBuilding } from '@/components/WorldBuilding';
 import { useBookContext } from '@/lib/BookContextProvider';
@@ -120,9 +121,12 @@ const SAMPLE_CANVAS_DATA: PlotCanvasData = {
 
 const PlanPage: React.FC = () => {
   const { bookId, versionId } = useParams<{ bookId: string; versionId: string }>();
-  const { state } = useBookContext();
-  const [leftSidebarVisible, setLeftSidebarVisible] = useState(true);
-  const [selectedBoard, setSelectedBoard] = useState('plot-arcs');
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  const selectedBoard = searchParams.get('boards') || 'plot-arcs';
+  const selectedTab = searchParams.get('tab') || 'plot-outline';
+  const characterId = searchParams.get('characterId');
+
   const [canvasData, setCanvasData] = useState<PlotCanvasData | null>(SAMPLE_CANVAS_DATA);
   const [loading, setLoading] = useState(false);
 
@@ -147,35 +151,9 @@ const PlanPage: React.FC = () => {
       setCanvasData(response.data || SAMPLE_CANVAS_DATA);
     } catch (error) {
       console.error('Failed to fetch canvas data:', error);
-      // Use sample data as fallback
       setCanvasData(SAMPLE_CANVAS_DATA);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handleCanvasUpdate = async (data: any) => {
-    if (!bookId || !versionId || selectedBoard === 'characters' || selectedBoard === 'world-building') return;
-
-    try {
-      let endpoint = '';
-      switch (selectedBoard) {
-        case 'plot-arcs':
-          endpoint = `/books/${bookId}/versions/${versionId}/plotCanvas`;
-          break;
-        case 'timeline':
-          endpoint = `/books/${bookId}/versions/${versionId}/timelineCanvas`;
-          break;
-        default:
-          endpoint = `/books/${bookId}/versions/${versionId}/plotCanvas`;
-      }
-
-      await apiClient.put(endpoint, data);
-      setCanvasData(data);
-    } catch (error) {
-      console.error('Failed to save canvas data:', error);
-      // Update local state even if save fails
-      setCanvasData(data);
     }
   };
 
@@ -184,91 +162,120 @@ const PlanPage: React.FC = () => {
   }, [selectedBoard, bookId, versionId]);
 
   const handleBoardSelect = (boardId: string) => {
-    setSelectedBoard(boardId);
+    setSearchParams({ boards: boardId });
   };
 
-  const renderPlotArcsContent = () => (
-    <Tabs value="plot-outline" className="flex-1 flex flex-col">
-      <div className="border-b px-4 py-2">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="plot-outline">Plot Outline</TabsTrigger>
-          <TabsTrigger value="character-arcs">Character Arcs</TabsTrigger>
-          <TabsTrigger value="world-building">World Building</TabsTrigger>
-          <TabsTrigger value="timeline">Timeline</TabsTrigger>
-        </TabsList>
-      </div>
+  const handleTabSelect = (tabId: string) => {
+    setSearchParams({ boards: 'plot-arcs', tab: tabId });
+  };
 
-      <div className="flex-1">
-        <TabsContent value="plot-outline" className="h-full m-0">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-lg">Loading Plot Outline...</div>
-            </div>
-          ) : (
-            <ReactFlowProvider>
-              <PlotCanvas
-                bookId={bookId}
-                versionId={versionId}
-                canvasData={canvasData}
-                onCanvasUpdate={handleCanvasUpdate}
-              />
-            </ReactFlowProvider>
-          )}
-        </TabsContent>
+  const handleCanvasUpdate = (updatedCanvasData: PlotCanvasData) => {
+    setCanvasData(updatedCanvasData);
+  };
 
-        <TabsContent value="character-arcs" className="h-full m-0">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-lg">Loading Character Arcs...</div>
+  const renderBoardContent = () => {
+    switch (selectedBoard) {
+      case 'plot-arcs':
+        return (
+          <Tabs value={selectedTab} className="flex-1 flex flex-col" onValueChange={handleTabSelect}>
+            <div className="border-b px-4 py-2">
+              <TabsList className="grid w-full grid-cols-4">
+                <TabsTrigger value="plot-outline">Plot Outline</TabsTrigger>
+                <TabsTrigger value="character-arcs">Character Arcs</TabsTrigger>
+                <TabsTrigger value="world-entity-arcs">World Entity Arcs</TabsTrigger>
+                <TabsTrigger value="timeline-arc">Timeline Arc</TabsTrigger>
+              </TabsList>
             </div>
-          ) : (
-            <ReactFlowProvider>
-              <PlotCanvas
-                bookId={bookId}
-                versionId={versionId}
-                canvasData={canvasData}
-                onCanvasUpdate={handleCanvasUpdate}
-              />
-            </ReactFlowProvider>
-          )}
-        </TabsContent>
 
-        <TabsContent value="world-building" className="h-full m-0">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-lg">Loading World Building...</div>
-            </div>
-          ) : (
-            <ReactFlowProvider>
-              <PlotCanvas
-                bookId={bookId}
-                versionId={versionId}
-                canvasData={canvasData}
-                onCanvasUpdate={handleCanvasUpdate}
-              />
-            </ReactFlowProvider>
-          )}
-        </TabsContent>
+            <div className="flex-1">
+              <TabsContent value="plot-outline" className="h-full m-0">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-lg">Loading Plot Outline...</div>
+                  </div>
+                ) : (
+                  <ReactFlowProvider>
+                    <PlotCanvas
+                      bookId={bookId}
+                      versionId={versionId}
+                      canvasData={canvasData}
+                      onCanvasUpdate={handleCanvasUpdate}
+                    />
+                  </ReactFlowProvider>
+                )}
+              </TabsContent>
 
-        <TabsContent value="timeline" className="h-full m-0">
-          {loading ? (
-            <div className="flex items-center justify-center h-full">
-              <div className="text-lg">Loading Timeline...</div>
+              <TabsContent value="character-arcs" className="h-full m-0">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-lg">Loading Character Arcs...</div>
+                  </div>
+                ) : (
+                  <ReactFlowProvider>
+                    <CharacterArcCanvas
+                      bookId={bookId}
+                      versionId={versionId}
+                      characterId={characterId}
+                    />
+                  </ReactFlowProvider>
+                )}
+              </TabsContent>
+
+              <TabsContent value="world-entity-arcs" className="h-full m-0">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-lg">Loading World Entity Arcs...</div>
+                  </div>
+                ) : (
+                  <ReactFlowProvider>
+                    <PlotCanvas
+                      bookId={bookId}
+                      versionId={versionId}
+                      canvasData={canvasData}
+                      onCanvasUpdate={handleCanvasUpdate}
+                    />
+                  </ReactFlowProvider>
+                )}
+              </TabsContent>
+
+              <TabsContent value="timeline-arc" className="h-full m-0">
+                {loading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <div className="text-lg">Loading Timeline Arc...</div>
+                  </div>
+                ) : (
+                  <ReactFlowProvider>
+                    <PlotCanvas
+                      bookId={bookId}
+                      versionId={versionId}
+                      canvasData={canvasData}
+                      onCanvasUpdate={handleCanvasUpdate}
+                    />
+                  </ReactFlowProvider>
+                )}
+              </TabsContent>
             </div>
-          ) : (
-            <ReactFlowProvider>
-              <PlotCanvas
-                bookId={bookId}
-                versionId={versionId}
-                canvasData={canvasData}
-                onCanvasUpdate={handleCanvasUpdate}
-              />
-            </ReactFlowProvider>
-          )}
-        </TabsContent>
-      </div>
-    </Tabs>
-  );
+          </Tabs>
+        );
+      case 'characters':
+        return <CharacterGlossary bookId={bookId} versionId={versionId} />;
+      case 'world-building':
+        return <WorldBuilding bookId={bookId} versionId={versionId} />;
+      case 'timeline':
+        return (
+          <ReactFlowProvider>
+            <PlotCanvas
+              bookId={bookId}
+              versionId={versionId}
+              canvasData={canvasData}
+              onCanvasUpdate={handleCanvasUpdate}
+            />
+          </ReactFlowProvider>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="h-screen flex flex-col">
@@ -283,47 +290,18 @@ const PlanPage: React.FC = () => {
 
       <div className="flex-1 flex overflow-hidden">
         {/* Left Sidebar */}
-        {leftSidebarVisible && (
-          <div className="w-64">
-            <PlanLeftSidebar
-              isCollapsed={false}
-              onToggle={() => setLeftSidebarVisible(false)}
-              selectedBoard={selectedBoard}
-              onBoardSelect={handleBoardSelect}
-            />
-          </div>
-        )}
+        <div className="w-64">
+          <PlanLeftSidebar
+            isCollapsed={false}
+            onToggle={() => {}}
+            selectedBoard={selectedBoard}
+            onBoardSelect={handleBoardSelect}
+          />
+        </div>
 
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
-          {selectedBoard === 'plot-arcs' && renderPlotArcsContent()}
-          
-          {selectedBoard === 'characters' && (
-            <CharacterGlossary bookId={bookId} versionId={versionId} />
-          )}
-          
-          {selectedBoard === 'world-building' && (
-            <WorldBuilding bookId={bookId} versionId={versionId} />
-          )}
-          
-          {selectedBoard === 'timeline' && (
-            <div className="flex-1">
-              {loading ? (
-                <div className="flex items-center justify-center h-full">
-                  <div className="text-lg">Loading Timeline...</div>
-                </div>
-              ) : (
-                <ReactFlowProvider>
-                  <PlotCanvas
-                    bookId={bookId}
-                    versionId={versionId}
-                    canvasData={canvasData}
-                    onCanvasUpdate={handleCanvasUpdate}
-                  />
-                </ReactFlowProvider>
-              )}
-            </div>
-          )}
+          {renderBoardContent()}
         </div>
       </div>
     </div>

@@ -131,14 +131,14 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={character.image} />
                       <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                        {character.name.split(' ').map(n => n[0]).join('').toUpperCase()}
+                        {character?.name?.split(' ').map(n => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <div>
                       <CardTitle className="text-lg">{character.name}</CardTitle>
-                      {character.aliases.length > 0 && (
+                      {character.aliases?.length > 0 && (
                         <p className="text-sm text-muted-foreground">
-                          aka {character.aliases.join(', ')}
+                          aka {character.aliases?.join(', ')}
                         </p>
                       )}
                     </div>
@@ -170,9 +170,9 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
                   </div>
                 </div>
 
-                {character.traits.length > 0 && (
+                {character.traits?.length > 0 && (
                   <div className="flex flex-wrap gap-1">
-                    {character.traits.slice(0, 3).map((trait) => (
+                    {character.traits?.slice(0, 3).map((trait) => (
                       <Badge key={trait} variant="secondary" className="text-xs">
                         {trait}
                       </Badge>
@@ -188,7 +188,7 @@ export const CharacterGlossary: React.FC<CharacterGlossaryProps> = ({ bookId, ve
                 <div className="flex items-center justify-between pt-2 border-t">
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
                     <Target size={12} />
-                    <span>{character.goals.length} goals</span>
+                    <span>{character.goals?.length} goals</span>
                   </div>
                   <Button
                     variant="outline"

@@ -1,5 +1,4 @@
-
-import React from 'react';
+import React, { ReactNode, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,12 +6,16 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
+import { apiClient } from '@/lib/api';
+import { useNavigate } from 'react-router-dom';
 
 interface PlotNodeProps extends NodeProps {
   data: PlotNodeData;
 }
 
 const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
+  const navigate = useNavigate();
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Completed':
@@ -66,12 +69,77 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
-  const handleEntityClick = (entityId: string) => {
+  const handleEntityClick = async (entityId: string) => {
     console.log('Entity clicked:', entityId);
-    if (data.onNavigateToEntity) {
-      data.onNavigateToEntity(entityId);
+
+    if (data.type === 'SceneBeats') {
+      console.log('SceneBeat node clicked:', entityId);
+
+      try {
+        // Navigate to Character Canvas Page
+        navigate(`/books/${data.bookId}/versions/${data.versionId}/characters/${entityId}/arcs`);
+      } catch (error) {
+        console.error('Failed to load character arcs for SceneBeat node:', error);
+      }
+    } else if (typeof data.onCharacterOrWorldClick === 'function') {
+      data.onCharacterOrWorldClick(entityId);
     }
   };
+
+  
+  // Add logic to create linked node with specific ID pattern
+  const handleAddLinkedNode = (parentNodeId: string, currentNodeType: string) => {
+    
+    console.log('Adding linked node:', parentNodeId);
+
+    
+    if (currentNodeType === 'Character' || currentNodeType === 'WorldLocation' || currentNodeType === 'WorldObject' ) {
+      if (typeof data.onAddLinkedNode === 'function') {
+        data.onAddLinkedNode(parentNodeId, currentNodeType);
+      }
+    }   else {
+       data.onAddChild(parentNodeId);
+    }
+    
+
+
+    
+  };
+
+
+  
+  const renderCharacterDetails = (arcId: string): ReactNode => {
+    const [characterDetails, setCharacterDetails] = useState(null);
+    console.log('Fetching character details for arcId:', arcId);
+    useEffect(() => {
+      const fetchDetails = async () => {
+        const details = await data.onFetchCharacterDetails (arcId);
+        setCharacterDetails(details);
+      };
+      fetchDetails();
+    }, [arcId]);
+
+    if (characterDetails) {
+      return (
+        <div className="space-y-2">
+          <p className="text-xs font-medium">Aliases: {characterDetails.aliases?.join(', ')}</p>
+          <p className="text-xs font-medium">Age: {characterDetails.age}</p>
+          <p className="text-xs font-medium">Gender: {characterDetails.gender}</p>
+          <p className="text-xs font-medium">Description: {characterDetails.description}</p>
+          <p className="text-xs font-medium">Traits: {characterDetails.traits?.join(', ')}</p>
+          <p className="text-xs font-medium">Backstory: {characterDetails.backstory}</p>
+          <p className="text-xs font-medium">Beliefs: {characterDetails.beliefs?.join(', ')}</p>
+          <p className="text-xs font-medium">Motivations: {characterDetails.motivations?.join(', ')}</p>
+          <p className="text-xs font-medium">Internal Conflicts: {characterDetails.internalConflicts?.join(', ')}</p>
+          <p className="text-xs font-medium">External Conflicts: {characterDetails.externalConflicts?.join(', ')}</p>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  console.log('PlotNode data:', data);
+  console.log('Characters in PlotNode:', data.characters);
 
   return (
     <Card className={`min-w-[320px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
@@ -142,6 +210,10 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         )}
 
         {/* Characters Section with Images and Drill-down buttons */}
+        {data.type === 'Character' && typeof data.id === 'string' && renderCharacterDetails(data.id)}
+
+
+        {/* Characters Section with Images and Drill-down buttons */}
         {data.characters && data.characters.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -163,7 +235,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                     <Avatar className="h-6 w-6">
                       <AvatarImage src={character.image} />
                       <AvatarFallback className="text-xs bg-primary/10 text-primary">
-                        {character.name.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
+                        {character?.name?.split(' ').map((n: string) => n[0]).join('').toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <span className="text-xs font-medium">{character.name}</span>
@@ -271,13 +343,23 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             className="h-7 px-2 text-xs flex-1"
             onClick={(e) => {
               e.stopPropagation();
-              data.onAddChild(data.id);
+              handleAddLinkedNode(data.id, data.type);
             }}
           >
             <Plus size={10} className="mr-1" />
-            Add
+            Add Linked Node
           </Button>
         </div>
+
+        {/* Delete Button */}
+        <Button
+          variant="destructive"
+          size="sm"
+          className="w-full mt-2"
+          onClick={() => data.onDelete(data.id)}
+        >
+          Delete Node
+        </Button>
       </CardContent>
     </Card>
   );

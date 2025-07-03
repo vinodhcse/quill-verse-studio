@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   name: string;
@@ -124,3 +123,14 @@ export interface CollaborationSession {
   activeUsers: User[];
   lastActivity: string;
 }
+
+export type CanvasNodeType =
+  | 'Outline'
+  | 'Act'
+  | 'Chapter'
+  | 'SceneBeats'
+  | 'Character'
+  | 'WorldLocation'
+  | 'WorldObject'
+  | 'Arc'
+  | 'Chart';
