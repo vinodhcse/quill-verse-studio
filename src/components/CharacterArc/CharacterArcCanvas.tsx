@@ -1,4 +1,5 @@
-import React, { useState, useCallback, useEffect, useMemo } from 'react';
+
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   ReactFlow,
   Controls,
@@ -10,7 +11,6 @@ import {
   Edge,
   Node,
   BackgroundVariant,
-  useReactFlow,
   ReactFlowInstance,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
@@ -54,61 +54,16 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [editModal, setEditModal] = useState({ isOpen: false, node: null as CanvasNode | null });
   const [reactFlowInstance, setReactFlowInstance] = useState<ReactFlowInstance | null>(null);
 
-  useEffect(() => {
-    if (canvasData) {
-      const reactFlowNodes = convertToReactFlowNodes(canvasData.nodes);
-      const reactFlowEdges = canvasData.edges.map(edge => ({
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        sourceHandle: edge.sourceHandle,
-        targetHandle: edge.targetHandle,
-        type: 'custom',
-        data: edge
-      }));
-
-      setNodes(reactFlowNodes);
-      setEdges(reactFlowEdges);
-    }
-  }, [canvasData, convertToReactFlowNodes]);
-
   const generateNodeId = useCallback(() => {
     return `${characterId}-arc-${Date.now()}`;
   }, [characterId]);
 
-  const onConnect = useCallback(
-    (params: Connection) => {
-      if (!characterId) return;
-
-      const newEdge: Edge = {
-        id: `edge-${params.source}-${params.target}`,
-        source: params.source || '',
-        target: params.target || '',
-        sourceHandle: params.sourceHandle,
-        targetHandle: params.targetHandle,
-        type: 'custom',
-        data: {
-          source: params.source || '',
-          target: params.target || '',
-          sourceHandle: params.sourceHandle,
-          targetHandle: params.targetHandle,
-        } as CanvasEdge,
-      };
-
-      setEdges((eds) => addEdge(newEdge, eds));
-
-      // Update canvas data
-      const updatedCanvasData: PlotCanvasData = {
-        nodes: nodes.map(node => node.data as CanvasNode),
-        edges: [...edges, newEdge].map(edge => edge.data as CanvasEdge),
-        timelineEvents: canvasData?.timelineEvents || [],
-        lastUpdated: new Date().toISOString()
-      };
-
-      onCanvasUpdate(updatedCanvasData);
-    },
-    [setEdges, nodes, edges, characterId, canvasData, onCanvasUpdate]
-  );
+  const handleNodeEdit = useCallback((nodeId: string) => {
+    const node = nodes.find(n => n.id === nodeId);
+    if (node) {
+      setEditModal({ isOpen: true, node: node.data as CanvasNode });
+    }
+  }, [nodes]);
 
   const handleNodeDelete = useCallback((nodeId: string) => {
     setNodes((prevNodes) => prevNodes.filter((node) => node.id !== nodeId));
@@ -124,64 +79,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
     onCanvasUpdate(updatedCanvasData);
   }, [setNodes, setEdges, nodes, edges, canvasData, onCanvasUpdate]);
-
-  const handlePaneClick = useCallback((event: any) => {
-    // console.log('Pane Clicked', event);
-  }, []);
-
-  const handlePaneContextMenu = useCallback(
-    (event: any) => {
-      event.preventDefault();
-
-      const panePosition = {
-        x: event.clientX - 200,
-        y: event.clientY - 50,
-      };
-
-      setQuickNodeModal({ isOpen: true, position: panePosition, sourceNodeId: undefined });
-    },
-    [setQuickNodeModal]
-  );
-
-  const handleQuickNodeSave = useCallback(
-    (nodeData: any, position: { x: number; y: number }) => {
-      if (!characterId) return;
-
-      const newNodeId = generateNodeId();
-      const newNode: Node = {
-        id: newNodeId,
-        type: 'default',
-        position,
-        data: {
-          ...nodeData,
-          id: newNodeId,
-          bookId,
-          versionId,
-          onEdit: handleNodeEdit,
-          onDelete: handleNodeDelete,
-          onAddChild: handleAddChildNode,
-          onAddLinkedNode: handleAddLinkedNode,
-          plotCanvasNodes: plotCanvasNodes,
-          timelineEvents: timelineEvents
-        }
-      };
-
-      setNodes((prevNodes) => [...prevNodes, newNode]);
-
-      // Update canvas data
-      const updatedCanvasData: PlotCanvasData = {
-        nodes: [...nodes, newNode].map(node => node.data as CanvasNode),
-        edges: edges.map(edge => edge.data as CanvasEdge),
-        timelineEvents: canvasData?.timelineEvents || [],
-        lastUpdated: new Date().toISOString()
-      };
-
-      onCanvasUpdate(updatedCanvasData);
-
-      setQuickNodeModal({ isOpen: false, position: { x: 0, y: 0 }, sourceNodeId: undefined });
-    },
-    [setNodes, nodes, edges, bookId, versionId, characterId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, setQuickNodeModal, handleAddChildNode, handleAddLinkedNode, plotCanvasNodes, timelineEvents]
-  );
 
   const handleAddChildNode = useCallback(
     (parentNodeId: string) => {
@@ -252,6 +149,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         target: newNodeId,
         type: 'custom',
         data: {
+          id: `edge-${parentNodeId}-${newNodeId}`,
           source: parentNodeId,
           target: newNodeId,
         } as CanvasEdge,
@@ -269,7 +167,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
       onCanvasUpdate(updatedCanvasData);
     },
-    [setNodes, setEdges, nodes, edges, bookId, versionId, characterId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, handleAddLinkedNode, plotCanvasNodes, timelineEvents]
+    [setNodes, setEdges, nodes, edges, bookId, versionId, characterId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, plotCanvasNodes, timelineEvents]
   );
 
   const handleAddLinkedNode = useCallback(
@@ -351,6 +249,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         target: newNodeId,
         type: 'custom',
         data: {
+          id: `edge-${parentNodeId}-${newNodeId}`,
           source: parentNodeId,
           target: newNodeId,
         } as CanvasEdge,
@@ -371,12 +270,135 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     [setNodes, setEdges, nodes, edges, bookId, versionId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, handleAddChildNode, plotCanvasNodes, timelineEvents]
   );
 
-  const handleNodeEdit = useCallback((nodeId: string) => {
-    const node = nodes.find(n => n.id === nodeId);
-    if (node) {
-      setEditModal({ isOpen: true, node: node.data as CanvasNode });
+  const convertToReactFlowNodes = useCallback((canvasNodes: CanvasNode[]): Node[] => {
+    return canvasNodes.map(node => ({
+      id: node.id,
+      type: 'default',
+      position: node.position,
+      data: {
+        ...node,
+        bookId,
+        versionId,
+        onEdit: handleNodeEdit,
+        onDelete: handleNodeDelete,
+        onAddChild: handleAddChildNode,
+        onAddLinkedNode: handleAddLinkedNode,
+        plotCanvasNodes: plotCanvasNodes,
+        timelineEvents: timelineEvents
+      }
+    }));
+  }, [bookId, versionId, handleNodeEdit, handleNodeDelete, handleAddChildNode, handleAddLinkedNode, plotCanvasNodes, timelineEvents]);
+
+  useEffect(() => {
+    if (canvasData) {
+      const reactFlowNodes = convertToReactFlowNodes(canvasData.nodes);
+      const reactFlowEdges = (canvasData.edges || []).map(edge => ({
+        id: edge.id,
+        source: edge.source,
+        target: edge.target,
+        sourceHandle: edge.sourceHandle,
+        targetHandle: edge.targetHandle,
+        type: 'custom',
+        data: edge
+      }));
+
+      setNodes(reactFlowNodes);
+      setEdges(reactFlowEdges);
     }
-  }, [nodes]);
+  }, [canvasData, convertToReactFlowNodes, setNodes, setEdges]);
+
+  const onConnect = useCallback(
+    (params: Connection) => {
+      if (!characterId) return;
+
+      const newEdge: Edge = {
+        id: `edge-${params.source}-${params.target}`,
+        source: params.source || '',
+        target: params.target || '',
+        sourceHandle: params.sourceHandle,
+        targetHandle: params.targetHandle,
+        type: 'custom',
+        data: {
+          id: `edge-${params.source}-${params.target}`,
+          source: params.source || '',
+          target: params.target || '',
+          sourceHandle: params.sourceHandle,
+          targetHandle: params.targetHandle,
+        } as CanvasEdge,
+      };
+
+      setEdges((eds) => addEdge(newEdge, eds));
+
+      // Update canvas data
+      const updatedCanvasData: PlotCanvasData = {
+        nodes: nodes.map(node => node.data as CanvasNode),
+        edges: [...edges, newEdge].map(edge => edge.data as CanvasEdge),
+        timelineEvents: canvasData?.timelineEvents || [],
+        lastUpdated: new Date().toISOString()
+      };
+
+      onCanvasUpdate(updatedCanvasData);
+    },
+    [setEdges, nodes, edges, characterId, canvasData, onCanvasUpdate]
+  );
+
+  const handlePaneClick = useCallback((event: any) => {
+    // console.log('Pane Clicked', event);
+  }, []);
+
+  const handlePaneContextMenu = useCallback(
+    (event: any) => {
+      event.preventDefault();
+
+      const panePosition = {
+        x: event.clientX - 200,
+        y: event.clientY - 50,
+      };
+
+      setQuickNodeModal({ isOpen: true, position: panePosition, sourceNodeId: undefined });
+    },
+    [setQuickNodeModal]
+  );
+
+  const handleQuickNodeSave = useCallback(
+    (nodeData: any, position: { x: number; y: number }) => {
+      if (!characterId) return;
+
+      const newNodeId = generateNodeId();
+      const newNode: Node = {
+        id: newNodeId,
+        type: 'default',
+        position,
+        data: {
+          ...nodeData,
+          id: newNodeId,
+          bookId,
+          versionId,
+          onEdit: handleNodeEdit,
+          onDelete: handleNodeDelete,
+          onAddChild: handleAddChildNode,
+          onAddLinkedNode: handleAddLinkedNode,
+          plotCanvasNodes: plotCanvasNodes,
+          timelineEvents: timelineEvents
+        }
+      };
+
+      setNodes((prevNodes) => [...prevNodes, newNode]);
+
+      // Update canvas data
+      const updatedCanvasData: PlotCanvasData = {
+        nodes: [...nodes, newNode].map(node => node.data as CanvasNode),
+        edges: edges.map(edge => edge.data as CanvasEdge),
+        timelineEvents: canvasData?.timelineEvents || [],
+        lastUpdated: new Date().toISOString()
+      };
+
+      onCanvasUpdate(updatedCanvasData);
+
+      setQuickNodeModal({ isOpen: false, position: { x: 0, y: 0 }, sourceNodeId: undefined });
+    },
+    [setNodes, nodes, edges, bookId, versionId, characterId, handleNodeEdit, handleNodeDelete, generateNodeId, canvasData, onCanvasUpdate, setQuickNodeModal, handleAddChildNode, handleAddLinkedNode, plotCanvasNodes, timelineEvents]
+  );
 
   const handleNodeSave = useCallback((updatedNode: CanvasNode) => {
     setNodes(prevNodes => {
@@ -411,26 +433,11 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
     onCanvasUpdate(updatedCanvasData);
     setEditModal({ isOpen: false, node: null });
-  }, [nodes, edges, canvasData, onCanvasUpdate, plotCanvasNodes, timelineEvents]);
+  }, [nodes, edges, canvasData, onCanvasUpdate, plotCanvasNodes, timelineEvents, setNodes]);
 
-  const convertToReactFlowNodes = useCallback((canvasNodes: CanvasNode[]): Node[] => {
-    return canvasNodes.map(node => ({
-      id: node.id,
-      type: 'default',
-      position: node.position,
-      data: {
-        ...node,
-        bookId,
-        versionId,
-        onEdit: handleNodeEdit,
-        onDelete: handleNodeDelete,
-        onAddChild: handleAddChildNode,
-        onAddLinkedNode: handleAddLinkedNode,
-        plotCanvasNodes: plotCanvasNodes,
-        timelineEvents: timelineEvents
-      }
-    }));
-  }, [bookId, versionId, handleNodeEdit, handleNodeDelete, handleAddChildNode, handleAddLinkedNode, plotCanvasNodes, timelineEvents]);
+  const handleReactFlowInit = useCallback((instance: ReactFlowInstance) => {
+    setReactFlowInstance(instance);
+  }, []);
 
   return (
     <div className="h-full w-full">
@@ -440,7 +447,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
-        onInit={setReactFlowInstance}
+        onInit={handleReactFlowInit}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
