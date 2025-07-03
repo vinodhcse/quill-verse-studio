@@ -1,10 +1,11 @@
+
 import React, { ReactNode, useState, useEffect } from 'react';
 import { Handle, Position, NodeProps } from '@xyflow/react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff } from 'lucide-react';
+import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
 import { usePlotCanvasContext } from '@/contexts/PlotCanvasContext';
 import { apiClient } from '@/lib/api';
@@ -101,6 +102,69 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
+  const handlePlotNodeClick = (plotNodeId: string) => {
+    // Navigate to plot outline page with the specific node focused
+    const url = `/books/${data.bookId}/versions/${data.versionId}/plan?boards=plot-arcs&tab=plot-outline&focusNode=${plotNodeId}`;
+    navigate(url);
+  };
+
+  // Function to compare attributes and show changes
+  const getAttributeChanges = () => {
+    if (data.type !== 'Character' || isFirstNode) return null;
+
+    const nodeData = data as any;
+    const currentAttributes = nodeData.attributes;
+    
+    if (!currentAttributes || typeof currentAttributes !== 'object' || Array.isArray(currentAttributes)) {
+      return null;
+    }
+
+    // Find parent node to compare attributes
+    const parentNode = plotCanvasNodes.find((n: any) => 
+      n.linkedNodeIds && n.linkedNodeIds.includes(nodeData.id)
+    );
+
+    if (!parentNode || !parentNode.attributes) return null;
+
+    const parentAttributes = parentNode.attributes;
+    const changes: string[] = [];
+
+    // Compare key attributes
+    const attributesToCheck = ['aliases', 'traits', 'beliefs', 'motivations', 'internalConflicts', 'externalConflicts'];
+    
+    attributesToCheck.forEach(attr => {
+      const currentValue = currentAttributes[attr] || [];
+      const parentValue = parentAttributes[attr] || [];
+      
+      if (Array.isArray(currentValue) && Array.isArray(parentValue)) {
+        const added = currentValue.filter((item: string) => !parentValue.includes(item));
+        const removed = parentValue.filter((item: string) => !currentValue.includes(item));
+        
+        if (added.length > 0) {
+          changes.push(`Added ${attr}: ${added.join(', ')}`);
+        }
+        if (removed.length > 0) {
+          changes.push(`Removed ${attr}: ${removed.join(', ')}`);
+        }
+      }
+    });
+
+    // Check other attributes
+    if (currentAttributes.age !== parentAttributes.age) {
+      changes.push(`Age: ${parentAttributes.age} → ${currentAttributes.age}`);
+    }
+    if (currentAttributes.gender !== parentAttributes.gender) {
+      changes.push(`Gender: ${parentAttributes.gender} → ${currentAttributes.gender}`);
+    }
+    if (currentAttributes.description !== parentAttributes.description) {
+      changes.push(`Description changed`);
+    }
+    if (currentAttributes.backstory !== parentAttributes.backstory) {
+      changes.push(`Backstory updated`);
+    }
+
+    return changes.length > 0 ? changes : null;
+  };
   
   // Add logic to create linked node with specific ID pattern
   const handleAddLinkedNode = (parentNodeId: string, currentNodeType: string) => {
@@ -194,10 +258,15 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           {linkedPlotNodeIds.map((nodeId: string) => {
             const plotNode = plotCanvasNodes.find((n: any) => n.id === nodeId);
             return plotNode ? (
-              <div key={nodeId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
+              <div 
+                key={nodeId} 
+                className="flex items-center gap-2 p-1 rounded-md bg-background border hover:bg-accent transition-colors cursor-pointer"
+                onClick={() => handlePlotNodeClick(nodeId)}
+              >
                 <span className="text-xs">{getNodeIcon(plotNode.type)}</span>
                 <span className="text-xs font-medium">{plotNode.name}</span>
                 <Badge variant="outline" className="text-xs">{plotNode.type}</Badge>
+                <ExternalLink size={10} className="ml-auto text-muted-foreground" />
               </div>
             ) : (
               <div key={nodeId} className="flex items-center gap-2 p-1 rounded-md bg-background border">
@@ -250,6 +319,8 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   };
 
   console.log('PlotNode data:', data);
+
+  const attributeChanges = getAttributeChanges();
 
   return (
     <Card className={`min-w-[320px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
@@ -316,6 +387,23 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             <p className="text-xs text-muted-foreground line-clamp-2">
               {data.goal}
             </p>
+          </div>
+        )}
+
+        {/* Attribute Changes Summary (for non-first character nodes) */}
+        {data.type === 'Character' && !isFirstNode && attributeChanges && attributeChanges.length > 0 && (
+          <div className="space-y-2 p-2 bg-yellow-50 border border-yellow-200 rounded-md">
+            <div className="flex items-center gap-1">
+              <span className="text-xs font-medium text-yellow-800">Character Changes:</span>
+            </div>
+            <div className="space-y-1">
+              {attributeChanges.slice(0, 3).map((change, index) => (
+                <div key={index} className="text-xs text-yellow-700">• {change}</div>
+              ))}
+              {attributeChanges.length > 3 && (
+                <div className="text-xs text-yellow-600">...and {attributeChanges.length - 3} more changes</div>
+              )}
+            </div>
           </div>
         )}
 
