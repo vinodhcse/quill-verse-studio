@@ -12,7 +12,7 @@ import {
   ConnectionMode,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import PlotNode from '@/components/PlotNode';
+import CharacterArcPlotNode from './CharacterArcPlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
 import { PlotNodeData, CanvasNode, PlotCanvasData } from '@/types/plotCanvas';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import { useReactFlow } from '@xyflow/react';
 import { apiClient } from '@/lib/api';
 import { QuickNodeModal } from '@/components/QuickNodeModal';
 
-const nodeTypes = { plotNode: PlotNode };
+const nodeTypes = { plotNode: CharacterArcPlotNode };
 const edgeTypes = {
   custom: DeletableEdge,
 };

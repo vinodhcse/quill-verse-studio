@@ -7,19 +7,20 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight, Eye, EyeOff, ExternalLink } from 'lucide-react';
 import { PlotNodeData, CharacterAttributes } from '@/types/plotCanvas';
+import { apiClient } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
+import { usePlotCanvasContext } from '@/contexts/PlotCanvasContext';
 
-interface PlotNodeProps extends NodeProps {
+interface CharacterArcPlotNodeProps extends NodeProps {
   data: PlotNodeData;
 }
 
-const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
+const CharacterArcPlotNode: React.FC<CharacterArcPlotNodeProps> = ({ data }) => {
   const navigate = useNavigate();
   const [showFullAttributes, setShowFullAttributes] = useState(false);
   
-  // Get plot canvas data from props instead of context
-  const timelineEvents = data.timelineEvents || [];
-  const plotCanvasNodes = data.plotCanvasNodes || [];
+  // Get plot canvas data from context
+  const { timelineEvents, plotCanvasNodes } = usePlotCanvasContext();
 
   // Determine if this is the first node (no parent and no incoming linked nodes)
   const isFirstNode = data.parentId === null && (!data.linkedNodeIds || data.linkedNodeIds.length === 0);
@@ -206,31 +207,31 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
           {characterAttrs.age && <p className="text-xs font-medium">Age: {characterAttrs.age}</p>}
           {characterAttrs.gender && <p className="text-xs font-medium">Gender: {characterAttrs.gender}</p>}
           {characterAttrs.description && <p className="text-xs font-medium">Description: {characterAttrs.description}</p>}
-          {Array.isArray(characterAttrs.traits) && characterAttrs.traits.length > 0 && (
+          {characterAttrs.traits && characterAttrs.traits.length > 0 && (
             <p className="text-xs font-medium">Traits: {characterAttrs.traits.join(', ')}</p>
           )}
           {characterAttrs.backstory && <p className="text-xs font-medium">Backstory: {characterAttrs.backstory}</p>}
-          {Array.isArray(characterAttrs.beliefs) && characterAttrs.beliefs.length > 0 && (
+          {characterAttrs.beliefs && characterAttrs.beliefs.length > 0 && (
             <p className="text-xs font-medium">Beliefs: {characterAttrs.beliefs.join(', ')}</p>
           )}
-          {Array.isArray(characterAttrs.motivations) && characterAttrs.motivations.length > 0 && (
+          {characterAttrs.motivations && characterAttrs.motivations.length > 0 && (
             <p className="text-xs font-medium">Motivations: {characterAttrs.motivations.join(', ')}</p>
           )}
-          {Array.isArray(characterAttrs.internalConflicts) && characterAttrs.internalConflicts.length > 0 && (
+          {characterAttrs.internalConflicts && characterAttrs.internalConflicts.length > 0 && (
             <p className="text-xs font-medium">Internal Conflicts: {characterAttrs.internalConflicts.join(', ')}</p>
           )}
-          {Array.isArray(characterAttrs.externalConflicts) && characterAttrs.externalConflicts.length > 0 && (
+          {characterAttrs.externalConflicts && characterAttrs.externalConflicts.length > 0 && (
             <p className="text-xs font-medium">External Conflicts: {characterAttrs.externalConflicts.join(', ')}</p>
           )}
         </div>
       );
     } else {
       // Show condensed view
-      const condensedTraits = Array.isArray(characterAttrs.traits) && characterAttrs.traits.length > 0 
+      const condensedTraits = characterAttrs.traits && characterAttrs.traits.length > 0 
         ? characterAttrs.traits.slice(0, 2).join(', ') + (characterAttrs.traits.length > 2 ? '...' : '')
         : null;
       
-      const condensedMotivations = Array.isArray(characterAttrs.motivations) && characterAttrs.motivations.length > 0
+      const condensedMotivations = characterAttrs.motivations && characterAttrs.motivations.length > 0
         ? characterAttrs.motivations.slice(0, 1).join(', ') + (characterAttrs.motivations.length > 1 ? '...' : '')
         : null;
 
@@ -245,7 +246,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
-  // Function to render linked Plot Canvas nodes - now using props data
+  // Function to render linked Plot Canvas nodes - now using context data
   const renderLinkedPlotNodes = () => {
     const nodeData = data as any;
     const linkedPlotNodeIds = nodeData.linkedNodeIds || [];
@@ -287,7 +288,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     );
   };
 
-  // Function to render linked Timeline Events - now using props data
+  // Function to render linked Timeline Events - now using context data
   const renderLinkedTimelineEvents = () => {
     const nodeData = data as any;
     const timelineEventIds = nodeData.timelineEventIds || [];
@@ -324,7 +325,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     );
   };
 
-  console.log('PlotNode data:', data);
+  console.log('CharacterArcPlotNode data:', data);
 
   const attributeChanges = getAttributeChanges();
 
@@ -438,7 +439,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         {renderLinkedTimelineEvents()}
 
         {/* Characters Section with Images and Drill-down buttons */}
-        {Array.isArray(data.characters) && data.characters.length > 0 && (
+        {data.characters && data.characters.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
@@ -483,7 +484,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
         )}
 
         {/* World Entities Section with Drill-down buttons */}
-        {Array.isArray(data.worlds) && data.worlds.length > 0 && (
+        {data.worlds && data.worlds.length > 0 && (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-1">
@@ -589,4 +590,4 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
   );
 };
 
-export default PlotNode;
+export default CharacterArcPlotNode;
