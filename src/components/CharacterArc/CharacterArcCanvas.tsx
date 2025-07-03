@@ -114,11 +114,12 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   };
 
   const renderCharacterDetails = (node: CanvasNode) => {
-    // Load details from node.attributes instead of character object
     const attributes = node.attributes as CharacterAttributes;
     if (!attributes || typeof attributes !== 'object' || Array.isArray(attributes)) {
       return null;
     }
+
+    const isFirstNode = node.parentId === null && (!node.linkedNodeIds || node.linkedNodeIds.length === 0);
 
     return (
       <div className="space-y-2 text-xs">
@@ -130,29 +131,60 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         {attributes.motivations && attributes.motivations.length > 0 && (
           <div><strong>Motivations:</strong> {attributes.motivations.slice(0, 1).join(', ')}{attributes.motivations.length > 1 ? '...' : ''}</div>
         )}
+        
+        {/* Display linked Plot Canvas nodes */}
+        {node.linkedNodeIds && node.linkedNodeIds.length > 0 && (
+          <div className="mt-2 pt-2 border-t">
+            <div><strong>Linked Plot Nodes:</strong></div>
+            {node.linkedNodeIds.map(nodeId => {
+              const plotNode = plotCanvasData.nodes.find(n => n.id === nodeId);
+              return plotNode ? (
+                <div key={nodeId} className="text-xs text-blue-600">• {plotNode.name}</div>
+              ) : null;
+            })}
+          </div>
+        )}
+        
+        {/* Display linked Timeline events */}
+        {node.timelineEventIds && node.timelineEventIds.length > 0 && (
+          <div className="mt-2 pt-2 border-t">
+            <div><strong>Timeline Events:</strong></div>
+            {node.timelineEventIds.map(eventId => {
+              const event = plotCanvasData.timelineEvents.find(e => e.id === eventId);
+              return event ? (
+                <div key={eventId} className="text-xs text-green-600">• {event.name}</div>
+              ) : null;
+            })}
+          </div>
+        )}
       </div>
     );
   };
 
   useEffect(() => {
     if (canvasData) {
-      const reactFlowNodes = canvasData.nodes.map((node: CanvasNode) => ({
-        id: node.id,
-        type: 'plotNode',
-        position: node.position,
-        data: {
-          ...node,
-          onEdit: handleEditNode,
-          onAddChild: handleAddChild,
-          onNavigateToEntity: handleNavigateToEntity,
-          onDelete: handleDeleteNode,
-          onCharacterOrWorldClick: handleCharacterOrWorldClick,
-          onFetchCharacterDetails: handleFetchCharacterDetails,
-          onAddLinkedNode: handleAddLinkedNode,
-          selectedCharacter: selectedCharacter,
-          renderCharacterDetails: () => renderCharacterDetails(node),
-        } as PlotNodeData,
-      }));
+      const reactFlowNodes = canvasData.nodes.map((node: CanvasNode) => {
+        const isFirstNode = node.parentId === null && (!node.linkedNodeIds || node.linkedNodeIds.length === 0);
+        
+        return {
+          id: node.id,
+          type: 'plotNode',
+          position: node.position,
+          data: {
+            ...node,
+            onEdit: handleEditNode,
+            onAddChild: handleAddChild,
+            onNavigateToEntity: handleNavigateToEntity,
+            onDelete: handleDeleteNode,
+            onCharacterOrWorldClick: handleCharacterOrWorldClick,
+            onFetchCharacterDetails: handleFetchCharacterDetails,
+            onAddLinkedNode: handleAddLinkedNode,
+            selectedCharacter: selectedCharacter,
+            renderCharacterDetails: () => renderCharacterDetails(node),
+            showFullAttributes: isFirstNode, // First node shows full attributes by default
+          } as PlotNodeData,
+        };
+      });
 
       const reactFlowEdges = (canvasData.edges || []).map((edge) => ({
         ...edge,
@@ -166,7 +198,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         fitView();
       }, 100);
     }
-  }, [canvasData, selectedCharacter, setNodes, setEdges, fitView]);
+  }, [canvasData, selectedCharacter, plotCanvasData, setNodes, setEdges, fitView]);
 
   const debouncedUpdate = useCallback(
     debounce(async (updatedCanvasData: PlotCanvasData) => {
@@ -199,7 +231,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     
     await onCanvasUpdate(updatedCanvasData);
     
-    // Also update plot canvas if there are linked nodes
+    // Update plot canvas if there are linked nodes
     if (updatedNode.linkedNodeIds && updatedNode.linkedNodeIds.length > 0) {
       await updatePlotCanvasLinks(updatedNode);
     }
@@ -300,15 +332,12 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   ) => {
     if (!canvasData) return;
 
-    // Create proper character arc node ID format
     const baseCharacterId = characterId || parentNodeId || 'character';
     const newNodeId = `${baseCharacterId}-arc-${Date.now()}`;
     
-    // Get parent node to inherit attributes from
     const parentNode = parentNodeId ? canvasData.nodes.find(n => n.id === parentNodeId) : null;
     console.log('Parent node for inheritance:', parentNode);
 
-    // Inherit characters array
     const inheritedCharacters = parentNode?.characters || (characterId && selectedCharacter ? [{
       id: characterId,
       name: selectedCharacter.name,
@@ -317,12 +346,10 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       attributes: []
     }] : []);
 
-    // Inherit ALL attributes from parent node
     let inheritedAttributes: CharacterAttributes = {};
     if (parentNode && parentNode.attributes && typeof parentNode.attributes === 'object' && !Array.isArray(parentNode.attributes)) {
       inheritedAttributes = { ...parentNode.attributes as CharacterAttributes };
     } else if (selectedCharacter) {
-      // Fallback to character data if no parent
       inheritedAttributes = {
         age: selectedCharacter.age,
         birthday: selectedCharacter.birthday,
@@ -362,7 +389,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
     const updatedNodes = [...canvasData.nodes, newNode];
 
-    // Update parent node relationships
     if (parentNodeId) {
       const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
       if (parentIndex >= 0) {
@@ -373,7 +399,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       }
     }
 
-    // Create edge connecting parent to new node (right handle to left handle)
     const updatedEdges = [...(canvasData.edges || [])];
     if (connectFromNodeId) {
       const newEdge = {
@@ -423,7 +448,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     };
     setEdges((eds) => addEdge(newEdge, eds));
     
-    // Update canvas data with new edge
     if (canvasData) {
       const updatedEdges = [...(canvasData.edges || []), {
         id: `edge-${params.source}-${params.target}`,
@@ -434,7 +458,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         type: 'custom'
       }];
       
-      // Update linked node IDs
       const updatedNodes = canvasData.nodes.map(node => {
         if (node.id === params.source) {
           return { ...node, linkedNodeIds: [...node.linkedNodeIds, params.target!] };

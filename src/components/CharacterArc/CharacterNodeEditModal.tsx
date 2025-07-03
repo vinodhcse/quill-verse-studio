@@ -39,6 +39,8 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
     externalConflicts: []
   });
 
+  const [nodeDetail, setNodeDetail] = useState('');
+
   const [newInputs, setNewInputs] = useState({
     alias: '',
     trait: '',
@@ -62,7 +64,7 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
 
   useEffect(() => {
     if (node && isOpen) {
-      // Load attributes from node.attributes (prioritize over legacy fields)
+      // Load attributes from node.attributes
       const nodeAttributes = node.attributes as CharacterAttributes;
       if (nodeAttributes && typeof nodeAttributes === 'object' && !Array.isArray(nodeAttributes)) {
         setFormData({
@@ -82,6 +84,9 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
           goals: nodeAttributes.goals || []
         });
       }
+      
+      // Load node detail
+      setNodeDetail(node.detail || '');
       
       setSelectedPlotNodeIds(node.linkedNodeIds || []);
       setSelectedTimelineEventIds(node.timelineEventIds || []);
@@ -118,12 +123,17 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
     if (!node) return;
 
     const originalAttributes = node.attributes as CharacterAttributes;
-    const changeSummary = isFirstNode ? 'Initial character state' : generateAttributeChangeSummary(originalAttributes || {}, formData);
+    
+    // Use custom detail if provided, otherwise generate change summary
+    let finalDetail = nodeDetail.trim();
+    if (!finalDetail) {
+      finalDetail = isFirstNode ? 'Initial character state' : generateAttributeChangeSummary(originalAttributes || {}, formData);
+    }
 
     const updatedNode: CanvasNode = {
       ...node,
       name: node.name,
-      detail: changeSummary,
+      detail: finalDetail,
       goal: node.goal || '',
       attributes: formData,
       linkedNodeIds: selectedPlotNodeIds,
@@ -270,6 +280,18 @@ export const CharacterNodeEditModal: React.FC<CharacterNodeEditModalProps> = ({
         </DialogHeader>
 
         <div className="space-y-6">
+          {/* Node Detail */}
+          <div>
+            <Label htmlFor="nodeDetail">Node Detail</Label>
+            <Textarea
+              id="nodeDetail"
+              value={nodeDetail}
+              onChange={(e) => setNodeDetail(e.target.value)}
+              placeholder="Enter custom detail for this node (leave empty for auto-generated summary)..."
+              rows={3}
+            />
+          </div>
+
           {/* Condensed view for non-first nodes */}
           {!isFirstNode && renderCondensedView()}
 
