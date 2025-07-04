@@ -459,6 +459,14 @@ const CharacterArcPlotCanvas: React.FC<CharacterArcPlotCanvasProps> = ({
     }
   };
 
+  const handleEdgeMouseLeave = (event: any, edge: Edge) => {
+    if (!edge.source || edge.target) return; // Only trigger for new edges
+
+    const sourceNodeId = edge.source;
+    setShowQuickModal(true);
+    setQuickModalPosition({ x: event.clientX, y: event.clientY });
+  };
+
   return (
     <div className="h-full w-full relative">
       <ReactFlow
@@ -466,10 +474,11 @@ const CharacterArcPlotCanvas: React.FC<CharacterArcPlotCanvasProps> = ({
         edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
+        onEdgeMouseLeave={handleEdgeMouseLeave}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
         connectionMode={ConnectionMode.Loose}
+        fitView
         onConnect={handleAddLinkedNode}
         onPaneClick={handlePaneClick}
         proOptions={{ hideAttribution: true }}

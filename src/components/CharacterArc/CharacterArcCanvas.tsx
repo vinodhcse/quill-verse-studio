@@ -563,15 +563,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
               <Maximize2 className="h-4 w-4" />
               Fit View
             </Button>
-            <Button
-              onClick={() => setIsInteractive(!isInteractive)}
-              size="sm"
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              {isInteractive ? <MousePointer className="h-4 w-4" /> : <Move className="h-4 w-4" />}
-              {isInteractive ? 'Selection' : 'Pan'}
-            </Button>
+           
             <Button
               onClick={() => setShowQuickModal(true)}
               size="sm"
@@ -603,7 +595,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
             connectionMode={ConnectionMode.Loose}
             fitView
             className="bg-background"
-            panOnDrag={!isInteractive}
+            panOnDrag={isInteractive}
             nodesDraggable={isInteractive}
             nodesConnectable={isInteractive}
             elementsSelectable={isInteractive}

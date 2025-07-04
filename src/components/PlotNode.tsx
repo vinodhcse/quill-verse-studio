@@ -278,6 +278,19 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
             Add
           </Button>
         </div>
+         {/* Delete Button */}
+        <Button
+          variant="destructive"
+          size="sm"
+          className="w-full mt-2"
+          onClick={(e) => {
+              e.stopPropagation();
+              data.onDelete && data.onDelete(data.id)
+            }
+            }
+        >
+          Delete Node
+        </Button>
       </CardContent>
     </Card>
   );

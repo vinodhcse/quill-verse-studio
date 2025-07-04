@@ -14,6 +14,7 @@ const PlotCanvasPage: React.FC = () => {
 
     try {
       const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plotCanvas`);
+      console.log('Fetched canvas data:', response.data);
       setCanvasData(response.data);
     } catch (error) {
       console.error('Failed to fetch canvas data:', error);
@@ -22,8 +23,9 @@ const PlotCanvasPage: React.FC = () => {
   };
 
   const handleCanvasUpdate = async (data: any) => {
+    console.log('Saving canvas data:', data);
     if (!bookId || !versionId) return;
-
+    
     try {
       await apiClient.put(`/books/${bookId}/versions/${versionId}/plotCanvas`, data);
       setCanvasData(data);
