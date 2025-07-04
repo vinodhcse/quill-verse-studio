@@ -11,6 +11,7 @@ import { apiClient } from '@/lib/api';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlotCanvasData } from '@/types/plotCanvas';
 import { PlotCanvasProvider } from '@/contexts/PlotCanvasContext';
+import WorldEntityArcsPage from '@/pages/WorldEntityArcsPage';
 
 // Sample data for demonstration
 const SAMPLE_CANVAS_DATA: PlotCanvasData = {
@@ -158,23 +159,7 @@ const PlanPage: React.FC = () => {
               </TabsContent>
 
               <TabsContent value="world-entity-arcs" className="h-full m-0">
-                {loading ? (
-                  <div className="flex items-center justify-center h-full">
-                    <div className="text-lg">Loading World Entity Arcs...</div>
-                  </div>
-                ) : (
-                  <PlotCanvasProvider bookId={bookId} versionId={versionId}>
-                    <ReactFlowProvider>
-                      <PlotCanvas
-                        bookId={bookId}
-                        versionId={versionId}
-                        canvasData={canvasData}
-                        onCanvasUpdate={handleCanvasUpdate}
-                        onNodeDragStop={onNodeDragStop}
-                      />
-                    </ReactFlowProvider>
-                  </PlotCanvasProvider>
-                )}
+                <WorldEntityArcsPage />
               </TabsContent>
 
               <TabsContent value="timeline-arc" className="h-full m-0">
