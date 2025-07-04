@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -14,6 +13,7 @@ const CharacterArcPage: React.FC = () => {
   const characterId = searchParams.get('characterId');
   const [canvasData, setCanvasData] = useState<PlotCanvasData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [updatingCanvas, setUpdatingCanvas] = useState(false);
 
   console.log('CharacterArcPage mounted with bookId:', bookId, 'versionId:', versionId, 'characterId:', characterId);
 
@@ -166,6 +166,7 @@ const CharacterArcPage: React.FC = () => {
   const handleCanvasUpdate = async (updatedCanvasData: PlotCanvasData) => {
     if (!bookId || !versionId) return;
 
+    setUpdatingCanvas(true);
     try {
       console.log('Updating character canvas data:', updatedCanvasData);
       
@@ -180,19 +181,20 @@ const CharacterArcPage: React.FC = () => {
       console.log('Character canvas data updated successfully');
     } catch (error) {
       console.error('Failed to update character canvas data:', error);
+    } finally {
+      setUpdatingCanvas(false);
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-lg">Loading Character Arcs...</div>
-      </div>
-    );
-  }
-
   return (
-    <div className="h-screen">
+    <div className="relative h-screen">
+      {(loading || updatingCanvas) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-50">
+          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
+            <span className="sr-only">Loading...</span>
+          </div>
+        </div>
+      )}
       <PlotCanvasProvider bookId={bookId} versionId={versionId}>
         <ReactFlowProvider>
           <CharacterArcCanvas 

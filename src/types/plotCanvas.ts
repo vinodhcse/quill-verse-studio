@@ -173,6 +173,7 @@ export interface PlotNodeData extends Record<string, unknown> {
   onCharacterOrWorldClick?: (entityId: string) => void;
   onFetchCharacterDetails?: (arcId: string) => Promise<any>;
   onAddLinkedNode?: (parentNodeId: string, currentNodeType: string) => void;
+  isFirstNode?: boolean; // Indicates if this is the first node in the canvas;
 }
 
 export const initializePlotCanvas = (data: PlotCanvasData) => {

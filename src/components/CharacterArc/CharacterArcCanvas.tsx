@@ -13,7 +13,7 @@ import {
   useReactFlow,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
-import PlotNode from '@/components/PlotNode';
+import CharacterArcPlotNode from './CharacterArcPlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
 import { PlotNodeData, CanvasNode, PlotCanvasData, CharacterAttributes, TimelineEvent } from '@/types/plotCanvas';
 import { Button } from '@/components/ui/button';
@@ -29,9 +29,10 @@ import {
   BreadcrumbList, 
   BreadcrumbSeparator 
 } from '@/components/ui/breadcrumb';
-import { ChevronRight, Home, Plus, ZoomIn, ZoomOut, Maximize2, ToggleLeft, MousePointer, Move } from 'lucide-react';
+import { ChevronRight, Home, Plus, ZoomIn, ZoomOut, Maximize2, ToggleLeft, MousePointer, Move, ChevronLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const nodeTypes = { plotNode: PlotNode };
+const nodeTypes = { plotNode: CharacterArcPlotNode };
 const edgeTypes = {
   custom: DeletableEdge,
 };
@@ -51,6 +52,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   canvasData: propCanvasData,
   onCanvasUpdate: propOnCanvasUpdate
 }) => {
+  const navigate = useNavigate();
   const [internalCanvasData, setInternalCanvasData] = useState<PlotCanvasData>({ 
     nodes: [], 
     edges: [], 
@@ -67,6 +69,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const [editingNode, setEditingNode] = useState<CanvasNode | null>(null);
   const [isInteractive, setIsInteractive] = useState(true);
   const [plotCanvasData, setPlotCanvasData] = useState<PlotCanvasData>({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
+  const [isCreatingEdge, setIsCreatingEdge] = useState(false);
 
   const canvasData = propCanvasData || internalCanvasData;
   const onCanvasUpdate = propOnCanvasUpdate || setInternalCanvasData;
@@ -164,7 +167,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   useEffect(() => {
     if (canvasData) {
       const reactFlowNodes = canvasData.nodes.map((node: CanvasNode) => {
-        const isFirstNode = node.parentId === null && (!node.linkedNodeIds || node.linkedNodeIds.length === 0);
+        const isFirstNode = node.parentId === null && !canvasData.nodes.some(n => n.linkedNodeIds.includes(node.id) || n.childIds.includes(node.id));
         
         return {
           id: node.id,
@@ -181,7 +184,8 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
             onAddLinkedNode: handleAddLinkedNode,
             selectedCharacter: selectedCharacter,
             renderCharacterDetails: () => renderCharacterDetails(node),
-            showFullAttributes: isFirstNode, // First node shows full attributes by default
+            showFullAttributes: isFirstNode,
+            isFirstNode: isFirstNode // First node shows full attributes by default
           } as PlotNodeData,
         };
       });
@@ -275,11 +279,40 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
   const handleDeleteNode = async (nodeId: string) => {
     if (!canvasData) return;
 
-    const updatedNodes = canvasData.nodes.filter(node => node.id !== nodeId);
+    // Helper function to recursively collect all child nodes for deletion
+    const collectChildNodes = (nodeId: string, nodes: CanvasNode[]): string[] => {
+      const node = nodes.find(n => n.id === nodeId);
+      if (!node) return [];
+
+      let childIds = [...node.childIds];
+      node.childIds.forEach(childId => {
+        childIds = [...childIds, ...collectChildNodes(childId, nodes)];
+      });
+
+      return childIds;
+    };
+
+    // Collect all nodes to delete (including descendants)
+    const allNodesToDelete = [nodeId, ...collectChildNodes(nodeId, canvasData.nodes)];
+
+    // Remove the nodes from the canvas
+    const updatedNodes = canvasData.nodes.filter(node => !allNodesToDelete.includes(node.id));
+
+    // Remove references to the deleted nodes from other nodes
+    const cleanedNodes = updatedNodes.map(node => {
+      return {
+        ...node,
+        childIds: node.childIds.filter(childId => !allNodesToDelete.includes(childId)),
+        linkedNodeIds: node.linkedNodeIds.filter(linkedId => !allNodesToDelete.includes(linkedId)),
+      };
+    });
+
+    // Remove edges connected to the deleted nodes
     const updatedEdges = (canvasData.edges || []).filter(edge => 
-      edge.source !== nodeId && edge.target !== nodeId
+      !allNodesToDelete.includes(edge.source) && !allNodesToDelete.includes(edge.target)
     );
-    const updatedCanvasData = { ...canvasData, nodes: updatedNodes, edges: updatedEdges };
+
+    const updatedCanvasData = { ...canvasData, nodes: cleanedNodes, edges: updatedEdges };
     await onCanvasUpdate(updatedCanvasData);
   };
 
@@ -310,6 +343,39 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     return selectedCharacter || {};
   };
 
+  const handleConnectStart = (event: any, params: { nodeId: string; handleType: string }) => {
+    console.log('Connect start:', params, ' nodeId:', params.nodeId);
+    setIsCreatingEdge(true);
+    setConnectFromNodeId(params.nodeId); // Store source node ID
+    console.log('Setting connectFromNodeId:', connectFromNodeId);
+  };
+
+  const handleConnectEnd = (event: any) => {
+    console.log('Connect end:', event, 'connectFromNodeId:', connectFromNodeId);
+      setShowQuickModal(true);
+      setQuickModalPosition({ x: event.clientX, y: event.clientY });
+      setIsCreatingEdge(false);
+  };
+
+  const handleEdgeMouseLeave = (event: any, edge: Edge) => {
+      console.log('Edge mouse leave:', edge);
+      if (!edge.source) return; // Only trigger for new edges
+      
+      //event.preventDefault();
+      const sourceNodeId = edge.source;
+      setConnectFromNodeId(sourceNodeId); // Store sourceNodeId
+      setShowQuickModal(true);
+      setQuickModalPosition({ x: event.clientX, y: event.clientY });
+      setIsCreatingEdge(false); // Reset edge creation state
+      console.log('Edge creation ended, sourceNodeId:', sourceNodeId);
+    };
+    
+    const handleEdgeMouseEnter = () => {
+      console.log('Edge mouse enter');
+      setIsCreatingEdge(true); // Set edge creation state
+    };
+  
+
   const handleAddLinkedNode = async (parentNodeId: string, currentNodeType: string) => {
     console.log('Adding linked node:', parentNodeId);
     setConnectFromNodeId(parentNodeId);
@@ -331,11 +397,11 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     parentNodeId?: string
   ) => {
     if (!canvasData) return;
-
+    console.log('Saving quick node with data:', nodeData, 'at position:', position, 'parentNodeId:', parentNodeId, 'connectFromNodeId', connectFromNodeId);
     const baseCharacterId = characterId || parentNodeId || 'character';
     const newNodeId = `${baseCharacterId}-arc-${Date.now()}`;
     
-    const parentNode = parentNodeId ? canvasData.nodes.find(n => n.id === parentNodeId) : null;
+    const parentNode = parentNodeId ? canvasData.nodes.find(n => n.id === connectFromNodeId) : null;
     console.log('Parent node for inheritance:', parentNode);
 
     const inheritedCharacters = parentNode?.characters || (characterId && selectedCharacter ? [{
@@ -370,16 +436,19 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
     const newNode: CanvasNode = {
       id: newNodeId,
-      type: 'Character',
+      type: nodeData.type || 'Character',
       name: nodeData.name || 'New Character Arc Node',
       detail: parentNode ? 'Character state continues from previous node' : 'Initial character state',
       goal: nodeData.goal || '',
       status: nodeData.status || 'Not Completed',
       timelineEventIds: [],
-      parentId: parentNodeId || null,
+      parentId: connectFromNodeId, // Link to sourceNodeId
       childIds: [],
       linkedNodeIds: [],
-      position,
+      position: {
+        x: parentNode ? parentNode.position.x + 200 : position.x,
+        y: parentNode ? parentNode.position.y : position.y,
+      },
       characters: inheritedCharacters,
       worlds: [],
       attributes: inheritedAttributes
@@ -389,14 +458,10 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
 
     const updatedNodes = [...canvasData.nodes, newNode];
 
-    if (parentNodeId) {
-      const parentIndex = updatedNodes.findIndex(n => n.id === parentNodeId);
-      if (parentIndex >= 0) {
-        updatedNodes[parentIndex] = {
-          ...updatedNodes[parentIndex],
-          linkedNodeIds: [...updatedNodes[parentIndex].linkedNodeIds, newNodeId]
-        };
-      }
+    // Update parent's linkedNodeIds
+    const parentIndex = updatedNodes.findIndex(n => n.id === connectFromNodeId);
+    if (parentIndex >= 0) {
+      updatedNodes[parentIndex]?.linkedNodeIds.push(newNodeId);
     }
 
     const updatedEdges = [...(canvasData.edges || [])];
@@ -419,17 +484,30 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
       edges: updatedEdges,
       lastUpdated: new Date().toISOString()
     };
-    
     console.log('Updated canvas data:', newCanvasData);
-    await onCanvasUpdate(newCanvasData);
+    const udpateRes = await onCanvasUpdate(newCanvasData);
+    console.log('Canvas data updated successfully:', udpateRes);
     setShowQuickModal(false);
-    setConnectFromNodeId(null);
-    setCurrentViewNodeId(null);
+    setConnectFromNodeId(null); // Reset sourceNodeId
+  };
+
+  const handleNodeDragStop = async (event: any, node: Node) => {
+    console.log('Node drag stopped:', node.id, 'at position:', node.position);
+    if (!canvasData) return;
+
+    const updatedNodes = canvasData.nodes?.map(n => 
+      n.id === node.id ? { ...n, position: node.position } : n
+    );
+
+    const updatedCanvasData = { ...canvasData, nodes: updatedNodes };
+    await onCanvasUpdate(updatedCanvasData);
   };
 
   const handlePaneClick = (event: any) => {
     const bounds = event.currentTarget.getBoundingClientRect();
     console.log('Pane clicked at:', event.clientX, event.clientY, 'Bounds:', bounds);
+    if (isCreatingEdge) return;
+    // Reset edge creation state
     setQuickModalPosition({ 
       x: event.clientX - bounds.left, 
       y: event.clientY - bounds.top 
@@ -439,36 +517,41 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
     setConnectFromNodeId(null);
   };
 
-  const onConnect = useCallback((params: Edge | Connection) => {
-    const newEdge = { 
-      ...params, 
-      type: 'custom',
-      sourceHandle: 'right',
-      targetHandle: 'left'
-    };
-    setEdges((eds) => addEdge(newEdge, eds));
-    
-    if (canvasData) {
-      const updatedEdges = [...(canvasData.edges || []), {
-        id: `edge-${params.source}-${params.target}`,
-        source: params.source!,
-        target: params.target!,
-        sourceHandle: 'right',
-        targetHandle: 'left',
-        type: 'custom'
-      }];
-      
-      const updatedNodes = canvasData.nodes.map(node => {
-        if (node.id === params.source) {
-          return { ...node, linkedNodeIds: [...node.linkedNodeIds, params.target!] };
-        }
-        return node;
-      });
-      
-      const updatedCanvasData = { ...canvasData, edges: updatedEdges, nodes: updatedNodes };
-      onCanvasUpdate(updatedCanvasData);
-    }
-  }, [setEdges, canvasData, onCanvasUpdate]);
+  const onConnect = useCallback(
+    (params: Connection) => {
+      const newEdge = {
+        ...params,
+        id: `${params.source}-${params.target}-${Date.now()}`,
+        type: 'custom',
+        data: {
+          type: 'linked',
+        },
+      };
+      setEdges((eds) => addEdge(newEdge, eds));
+
+      if (canvasData) {
+        const updatedEdges = [...(canvasData.edges || []), {
+          id: `edge-${params.source}-${params.target}`,
+          source: params.source!,
+          target: params.target!,
+          sourceHandle: 'right',
+          targetHandle: 'left',
+          type: 'custom'
+        }];
+
+        const updatedNodes = canvasData.nodes.map(node => {
+          if (node.id === params.source) {
+            return { ...node, linkedNodeIds: [...node.linkedNodeIds, params.target!] };
+          }
+          return node;
+        });
+
+        const updatedCanvasData = { ...canvasData, edges: updatedEdges, nodes: updatedNodes };
+        onCanvasUpdate(updatedCanvasData);
+      }
+    },
+    [setEdges, canvasData, onCanvasUpdate]
+  );
 
   const handleCreateTimelineEvent = async (eventData: Partial<TimelineEvent>) => {
     if (!canvasData) return;
@@ -536,8 +619,17 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
               ))}
             </BreadcrumbList>
           </Breadcrumb>
-          
+
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => navigate(-1)}
+              size="sm"
+              variant="outline"
+              className="flex items-center gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Back
+            </Button>
             <Button
               onClick={() => zoomIn()}
               size="sm"
@@ -563,7 +655,6 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
               <Maximize2 className="h-4 w-4" />
               Fit View
             </Button>
-           
             <Button
               onClick={() => setShowQuickModal(true)}
               size="sm"
@@ -589,7 +680,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onPaneClick={isInteractive ? handlePaneClick : undefined}
+            //onPaneClick={isInteractive ? handlePaneClick : undefined}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             connectionMode={ConnectionMode.Loose}
@@ -599,6 +690,10 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
             nodesDraggable={isInteractive}
             nodesConnectable={isInteractive}
             elementsSelectable={isInteractive}
+            onEdgeMouseEnter={handleEdgeMouseEnter} // Added handler
+            onConnectStart={handleConnectStart} // Added handler
+            onConnectEnd={handleConnectEnd} 
+            onNodeDragStop={handleNodeDragStop}
           >
             <Controls />
             <Background />
@@ -627,7 +722,7 @@ const CharacterArcCanvas: React.FC<CharacterArcCanvasProps> = ({
         node={editingNode}
         plotCanvasNodes={plotCanvasData.nodes}
         timelineEvents={plotCanvasData.timelineEvents}
-        onCreateTimelineEvent={handleCreateTimelineEvent}
+        onCreateTimelineEvent={handleCreateTimelineEvent}        
       />
     </div>
   );

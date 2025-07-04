@@ -20,7 +20,7 @@ import { NodeEditModal } from './NodeEditModal';
 import { Button } from '@/components/ui/button';
 import { Plus, ArrowLeft } from 'lucide-react';
 import { useReactFlow } from '@xyflow/react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { consolidateTrackChanges } from '@/utils/trackChangesUtils';
 
 
@@ -46,6 +46,7 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
   onNodeDragStop,
 }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   const [showQuickModal, setShowQuickModal] = useState(false);
@@ -207,6 +208,8 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
           goal: updatedData.goal || node.goal,
           status: updatedData.status || node.status,
           linkedNodeIds: updatedData.linkedNodeIds || node.linkedNodeIds,
+          characters: updatedData.characters || node.characters,
+          worlds: updatedData.worlds || node.worlds
         };
       }
       return node;
@@ -420,6 +423,9 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
       console.log('Setting current view to:', entityId, entity.type);
       setCurrentViewNodeId(entityId);
       setCurrentViewType(entity.type);
+
+      // Update the URL with the nodeId
+      navigate(`?boards=plot-arcs&tab=plot-outline&nodeId=${entityId}`);
     }
   };
 
@@ -447,8 +453,8 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
         parentId: nodeData.parentId,
         childIds: nodeData.childIds,
         linkedNodeIds: nodeData.linkedNodeIds,
-        characters: linkedCharacters,
-        worlds: linkedWorlds,
+        characters: nodeData.characters || [],
+        worlds: nodeData.worlds || [],
         onEdit: (nodeId: string) => {
           const nodeToEdit = canvasData?.nodes.find(n => n.id === nodeId);
           if (nodeToEdit) {
@@ -467,6 +473,8 @@ const PlotCanvas: React.FC<PlotCanvasProps> = ({
     const nodeData = node.data;
     setCurrentViewNodeId(nodeData.id as string);
     setCurrentViewType(nodeData.type as string);
+     // Update the URL with the nodeId
+    navigate(`?boards=plot-arcs&tab=plot-outline&nodeId=${nodeData.id}`);
   };
 
   const handleBackNavigation = () => {

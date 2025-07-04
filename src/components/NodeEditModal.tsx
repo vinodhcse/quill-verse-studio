@@ -175,8 +175,9 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
   };
 
   const handleSave = async () => {
+    console.log('Saving node data:', formData);
     const updatedNodeData = {
-        ...formData,
+        ...node,
         characters: formData.characters?.map(character => ({
             id: character.id,
             name: character.name,

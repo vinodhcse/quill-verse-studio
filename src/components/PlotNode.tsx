@@ -7,12 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Edit, Plus, Users, Globe, Target, ChevronDown, MapPin, Package, ArrowRight } from 'lucide-react';
 import { PlotNodeData } from '@/types/plotCanvas';
+import { useNavigate, useParams } from 'react-router-dom';
 
 interface PlotNodeProps extends NodeProps {
   data: PlotNodeData;
 }
 
 const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
+  const navigate = useNavigate();
+    const { bookId, versionId } = useParams<{ bookId: string; versionId: string }>();
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'Completed':
@@ -66,12 +69,26 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
     }
   };
 
-  const handleEntityClick = (entityId: string) => {
-    console.log('Entity clicked:', entityId);
+  const handleEntityClick = (entityId: string, entityType: string) => {
+    console.log('Entity clicked:', entityId, 'Type:', entityType);
+    if (entityType === 'Character') {
+      console.log('Navigating to character arc for:', entityId);
+        if (!bookId || !versionId) {
+          console.error('Missing bookId or versionId in the URL');
+          return;
+        }
+
+        // Navigate to plot outline page with the specific node focused
+        const url = `/plan/book/${bookId}/version/${versionId}?boards=plot-arcs&tab=character-arcs&characterId=${entityId}`;
+        navigate(url);
+    }
+
     if (data.onNavigateToEntity) {
       data.onNavigateToEntity(entityId);
     }
   };
+
+  console.log('Rendering PlotNode:', data);
 
   return (
     <Card className={`min-w-[320px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
@@ -157,7 +174,10 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                 <div 
                   key={character.id}
                   className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors cursor-pointer"
-                  onClick={() => handleEntityClick(character.id)}
+                  onClick={(e) => {
+                      e.stopPropagation();
+                      handleEntityClick(character.id, 'Character');
+                    }}
                 >
                   <div className="flex items-center gap-2">
                     <Avatar className="h-6 w-6">
@@ -175,7 +195,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                     className="h-6 w-6 p-0"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleEntityClick(character.id);
+                      handleEntityClick(character.id, 'Character');
                     }}
                   >
                     <ArrowRight size={12} />
@@ -202,7 +222,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                 <div 
                   key={world.id}
                   className="flex items-center justify-between p-2 rounded-md bg-background border hover:bg-accent transition-colors cursor-pointer"
-                  onClick={() => handleEntityClick(world.id)}
+                  onClick={() => handleEntityClick(world.id, 'world')}
                 >
                   <div className="flex items-center gap-2">
                     {world.type === 'WorldLocation' ? <MapPin size={12} /> : <Package size={12} />}
@@ -217,7 +237,7 @@ const PlotNode: React.FC<PlotNodeProps> = ({ data }) => {
                     className="h-6 w-6 p-0"
                     onClick={(e) => {
                       e.stopPropagation();
-                      handleEntityClick(world.id);
+                      handleEntityClick(world.id, 'world');
                     }}
                   >
                     <ArrowRight size={12} />
