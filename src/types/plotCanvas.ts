@@ -30,7 +30,7 @@ export interface CharacterAttributes {
 
 export interface CanvasNode {
   id: string;
-  type: 'Outline' | 'Act' | 'Chapter' | 'SceneBeats' | 'Character' | 'WorldLocation' | 'WorldObject' | 'Arc' | 'Chart';
+  type: 'Outline' | 'Act' | 'Chapter' | 'SceneBeats' | 'Character' | 'WorldLocation' | 'WorldObject' | 'Arc' | 'Chart' | 'world-location' | 'world-object';
   name: string;
   detail: string;
   goal?: string;
@@ -166,6 +166,16 @@ export interface PlotNodeData extends Record<string, unknown> {
       selected?: boolean;
     }>;
   }>;
+  
+  // World entity specific fields
+  description?: string;
+  customAttributes?: Record<string, any>;
+  rulesAndBeliefs?: string[];
+  history?: Array<{
+    event: string;
+    date: string;
+  }>;
+  
   onEdit: (nodeId: string) => void;
   onAddChild: (parentId: string) => void;
   onNavigateToEntity?: (entityId: string) => void;
@@ -173,7 +183,7 @@ export interface PlotNodeData extends Record<string, unknown> {
   onCharacterOrWorldClick?: (entityId: string) => void;
   onFetchCharacterDetails?: (arcId: string) => Promise<any>;
   onAddLinkedNode?: (parentNodeId: string, currentNodeType: string) => void;
-  isFirstNode?: boolean; // Indicates if this is the first node in the canvas;
+  isFirstNode?: boolean;
 }
 
 export const initializePlotCanvas = (data: PlotCanvasData) => {

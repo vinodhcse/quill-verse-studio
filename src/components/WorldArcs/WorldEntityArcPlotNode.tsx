@@ -32,27 +32,34 @@ const WorldEntityArcPlotNode: React.FC<WorldEntityArcPlotNodeProps> = ({ data })
 
   const getNodeIcon = (type: string) => {
     switch (type) {
-      case 'WorldLocation':
-        return '🏛️';
-      case 'WorldObject':
-        return '⚡';
-      case 'Character':
-        return '👤';
+      case 'world-location':
+        return <MapPin size={16} className="text-indigo-600" />;
+      case 'world-object':
+        return <Package size={16} className="text-yellow-600" />;
       default:
-        return '🌍';
+        return <Globe size={16} className="text-blue-600" />;
     }
   };
 
   const getTypeColor = (type: string) => {
     switch (type) {
-      case 'WorldLocation':
+      case 'world-location':
         return 'border-indigo-200 bg-indigo-50';
-      case 'WorldObject':
+      case 'world-object':
         return 'border-yellow-200 bg-yellow-50';
-      case 'Character':
-        return 'border-red-200 bg-red-50';
       default:
         return 'border-gray-200 bg-gray-50';
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case 'world-location':
+        return 'Location';
+      case 'world-object':
+        return 'Object';
+      default:
+        return 'World Entity';
     }
   };
 
@@ -77,7 +84,7 @@ const WorldEntityArcPlotNode: React.FC<WorldEntityArcPlotNodeProps> = ({ data })
   console.log('Rendering WorldEntityArcPlotNode:', data);
 
   return (
-    <Card className={`min-w-[320px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
+    <Card className={`min-w-[320px] max-w-[400px] shadow-lg border-2 hover:shadow-xl transition-shadow ${getTypeColor(data.type)}`}>
       {/* Handles for connections */}
       <Handle 
         type="target" 
@@ -114,10 +121,10 @@ const WorldEntityArcPlotNode: React.FC<WorldEntityArcPlotNodeProps> = ({ data })
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 flex-1 min-w-0">
-            <span className="text-lg flex-shrink-0">{getNodeIcon(data.type)}</span>
+            {getNodeIcon(data.type)}
             <div className="min-w-0 flex-1">
               <CardTitle className="text-sm font-semibold truncate">{data.name}</CardTitle>
-              <Badge variant="outline" className="text-xs mt-1">{data.type}</Badge>
+              <Badge variant="outline" className="text-xs mt-1">{getTypeLabel(data.type)}</Badge>
             </div>
           </div>
           <Badge className={`text-xs flex-shrink-0 ml-2 ${getStatusColor(data.status)}`}>
@@ -127,20 +134,83 @@ const WorldEntityArcPlotNode: React.FC<WorldEntityArcPlotNodeProps> = ({ data })
       </CardHeader>
       
       <CardContent className="pt-0 space-y-3">
+        {/* Description */}
+        {data.description && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Description</p>
+            <p className="text-xs text-gray-700 line-clamp-2 bg-gray-50 p-2 rounded">
+              {data.description}
+            </p>
+          </div>
+        )}
+
         {/* Detail */}
         {data.detail && (
-          <p className="text-xs text-muted-foreground line-clamp-2">
-            {data.detail}
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">Arc Detail</p>
+            <p className="text-xs text-gray-700 line-clamp-2 bg-blue-50 p-2 rounded">
+              {data.detail}
+            </p>
+          </div>
         )}
 
         {/* Goal */}
         {data.goal && (
           <div className="flex items-start gap-2">
             <Target size={12} className="text-muted-foreground mt-0.5 flex-shrink-0" />
-            <p className="text-xs text-muted-foreground line-clamp-2">
-              {data.goal}
+            <div className="space-y-1 flex-1">
+              <p className="text-xs font-medium text-muted-foreground">Goal</p>
+              <p className="text-xs text-gray-700 line-clamp-2">
+                {data.goal}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Rules and Beliefs */}
+        {data.rulesAndBeliefs && data.rulesAndBeliefs.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Rules & Beliefs</p>
+            <div className="flex flex-wrap gap-1">
+              {data.rulesAndBeliefs.slice(0, 3).map((rule, index) => (
+                <Badge key={index} variant="secondary" className="text-xs">
+                  {rule}
+                </Badge>
+              ))}
+              {data.rulesAndBeliefs.length > 3 && (
+                <Badge variant="outline" className="text-xs">
+                  +{data.rulesAndBeliefs.length - 3}
+                </Badge>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Custom Attributes */}
+        {data.customAttributes && Object.keys(data.customAttributes).length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Attributes</p>
+            <div className="grid grid-cols-2 gap-1">
+              {Object.entries(data.customAttributes).slice(0, 4).map(([key, value]) => (
+                <div key={key} className="bg-gray-50 p-1 rounded text-xs">
+                  <span className="font-medium">{key}:</span> {String(value)}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* History */}
+        {data.history && data.history.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-xs font-medium text-muted-foreground">
+              History ({data.history.length} events)
             </p>
+            <div className="bg-gray-50 p-2 rounded">
+              <p className="text-xs text-gray-600">
+                Latest: {data.history[0]?.event || 'No events'}
+              </p>
+            </div>
           </div>
         )}
 

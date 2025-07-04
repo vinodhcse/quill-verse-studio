@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   ReactFlow,
@@ -64,10 +65,11 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
     console.log('Loading nodes for current view:', currentViewNodeId, currentViewType); 
 
     if (!currentViewNodeId) {
-      // Show top-level nodes (WorldLocation and WorldObject entities)
+      // Show top-level nodes (world-location and world-object entities)
       nodesToShow = canvasData.nodes.filter(node => 
-        node.type === 'WorldLocation' || node.type === 'WorldObject' || 
-        (node.parentId === null && ['WorldLocation', 'WorldObject'].includes(node.type))
+        node.type === 'world-location' || node.type === 'world-object' || 
+        node.type === 'WorldLocation' || node.type === 'WorldObject' ||
+        (node.parentId === null && ['world-location', 'world-object', 'WorldLocation', 'WorldObject'].includes(node.type))
       );
     } else {
       // Show children and linked nodes of the selected node
@@ -195,13 +197,21 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
   };
 
   const createReactFlowNode = (nodeData: CanvasNode): Node => {
+    // Determine the correct node type based on entity type
+    let nodeType = nodeData.type;
+    if (nodeData.type === 'WorldLocation') {
+      nodeType = 'world-location';
+    } else if (nodeData.type === 'WorldObject') {
+      nodeType = 'world-object';
+    }
+
     return {
       id: nodeData.id,
       type: 'plotNode',
       position: nodeData.position || { x: Math.random() * 400, y: Math.random() * 400 },
       data: {
         id: nodeData.id,
-        type: nodeData.type,
+        type: nodeType,
         name: nodeData.name,
         detail: nodeData.detail,
         goal: nodeData.goal,
@@ -212,6 +222,13 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
         characters: nodeData.characters || [],
         worlds: nodeData.worlds || [],
         timelineEventIds: [],
+        description: nodeData.description,
+        customAttributes: nodeData.customAttributes,
+        rulesAndBeliefs: nodeData.rulesAndBeliefs,
+        history: nodeData.history,
+        onEdit: (nodeId: string) => console.log('Edit node:', nodeId),
+        onAddChild: (parentId: string) => console.log('Add child to:', parentId),
+        onDelete: (nodeId: string) => console.log('Delete node:', nodeId),
         onFetchWorldEntityDetails: fetchWorldEntityDetails,
       },
     };
@@ -232,7 +249,7 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
 
   const handleAddLinkedNode = (params: Connection) => {
     const parentNodeId = params.source;
-    const currentNodeType = 'WorldLocation'; // Default to 'WorldLocation' for now
+    const currentNodeType = 'world-location'; // Default to 'world-location' for now
 
     console.log('Adding linked node:', parentNodeId);
 
@@ -299,13 +316,16 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
     console.log('Saving quick node:', nodeData, position, sourceNodeId);
 
     const parentNode = nodes.find(node => node.id === sourceNodeId);
-    const worldEntityId = parentNode?.data?.id || canvasData?.nodes.find(node => node.type === 'WorldLocation' || node.type === 'WorldObject')?.id || 'fallback-world-entity-id';
+    const worldEntityId = parentNode?.data?.id || canvasData?.nodes.find(node => node.type === 'world-location' || node.type === 'world-object')?.id || 'fallback-world-entity-id';
+    
+    // Determine node type based on the selected type
+    const nodeType = nodeData.type === 'world-object' ? 'world-object' : 'world-location';
 
     const newNodeId = `${worldEntityId}-arc-${Date.now()}`;
 
     const newNode: CanvasNode = {
       id: newNodeId,
-      type: nodeData.type || 'WorldLocation',
+      type: nodeType,
       name: nodeData.name || 'New Node',
       detail: nodeData.detail || '',
       goal: nodeData.goal || '',
@@ -314,9 +334,13 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
       childIds: [],
       linkedNodeIds: [],
       characters: [],
-      worlds: [{ id: worldEntityId as string, name: nodeData.name || 'New Node', type: nodeData.type || 'WorldLocation' }],
+      worlds: [{ id: worldEntityId as string, name: nodeData.name || 'New Node', type: nodeType === 'world-location' ? 'WorldLocation' : 'WorldObject' }],
       position,
       timelineEventIds: [],
+      description: nodeData.description || '',
+      customAttributes: nodeData.customAttributes || {},
+      rulesAndBeliefs: nodeData.rulesAndBeliefs || [],
+      history: nodeData.history || [],
     };
 
     setNodes(nds => {

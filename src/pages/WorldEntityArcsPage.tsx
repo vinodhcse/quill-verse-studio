@@ -57,10 +57,12 @@ const WorldEntityArcsPage: React.FC = () => {
           console.log('Loading world entity arc canvas data:', properCanvasData);
           setCanvasData(properCanvasData);
         } else {
-          // Create initial node from world entity data
+          // Create initial node from world entity data with proper node type
+          const nodeType = selectedWorldEntity?.entityType === 'WorldLocation' ? 'world-location' : 'world-object';
+          
           const initialNode: CanvasNode = {
             id: `${worldEntityId}-arc-initial`,
-            type: selectedWorldEntity?.entityType || 'WorldLocation',
+            type: nodeType,
             name: selectedWorldEntity?.name || 'World Entity',
             detail: 'Initial world entity state',
             goal: '',
@@ -113,43 +115,47 @@ const WorldEntityArcsPage: React.FC = () => {
           ...worldData.world.objects.map((obj: WorldObject) => ({ ...obj, entityType: 'WorldObject' }))
         ];
 
-        const worldEntityNodes: CanvasNode[] = allWorldEntities.map((entity, index) => ({
-          id: entity.id,
-          type: entity.entityType,
-          name: entity.name,
-          detail: entity.description || '',
-          goal: '',
-          status: 'Not Completed',
-          timelineEventIds: [],
-          parentId: null,
-          childIds: [],
-          linkedNodeIds: [],
-          position: { 
-            x: (index % 4) * 300 + 100, 
-            y: Math.floor(index / 4) * 200 + 100 
-          },
-          characters: [],
-          worlds: [{ 
-            id: entity.id, 
-            name: entity.name, 
-            type: entity.entityType,
-            locations: entity.entityType === 'WorldLocation' ? [{ 
+        const worldEntityNodes: CanvasNode[] = allWorldEntities.map((entity, index) => {
+          const nodeType = entity.entityType === 'WorldLocation' ? 'world-location' : 'world-object';
+          
+          return {
+            id: entity.id,
+            type: nodeType,
+            name: entity.name,
+            detail: entity.description || '',
+            goal: '',
+            status: 'Not Completed',
+            timelineEventIds: [],
+            parentId: null,
+            childIds: [],
+            linkedNodeIds: [],
+            position: { 
+              x: (index % 4) * 300 + 100, 
+              y: Math.floor(index / 4) * 200 + 100 
+            },
+            characters: [],
+            worlds: [{ 
               id: entity.id, 
               name: entity.name, 
-              selected: true 
-            }] : [],
-            objects: entity.entityType === 'WorldObject' ? [{ 
-              id: entity.id, 
-              name: entity.name, 
-              description: entity.description,
-              selected: true 
-            }] : []
-          }],
-          description: entity.description,
-          customAttributes: entity.customAttributes || {},
-          rulesAndBeliefs: entity.rulesAndBeliefs || [],
-          history: entity.history || []
-        }));
+              type: entity.entityType,
+              locations: entity.entityType === 'WorldLocation' ? [{ 
+                id: entity.id, 
+                name: entity.name, 
+                selected: true 
+              }] : [],
+              objects: entity.entityType === 'WorldObject' ? [{ 
+                id: entity.id, 
+                name: entity.name, 
+                description: entity.description,
+                selected: true 
+              }] : []
+            }],
+            description: entity.description,
+            customAttributes: entity.customAttributes || {},
+            rulesAndBeliefs: entity.rulesAndBeliefs || [],
+            history: entity.history || []
+          };
+        });
 
         const worldEntityCanvasData: PlotCanvasData = {
           nodes: worldEntityNodes,
