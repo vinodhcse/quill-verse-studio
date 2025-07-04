@@ -1,12 +1,11 @@
-
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Edit, Trash2, Globe, MapPin, Package } from 'lucide-react';
+import { Plus, Edit, Trash2, Globe, MapPin, Package, GitBranch } from 'lucide-react';
 import { LocationGlossary } from './LocationGlossary';
 import { ObjectGlossary } from './ObjectGlossary';
 import { fetchAllWorlds, createWorld, deleteWorld } from '@/lib/api';
@@ -29,6 +28,7 @@ interface WorldBuildingProps {
 
 export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId }) => {
   const { bookId: paramBookId, versionId: paramVersionId } = useParams();
+  const navigate = useNavigate();
   const [worlds, setWorlds] = useState<World[]>([]);
   const [selectedWorld, setSelectedWorld] = useState<World | null>(null);
   const [loading, setLoading] = useState(true);
@@ -109,6 +109,13 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
     } catch (error) {
       console.error('Failed to delete world:', error);
     }
+  };
+
+  const handleEditArc = (entityId: string, entityType: 'WorldLocation' | 'WorldObject') => {
+    if (!currentBookId || !currentVersionId) return;
+    
+    const url = `/plan/book/${currentBookId}/version/${currentVersionId}?boards=plot-arcs&tab=world-entity-arcs&worldEntityId=${entityId}&worldEntityType=${entityType}`;
+    navigate(url);
   };
 
   if (loading) {
@@ -243,6 +250,7 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
                       bookId={currentBookId}
                       versionId={currentVersionId}
                       onUpdate={updateWorld}
+                      onEditArc={(locationId) => handleEditArc(locationId, 'WorldLocation')}
                     />
                   </TabsContent>
 
@@ -253,6 +261,7 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
                       bookId={currentBookId}
                       versionId={currentVersionId}
                       onUpdate={updateWorld}
+                      onEditArc={(objectId) => handleEditArc(objectId, 'WorldObject')}
                     />
                   </TabsContent>
                 </div>

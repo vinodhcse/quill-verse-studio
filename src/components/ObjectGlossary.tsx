@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, Edit, Package, Calendar, History } from 'lucide-react';
+import { Plus, Edit, Package, Calendar, History, GitBranch } from 'lucide-react';
 import { CreateObjectModal } from './CreateObjectModal';
 import { EditObjectModal } from './EditObjectModal';
 import { apiClient } from '@/lib/api';
@@ -16,6 +16,7 @@ interface ObjectGlossaryProps {
   bookId?: string;
   versionId?: string;
   onUpdate: (data: WorldData) => void;
+  onEditArc?: (objectId: string) => void;
 }
 
 export const ObjectGlossary: React.FC<ObjectGlossaryProps> = ({
@@ -24,6 +25,7 @@ export const ObjectGlossary: React.FC<ObjectGlossaryProps> = ({
   bookId,
   versionId,
   onUpdate,
+  onEditArc,
 }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingObject, setEditingObject] = useState<WorldObject | null>(null);
@@ -141,6 +143,16 @@ export const ObjectGlossary: React.FC<ObjectGlossaryProps> = ({
                     </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onEditArc && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditArc(object.id)}
+                        title="Edit Arc"
+                      >
+                        <GitBranch size={14} />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"

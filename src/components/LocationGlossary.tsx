@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, Edit, MapPin, Calendar, History } from 'lucide-react';
+import { Plus, Edit, MapPin, Calendar, History, GitBranch } from 'lucide-react';
 import { CreateLocationModal } from './CreateLocationModal';
 import { EditLocationModal } from './EditLocationModal';
 import { apiClient } from '@/lib/api';
@@ -16,6 +16,7 @@ interface LocationGlossaryProps {
   bookId?: string;
   versionId?: string;
   onUpdate: (data: WorldData) => void;
+  onEditArc?: (locationId: string) => void;
 }
 
 export const LocationGlossary: React.FC<LocationGlossaryProps> = ({
@@ -24,6 +25,7 @@ export const LocationGlossary: React.FC<LocationGlossaryProps> = ({
   bookId,
   versionId,
   onUpdate,
+  onEditArc,
 }) => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [editingLocation, setEditingLocation] = useState<WorldLocation | null>(null);
@@ -103,7 +105,7 @@ export const LocationGlossary: React.FC<LocationGlossaryProps> = ({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-bold">Locations</h3>
-          <p className="text-muted-foreground">Manage your story's locations and settings</p>
+          <p className="text-muted-foreground">Manage places and settings in your story</p>
         </div>
         <Button onClick={() => setIsCreateModalOpen(true)} className="flex items-center gap-2">
           <Plus size={16} />
@@ -116,7 +118,7 @@ export const LocationGlossary: React.FC<LocationGlossaryProps> = ({
           <CardContent>
             <MapPin size={48} className="mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No Locations Yet</h3>
-            <p className="text-muted-foreground mb-4">Start building your world by adding locations</p>
+            <p className="text-muted-foreground mb-4">Start adding locations to your story</p>
             <Button onClick={() => setIsCreateModalOpen(true)}>
               <Plus size={16} className="mr-2" />
               Create First Location
@@ -141,6 +143,16 @@ export const LocationGlossary: React.FC<LocationGlossaryProps> = ({
                     </div>
                   </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onEditArc && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditArc(location.id)}
+                        title="Edit Arc"
+                      >
+                        <GitBranch size={14} />
+                      </Button>
+                    )}
                     <Button
                       variant="ghost"
                       size="sm"

@@ -1,6 +1,7 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { ReactFlowProvider } from '@xyflow/react';
+import { ReactFlowProvider, Node } from '@xyflow/react';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
 import PlotCanvas from '@/components/PlotCanvas';
 import CharacterArcPage from '@/pages/CharacterArcPage';
