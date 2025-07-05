@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { ModeNavigation, Mode } from '@/components/ModeNavigation';
 import { LeftSidebar } from '@/components/LeftSidebar';
@@ -6,6 +7,7 @@ import { CenterPanel } from '@/components/CenterPanel';
 import { SidebarToggleButtons } from '@/components/SidebarToggleButtons';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { ArrowUp } from 'lucide-react';
+import AppHeader from '@/components/AppHeader';
 
 const Index = () => {
   const { state, loading } = useBookContext();
@@ -35,9 +37,14 @@ const Index = () => {
         <div className="absolute inset-0 opacity-[0.02] bg-[radial-gradient(circle_at_1px_1px,_rgb(255,255,255)_1px,_transparent_0)] bg-[length:40px_40px]" />
       </div>
 
+      {/* App Header */}
+      <div className="relative z-30">
+        <AppHeader />
+      </div>
+
       {/* Navigation */}
       <div className="relative z-30">
-        <div className="backdrop-blur-md bg-background/80 border-b border-border/50 sticky top-0 z-30 animate-slide-down">
+        <div className="backdrop-blur-md bg-background/80 border-b border-border/50 sticky top-16 z-30 animate-slide-down">
           <ModeNavigation 
             currentMode={currentMode}
             onModeChange={handleModeChange}
@@ -50,7 +57,7 @@ const Index = () => {
       </div>
         
       {/* Main Content Area */}
-      <div className="relative z-10 h-[calc(100vh-57px)] w-full flex">
+      <div className="relative z-10 h-[calc(100vh-113px)] w-full flex">
         {/* Left Sidebar */}
         <div className={`transition-all duration-500 ease-in-out ${leftSidebarCollapsed ? 'w-0' : 'w-64'} flex-shrink-0`}>
           <LeftSidebar

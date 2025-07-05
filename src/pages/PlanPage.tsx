@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider, Node } from '@xyflow/react';
@@ -13,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PlotCanvasData } from '@/types/plotCanvas';
 import { PlotCanvasProvider } from '@/contexts/PlotCanvasContext';
 import WorldEntityArcsPage from '@/pages/WorldEntityArcsPage';
+import AppHeader from '@/components/AppHeader';
 
 // Sample data for demonstration
 const SAMPLE_CANVAS_DATA: PlotCanvasData = {
@@ -73,10 +73,6 @@ const PlanPage: React.FC = () => {
   const handleTabSelect = (tabId: string) => {
     setSearchParams({ boards: 'plot-arcs', tab: tabId });
   };
-
-  /*const handleCanvasUpdate = (updatedCanvasData: PlotCanvasData) => {
-    setCanvasData(updatedCanvasData);
-  };*/
 
   const handleCanvasUpdate = async (data: any) => {
     if (!bookId || !versionId) return;
@@ -209,12 +205,18 @@ const PlanPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col">
+    <div className="h-screen flex flex-col bg-gradient-to-br from-background via-background to-muted/20">
+      {/* App Header */}
+      <AppHeader />
+      
       <div className="border-b bg-background p-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Story Planning</h1>
             <p className="text-muted-foreground">Organize your story structure and elements</p>
+          </div>
+          <div className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">
+            Planning Mode
           </div>
         </div>
       </div>

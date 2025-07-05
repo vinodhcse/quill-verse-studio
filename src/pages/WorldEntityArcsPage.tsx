@@ -1,82 +1,143 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import WorldEntityArcCanvas from '@/components/WorldArcs/WorldEntityArcCanvas';
-import { useBookContext } from '@/lib/BookContextProvider';
+import { ReactFlowProvider, Node } from '@xyflow/react';
+import WorldEntityArcCanvas from '@/components/WorldEntityArcCanvas';
+import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
+import { apiClient } from '@/lib/api';
+import { PlotCanvasData } from '@/types/plotCanvas';
 
-const WorldEntityArcsPage = () => {
-  const { bookId, versionId } = useParams();
+const WorldEntityArcsPage: React.FC = () => {
+  const { bookId, versionId } = useParams<{ bookId: string; versionId: string }>();
   const [searchParams] = useSearchParams();
-  const worldEntityId = searchParams.get('worldEntityId');
-  const worldEntityType = searchParams.get('worldEntityType') as 'location' | 'object';
-  const activeTab = searchParams.get('tab') || 'location';
-  
-  const { state } = useBookContext();
+  const selectedEntityType = searchParams.get('entityType') || 'character';
 
-  // Mock canvas data - replace with actual data from context/API
-  const mockCanvasData = {
+  const [canvasData, setCanvasData] = useState<PlotCanvasData>({
     nodes: [],
-    edges: []
+    edges: [],
+    timelineEvents: [],
+    nodePositions: {},
+    lastUpdated: new Date().toISOString()
+  });
+
+  const fetchCanvasData = async () => {
+    if (!bookId || !versionId) return;
+
+    try {
+      const endpoint = `/books/${bookId}/versions/${versionId}/worldEntityArcs/${selectedEntityType}`;
+      const response = await apiClient.get(endpoint);
+      setCanvasData(response.data);
+    } catch (error) {
+      console.error('Failed to fetch canvas data:', error);
+    }
   };
 
-  const handleCanvasUpdate = (data: any) => {
-    console.log('Canvas updated:', data);
-    // TODO: Implement canvas update logic
+  useEffect(() => {
+    fetchCanvasData();
+  }, [bookId, versionId, selectedEntityType]);
+
+  const handleCanvasUpdate = async (data: PlotCanvasData) => {
+    if (!bookId || !versionId) return;
+
+    try {
+      const endpoint = `/books/${bookId}/versions/${versionId}/worldEntityArcs/${selectedEntityType}`;
+      await apiClient.patch(endpoint, data);
+      setCanvasData(data);
+    } catch (error) {
+      console.error('Failed to save canvas data:', error);
+      setCanvasData(data);
+    }
+  };
+
+  const onNodeDragStop = (event: any, node: Node) => {
+    console.log('Node drag stopped:', node);
+    const updatedNodes = canvasData.nodes.map((canvasNode) => {
+      if (canvasNode.id === node.id) {
+        return {
+          ...canvasNode,
+          position: node.position,
+        };
+      }
+      return canvasNode;
+    });
+
+    const updatedCanvasData = { 
+      ...canvasData, 
+      nodes: updatedNodes,
+      timelineEvents: [],
+      lastUpdated: new Date().toISOString()
+    };
+    handleCanvasUpdate(updatedCanvasData);
+  };
+
+  const renderEntityCanvas = () => {
+    const emptyCanvasData = {
+      nodes: [],
+      edges: [],
+      timelineEvents: [],
+      nodePositions: {},
+      lastUpdated: new Date().toISOString()
+    };
+
+    switch (selectedEntityType) {
+      case 'character':
+        return (
+          <WorldEntityArcCanvas
+            bookId={bookId}
+            versionId={versionId}
+            canvasData={canvasData || emptyCanvasData}
+            onCanvasUpdate={handleCanvasUpdate}
+            onNodeDragStop={onNodeDragStop}
+          />
+        );
+      case 'location':
+        return (
+          <WorldEntityArcCanvas
+            bookId={bookId}
+            versionId={versionId}
+            canvasData={canvasData || emptyCanvasData}
+            onCanvasUpdate={handleCanvasUpdate}
+            onNodeDragStop={onNodeDragStop}
+          />
+        );
+      default:
+        return null;
+    }
   };
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="border-b">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to={`/plan/book/${bookId}/version/${versionId}`}>
-                  <ArrowLeft size={16} className="mr-2" />
-                  Back to Plan
-                </Link>
-              </Button>
-              <h1 className="text-xl font-semibold">World Entity Arcs</h1>
-            </div>
+    <div className="h-screen flex flex-col">
+      <div className="border-b bg-background p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold">World Entity Arcs</h1>
+            <p className="text-muted-foreground">Visualize and manage arcs for characters and locations</p>
+          </div>
+          <div>
+            <select
+              className="border rounded px-2 py-1"
+              value={selectedEntityType}
+              onChange={(e) => {
+                const newEntityType = e.target.value;
+                searchParams.set('entityType', newEntityType);
+                window.history.replaceState(null, '', `?${searchParams.toString()}`);
+                fetchCanvasData();
+              }}
+            >
+              <option value="character">Character Arcs</option>
+              <option value="location">Location Arcs</option>
+            </select>
           </div>
         </div>
       </div>
 
-      <div className="container mx-auto px-6 py-6">
-        <Tabs value={activeTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="location">Location Arcs</TabsTrigger>
-            <TabsTrigger value="object">Object Arcs</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="location" className="mt-6">
-            <div className="h-[600px] border rounded-lg">
-              <WorldEntityArcCanvas
-                bookId={bookId!}
-                versionId={versionId!}
-                worldEntityId={worldEntityId || ''}
-                canvasData={mockCanvasData}
-                onCanvasUpdate={handleCanvasUpdate}
-              />
-            </div>
-          </TabsContent>
-
-          <TabsContent value="object" className="mt-6">
-            <div className="h-[600px] border rounded-lg">
-              <WorldEntityArcCanvas
-                bookId={bookId!}
-                versionId={versionId!}
-                worldEntityId={worldEntityId || ''}
-                canvasData={mockCanvasData}
-                onCanvasUpdate={handleCanvasUpdate}
-              />
-            </div>
-          </TabsContent>
-        </Tabs>
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar (if needed) */}
+        {/* Main Content */}
+        <div className="flex-1 p-4">
+          <ReactFlowProvider>
+            {renderEntityCanvas()}
+          </ReactFlowProvider>
+        </div>
       </div>
     </div>
   );
