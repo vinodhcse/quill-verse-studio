@@ -57,14 +57,21 @@ export type EditMode = 'view' | 'edit' | 'review' | 'track-changes' | 'suggest';
 
 export interface Version {
   id: string;
+  title?: string;
   name: string;
   description?: string;
   createdAt: string;
-  createdBy: User;
-  content: string;
+  updatedAt?: string;
+  type: "Manuscript" | "Edition";
+  status: "Draft" | "Final" | "Published";
   wordCount?: number;
-  isPublished?: boolean;
-  collaborators: User[];
+  createdBy?: string;
+  collaborators?: CollaboratorInfo[];
+  permissions?: {
+    canEdit: boolean;
+    canComment: boolean;
+    canView: boolean;
+  };
 }
 
 export interface Chapter {
@@ -84,7 +91,7 @@ export interface Book {
   bookImage?: string;
   lastModified: string;
   createdAt: string;
-  wordCount: number; // Made required to match Dashboard usage
+  wordCount: number;
   role?: 'author' | 'editor' | 'reviewer';
   subtitle?: string;
   language?: string;
@@ -124,3 +131,14 @@ export interface CollaborationSession {
   activeUsers: User[];
   lastActivity: string;
 }
+
+export type CanvasNodeType =
+  | 'Outline'
+  | 'Act'
+  | 'Chapter'
+  | 'SceneBeats'
+  | 'Character'
+  | 'WorldLocation'
+  | 'WorldObject'
+  | 'Arc'
+  | 'Chart';

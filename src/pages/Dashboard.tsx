@@ -2,10 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Book, Grid3X3, List, PenTool } from 'lucide-react';
+import { Plus, Book, Grid3X3, List } from 'lucide-react';
 import { BookCard } from '@/components/BookCard';
 import { CreateBookModal } from '@/components/CreateBookModal';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import {
   Pagination,
   PaginationContent,
@@ -14,8 +14,9 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination';
-import { apiClient, createBook, uploadBookImage, updateBookImage } from '@/lib/api';
+import { apiClient, createBook, uploadBookImage } from '@/lib/api';
 import { Book as BookType } from '@/types/collaboration';
+import AppHeader from '@/components/AppHeader';
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -171,18 +172,8 @@ const Dashboard = () => {
       </div>
 
       {/* Header */}
-      <div className="relative z-10 bg-background/80 backdrop-blur-sm border-b border-border/50">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center space-x-2 hover-scale">
-              <PenTool className="h-6 w-6 text-primary" />
-              <span className="text-xl font-bold">AuthorStudio</span>
-            </Link>
-            <Button asChild variant="outline" className="hover-scale">
-              <Link to="/login">Sign Out</Link>
-            </Button>
-          </div>
-        </div>
+      <div className="relative z-10">
+        <AppHeader />
       </div>
 
       <div className="relative z-10 container mx-auto px-6 py-8">

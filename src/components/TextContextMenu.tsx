@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { Bold, Italic, Quote, List, ListOrdered, Heading } from 'lucide-react';
+import { Bold, Italic, Quote, List, ListOrdered, Heading, Underline, Strikethrough, Expand, RefreshCw, MessageCircle, Minimize, Zap } from 'lucide-react';
 
 interface TextContextMenuProps {
   editor: Editor | null;
@@ -20,74 +20,136 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({ editor, childr
     return <>{children}</>;
   }
 
+  const handleAIAction = (action: string) => {
+    const { from, to } = editor.state.selection;
+    const selectedText = editor.state.doc.textBetween(from, to);
+    
+    if (!selectedText.trim()) {
+      console.log(`No text selected for ${action}`);
+      return;
+    }
+
+    console.log(`${action} action triggered for text:`, selectedText);
+    // TODO: Implement AI actions
+  };
+
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-48">
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleBold().run()}
-          className="flex items-center"
-        >
-          <Bold size={14} className="mr-2" />
-          {editor.isActive('bold') ? 'Remove Bold' : 'Make Bold'}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleItalic().run()}
-          className="flex items-center"
-        >
-          <Italic size={14} className="mr-2" />
-          {editor.isActive('italic') ? 'Remove Italic' : 'Make Italic'}
-        </ContextMenuItem>
-        
-        <ContextMenuSeparator />
-        
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
-          className="flex items-center"
-        >
-          <Heading size={14} className="mr-2" />
-          {editor.isActive('heading', { level: 1 }) ? 'Remove Heading 1' : 'Make Heading 1'}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
-          className="flex items-center"
-        >
-          <Heading size={14} className="mr-2" />
-          {editor.isActive('heading', { level: 2 }) ? 'Remove Heading 2' : 'Make Heading 2'}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()}
-          className="flex items-center"
-        >
-          <Heading size={14} className="mr-2" />
-          {editor.isActive('heading', { level: 3 }) ? 'Remove Heading 3' : 'Make Heading 3'}
-        </ContextMenuItem>
-        
-        <ContextMenuSeparator />
-        
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleBulletList().run()}
-          className="flex items-center"
-        >
-          <List size={14} className="mr-2" />
-          {editor.isActive('bulletList') ? 'Remove Bullet List' : 'Make Bullet List'}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleOrderedList().run()}
-          className="flex items-center"
-        >
-          <ListOrdered size={14} className="mr-2" />
-          {editor.isActive('orderedList') ? 'Remove Numbered List' : 'Make Numbered List'}
-        </ContextMenuItem>
-        <ContextMenuItem
-          onClick={() => editor.chain().focus().toggleBlockquote().run()}
-          className="flex items-center"
-        >
-          <Quote size={14} className="mr-2" />
-          {editor.isActive('blockquote') ? 'Remove Quote' : 'Make Quote'}
-        </ContextMenuItem>
+      <ContextMenuContent className="w-auto min-w-0 p-2">
+        {/* First row - Basic formatting tools */}
+        <div className="flex items-center gap-1 mb-2">
+          <button
+            onClick={() => editor.chain().focus().toggleBold().run()}
+            className={`p-2 rounded hover:bg-accent transition-colors ${
+              editor.isActive('bold') ? 'bg-accent' : ''
+            }`}
+            title="Bold"
+          >
+            <Bold size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleItalic().run()}
+            className={`p-2 rounded hover:bg-accent transition-colors ${
+              editor.isActive('italic') ? 'bg-accent' : ''
+            }`}
+            title="Italic"
+          >
+            <Italic size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleUnderline().run()}
+            className={`p-2 rounded hover:bg-accent transition-colors ${
+              editor.isActive('underline') ? 'bg-accent' : ''
+            }`}
+            title="Underline"
+          >
+            <Underline size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleStrike().run()}
+            className={`p-2 rounded hover:bg-accent transition-colors ${
+              editor.isActive('strike') ? 'bg-accent' : ''
+            }`}
+            title="Strikethrough"
+          >
+            <Strikethrough size={16} />
+          </button>
+          <div className="w-px h-6 bg-border mx-1" />
+          <button
+            onClick={() => editor.chain().focus().toggleBulletList().run()}
+            className={`p-2 rounded hover:bg-accent transition-colors ${
+              editor.isActive('bulletList') ? 'bg-accent' : ''
+            }`}
+            title="Bullet List"
+          >
+            <List size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleOrderedList().run()}
+            className={`p-2 rounded hover:bg-accent transition-colors ${
+              editor.isActive('orderedList') ? 'bg-accent' : ''
+            }`}
+            title="Numbered List"
+          >
+            <ListOrdered size={16} />
+          </button>
+          <button
+            onClick={() => editor.chain().focus().toggleBlockquote().run()}
+            className={`p-2 rounded hover:bg-accent transition-colors ${
+              editor.isActive('blockquote') ? 'bg-accent' : ''
+            }`}
+            title="Quote"
+          >
+            <Quote size={16} />
+          </button>
+        </div>
+
+        {/* Second row - AI features */}
+        <div className="flex items-center gap-1">
+          <button
+            onClick={() => handleAIAction('Expand')}
+            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+            title="Expand text"
+          >
+            <Expand size={14} />
+            Expand
+          </button>
+          <button
+            onClick={() => handleAIAction('Rephrase')}
+            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+            title="Rephrase text"
+          >
+            <RefreshCw size={14} />
+            Rephrase
+          </button>
+          <button
+            onClick={() => handleAIAction('Shorten')}
+            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+            title="Shorten text"
+          >
+            <Minimize size={14} />
+            Shorten
+          </button>
+          <button
+            onClick={() => handleAIAction('Generate')}
+            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+            title="Generate more content"
+          >
+            <Zap size={14} />
+            Generate
+          </button>
+          <button
+            onClick={() => handleAIAction('Chat')}
+            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+            title="Chat about selection"
+          >
+            <MessageCircle size={14} />
+            Chat
+          </button>
+        </div>
       </ContextMenuContent>
     </ContextMenu>
   );

@@ -272,21 +272,6 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         // Prevent default text serialization
         return '';
       },
-      transformCopied: (slice, view) => {
-        // Prevent default copy behavior by returning an empty slice
-        const text = slice.content.textBetween(0, slice.content.size);
-        
-        // Trigger our controlled copy asynchronously
-        setTimeout(async () => {
-          const success = await copyToClipboard(text);
-          if (!success) {
-            console.log('Copy operation was blocked by clipboard control');
-          }
-        }, 0);
-        
-        // Return an empty slice to prevent default clipboard write
-        return slice.content.cut(slice.content.size, slice.content.size);
-      },
     },
   });
 
