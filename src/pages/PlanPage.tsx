@@ -348,7 +348,7 @@ const PlanPage: React.FC = () => {
       <div className="relative z-30 border-b bg-background p-4">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold">Story Planning</h1>
+            <h1 className="text-2xl font-bold">The Pandore Box </h1>
             <p className="text-muted-foreground">Organize your story structure and elements</p>
           </div>
           <div className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm font-medium">

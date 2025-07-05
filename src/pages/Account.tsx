@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import AppHeader from '@/components/AppHeader';
 import { AccountSidebar } from '@/components/Account/AccountSidebar';
@@ -6,11 +5,14 @@ import { AccountDetails } from '@/components/Account/AccountDetails';
 import { SubscriptionManagement } from '@/components/Account/SubscriptionManagement';
 import { BillingHistory } from '@/components/Account/BillingHistory';
 import { ProjectSettings } from '@/components/Account/ProjectSettings';
+import { useUserContext } from '@/lib/UserContextProvider';
 
 export type AccountTab = 'details' | 'subscription' | 'billing' | 'settings';
 
 const Account = () => {
   const [activeTab, setActiveTab] = useState<AccountTab>('details');
+  const { getUser } = useUserContext();
+  const user = getUser();
 
   const renderContent = () => {
     switch (activeTab) {

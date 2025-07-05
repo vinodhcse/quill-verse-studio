@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,26 +7,68 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useUserContext } from '@/lib/UserContextProvider';
-import { Upload, Save } from 'lucide-react';
+import { Upload, Save, Edit } from 'lucide-react';
+import { apiClient } from '@/lib/api';
 
 export const AccountDetails = () => {
-  const { name, email, globalRole, userId } = useUserContext();
+  const { name, email, globalRole, userId, phoneNumber, description, link, hideProfilePicture, setUser } = useUserContext();
   const [formData, setFormData] = useState({
     name: name || '',
     email: email || '',
-    phoneNumber: '',
-    description: '',
-    link: '',
-    hideProfilePicture: false,
+    phoneNumber:  phoneNumber || '',
+    description: description || '',
+    link: link || '',
+    hideProfilePicture: hideProfilePicture || false,
   });
+  const [isEditing, setIsEditing] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setFormData({
+      name: name || '',
+      email: email || '',
+      phoneNumber: phoneNumber || '',
+      description: description || '',
+      link: link || '',
+      hideProfilePicture: hideProfilePicture || false,
+    });
+  }, [name, email, phoneNumber, description, link, hideProfilePicture]);
 
   const handleInputChange = (field: string, value: string | boolean) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
-  const handleSave = () => {
-    // TODO: Implement save functionality with API call
-    console.log('Saving user data:', formData);
+  const handleSave = async () => {
+    try {
+      const payload = {
+        email: formData.email,
+        name: formData.name,
+        phoneNumber: formData.phoneNumber,
+        description: formData.description,
+        link: formData.link,
+        hideProfilePicture: formData.hideProfilePicture,
+        createdAt: "2025-06-12T08:00:00Z",
+      };
+      setIsLoading(true)
+
+      const response = await apiClient.patch(`/users/${userId}`, payload);
+
+      if (response.status !== 200) {
+        throw new Error("Failed to update user data");
+      }
+
+      const updatedUserData = response.data;
+
+      // Update UserContextProvider with the latest data
+      setUser(updatedUserData);
+
+      console.log("User data updated successfully:", updatedUserData);
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Error updating user data:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getInitials = (name: string) => {
@@ -76,77 +117,50 @@ export const AccountDetails = () => {
 
           {/* Form Fields */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="Enter your full name"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="Enter your email"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                value={formData.phoneNumber}
-                onChange={(e) => handleInputChange('phoneNumber', e.target.value)}
-                placeholder="+1 (555) 123-4567"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="role">Account Type</Label>
-              <Input
-                id="role"
-                value={globalRole || 'Free'}
-                disabled
-                className="bg-muted"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="link">Website/Portfolio Link</Label>
-              <Input
-                id="link"
-                value={formData.link}
-                onChange={(e) => handleInputChange('link', e.target.value)}
-                placeholder="https://your-website.com"
-              />
-            </div>
+            {['name', 'email', 'phoneNumber', 'link', 'description'].map((field) => (
+              <div key={field} className="space-y-2">
+                <Label htmlFor={field}>{field.charAt(0).toUpperCase() + field.slice(1)}</Label>
+                {isEditing ? (
+                  <Input
+                    id={field}
+                    value={formData[field]}
+                    onChange={(e) => handleInputChange(field, e.target.value)}
+                    placeholder={`Enter your ${field}`}
+                  />
+                ) : (
+                  <p className="text-muted-foreground">{formData[field]}</p>
+                )}
+              </div>
+            ))}
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
-              value={formData.description}
-              onChange={(e) => handleInputChange('description', e.target.value)}
-              placeholder="Tell us about yourself or your work..."
-              rows={4}
-            />
-          </div>
+          {isEditing && (
+            <div className="flex justify-end">
+              <Button onClick={handleSave}>
+                <Save className="mr-2 h-4 w-4" />
+                Save Changes
+              </Button>
+            </div>
+          )}
 
-          <div className="flex justify-end">
-            <Button onClick={handleSave}>
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
-            </Button>
-          </div>
+          {!isEditing && (
+            <div className="flex justify-end">
+              <Button onClick={() => setIsEditing(true)}>
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
+      {/* Loading Spinner Overlay */}
+      {isLoading && (
+        <div className="fixed inset-0 flex items-center justify-center bg-background/80 z-[9999]">
+          <div className="relative inline-block w-12 h-12">
+            <span className="absolute inline-block w-full h-full border-4 border-t-primary border-b-secondary rounded-full animate-spin"></span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

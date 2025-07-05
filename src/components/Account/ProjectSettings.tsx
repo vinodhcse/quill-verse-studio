@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
@@ -23,21 +22,110 @@ import {
   Sliders,
   Globe
 } from 'lucide-react';
+import { useUserContext } from '@/lib/UserContextProvider';
+import { apiClient } from '@/lib/api';
 
 export const ProjectSettings = () => {
-  const [aiEnabled, setAiEnabled] = useState(true);
-  const [copyAllowed, setCopyAllowed] = useState(true);
-  const [temperature, setTemperature] = useState([0.7]);
-  const [maxTokens, setMaxTokens] = useState([1000]);
+  const { settings, setUser, userId } = useUserContext();
+
+  const defaultSettings = {
+    aiSettings: {
+      aiEnabled: true,
+      features: [
+        { id: 'rephrasing', label: 'Rephrasing', enabled: true, prompt: 'Rephrase the following text to be more concise and engaging.', llmModel: 'default' },
+        { id: 'expanding', label: 'Expanding', enabled: true, prompt: 'Expand the following text with more details, inner monologue, and sensory imagery.', llmModel: 'default' },
+        { id: 'concising', label: 'Concising', enabled: true, prompt: 'Shorten the following text with more details, inner monologue, and sensory imagery.', llmModel: 'default' },
+        { id: 'generating', label: 'Generating new lines', enabled: true, prompt: 'Generate new lines based on the context provided.', llmModel: 'default' },
+        { id: 'validation', label: 'Validation', enabled: true, prompt: 'Validate the following text for grammar, style, and coherence.', llmModel: 'default' },
+        { id: 'planning', label: 'Auto-updating Planning Boards', enabled: true, prompt: 'Update the planning board with the latest context and details.', llmModel: 'default' },
+        { id: 'suggestions', label: 'Auto-suggest Next Lines', enabled: true, prompt: 'Suggest the next lines based on the current context.', llmModel: 'default' },
+      ],
+    },
+    theme: {
+      color: 'blue',
+      customColorHex: '#0000FF',
+    },
+    collaboration: {
+      copyAllowed: true,
+      allowComments: true,
+      allowSuggestions: true,
+      allowTrackChanges: false,
+    },
+    advanced: {
+      temperature: 0.7,
+      maxTokens: 1000,
+      validationLevel: 'balanced',
+      tonePreset: 'conversational',
+      maxSentenceLength: 'medium',
+      vocabularyComplexity: 'medium',
+    },
+  };
+
+  const [localSettings, setLocalSettings] = useState(() => ({
+    ...defaultSettings,
+    ...settings,
+  }));
+
+  useEffect(() => {
+    if (!settings || Object.keys(settings).length === 0) {
+      console.log('Settings are empty, saving default settings');
+      const saveDefaultSettings = async () => {
+        try {
+          const payload = {
+            settings: defaultSettings,
+          };
+          const response = await apiClient.patch(`/users/${userId}`, payload);
+
+          if (response.status === 200) {
+            setUser({ settings: defaultSettings });
+            setLocalSettings(defaultSettings);
+            console.log('Default settings saved successfully');
+          } else {
+            throw new Error('Failed to save default settings');
+          }
+        } catch (error) {
+          console.error('Error saving default settings:', error);
+        }
+      };
+
+      saveDefaultSettings();
+    } else {
+      setLocalSettings((prev) => ({
+        ...defaultSettings,
+        ...settings,
+      }));
+    }
+  }, [settings]);
+
+  const handleSave = async () => {
+    try {
+      console.log('Saving settings:', localSettings);
+      const payload = {
+        settings: localSettings,
+      };
+      const response = await apiClient.patch(`/users/${userId}`, payload);
+
+      if (response.status !== 200) {
+        throw new Error('Failed to update settings');
+      }
+
+      const updatedSettings = response.data.settings;
+      setUser({ settings: updatedSettings });
+
+      console.log('Settings updated successfully:', updatedSettings);
+    } catch (error) {
+      console.error('Error updating settings:', error);
+    }
+  };
 
   const aiFeatures = [
-    { id: 'rephrasing', label: 'Rephrasing', enabled: true },
-    { id: 'expanding', label: 'Expanding', enabled: true },
-    { id: 'concising', label: 'Concising', enabled: false },
-    { id: 'generating', label: 'Generating new lines', enabled: true },
-    { id: 'validation', label: 'Validation', enabled: true },
-    { id: 'planning', label: 'Auto-updating Planning Boards', enabled: false },
-    { id: 'suggestions', label: 'Auto-suggest Next Lines', enabled: true },
+    { id: 'rephrasing', label: 'Rephrasing', enabled: true, llmModel: 'default', prompt: 'Rephrase the following text to be more concise and engaging.' },
+    { id: 'expanding', label: 'Expanding', enabled: true, llmModel: 'default', prompt: 'Expand the following text with more details, inner monologue, and sensory imagery.' },
+    { id: 'concising', label: 'Concising', enabled: true, llmModel: 'default', prompt: 'Shorten the following text with more details, inner monologue, and sensory imagery.'},
+    { id: 'generating', label: 'Generating new lines', enabled: true, llmModel: 'default', prompt: 'Generate new lines based on the context provided.' },
+    { id: 'validation', label: 'Validation', enabled: true, llmModel: 'default', prompt: 'Validate the following text for grammar, style, and coherence.' },
+    { id: 'planning', label: 'Auto-updating Planning Boards', enabled: true, llmModel: 'default', prompt: 'Update the planning board with the latest context and details.' },
+    { id: 'suggestions', label: 'Auto-suggest Next Lines', enabled: true, llmModel: 'default', prompt: 'Suggest the next lines based on the current context.' },
   ];
 
   const llmModels = [
@@ -63,6 +151,85 @@ export const ProjectSettings = () => {
     { name: 'Cyan', value: 'cyan', bgClass: 'bg-cyan-500' },
     { name: 'Yellow', value: 'yellow', bgClass: 'bg-yellow-500' },
   ];
+
+  const handleModelChange = (featureId, model) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      aiSettings: {
+        ...prev.aiSettings,
+        features: prev.aiSettings.features.map((f) =>
+          f.id === featureId ? { ...f, llmModel: model } : f
+        ),
+      },
+    }));
+  };
+
+  const handleFeatureToggle = (featureId, checked) => {
+    setLocalSettings((prev) => {
+      const updatedFeatures = prev.aiSettings.features.map((feature) =>
+        feature.id === featureId ? { ...feature, enabled: checked } : feature
+      );
+
+      return {
+        ...prev,
+        aiSettings: {
+          ...prev.aiSettings,
+          features: updatedFeatures,
+        },
+      };
+    });
+  };
+
+  const handlePromptChange = (featureId, prompt) => {
+    setLocalSettings((prev) => {
+      const updatedFeatures = prev.aiSettings.features.map((feature) =>
+        feature.id === featureId ? { ...feature, prompt } : feature
+      );
+
+      return {
+        ...prev,
+        aiSettings: {
+          ...prev.aiSettings,
+          features: updatedFeatures,
+        },
+      };
+    });
+  };
+
+  const handleToneChange = (tone) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      advanced: {
+        ...prev.advanced,
+        tonePreset: tone,
+      },
+    }));
+  };
+
+  const handleSentenceLengthChange = (length) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      advanced: {
+        ...prev.advanced,
+        maxSentenceLength: length,
+      },
+    }));
+  };
+
+  const handleVocabularyComplexityChange = (complexity) => {
+    setLocalSettings((prev) => ({
+      ...prev,
+      advanced: {
+        ...prev.advanced,
+        vocabularyComplexity: complexity,
+      },
+    }));
+  };
+
+  // Safeguard rendering by ensuring localSettings and nested properties are defined
+  if (!localSettings || !localSettings.aiSettings) {
+    return <div>Loading settings...</div>;
+  }
 
   return (
     <div className="space-y-8">
@@ -110,7 +277,10 @@ export const ProjectSettings = () => {
                   <Label className="text-base font-semibold">Enable AI Features</Label>
                   <p className="text-sm text-muted-foreground">Global switch to control all AI functionality</p>
                 </div>
-                <Switch checked={aiEnabled} onCheckedChange={setAiEnabled} />
+                <Switch
+                  checked={localSettings.aiSettings?.aiEnabled}
+                  onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, aiSettings: { ...prev.aiSettings, aiEnabled: checked } }))}
+                />
               </div>
 
               <Separator />
@@ -124,7 +294,11 @@ export const ProjectSettings = () => {
                         <Label className="font-medium">{feature.label}</Label>
                         {feature.enabled && <Badge variant="secondary" className="text-xs">Active</Badge>}
                       </div>
-                      <Switch checked={feature.enabled && aiEnabled} disabled={!aiEnabled} />
+                      <Switch 
+                        checked={localSettings.aiSettings.features.find((f) => f.id === feature.id)?.enabled && localSettings.aiSettings.aiEnabled} 
+                        disabled={!localSettings.aiSettings.aiEnabled} 
+                        onCheckedChange={(checked) => handleFeatureToggle(feature.id, checked)}
+                      />
                     </div>
                   ))}
                 </div>
@@ -145,7 +319,7 @@ export const ProjectSettings = () => {
               {aiFeatures.slice(0, 4).map((feature) => (
                 <div key={feature.id} className="space-y-2">
                   <Label className="font-medium">{feature.label}</Label>
-                  <Select defaultValue="default">
+                  <Select defaultValue="default" onValueChange={(value) => handleModelChange(feature.id, value)}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -184,20 +358,17 @@ export const ProjectSettings = () => {
               <div className="space-y-4">
                 <Label className="font-semibold">Feature-Specific Instructions</Label>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Rephrasing</Label>
-                    <Textarea 
-                      placeholder="e.g., 'Avoid formal academic tone. Keep a conversational, immersive style.'"
-                      className="min-h-[60px]"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Expansion</Label>
-                    <Textarea 
-                      placeholder="e.g., 'Add inner monologue and sensory imagery.'"
-                      className="min-h-[60px]"
-                    />
-                  </div>
+                  {localSettings?.aiSettings?.features?.map((feature) => (
+                    <div key={feature.id} className="space-y-2">
+                      <Label className="text-sm font-medium">{feature.label}</Label>
+                      <Textarea 
+                        value={feature.prompt}
+                        onChange={(e) => handlePromptChange(feature.id, e.target.value)}
+                        placeholder={`e.g., '${feature.prompt}'`}
+                        className="min-h-[60px]"
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
             </CardContent>
@@ -211,7 +382,18 @@ export const ProjectSettings = () => {
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label>Tone Preset</Label>
-                <Select defaultValue="conversational">
+                <Select
+                  value={localSettings.advanced.tonePreset}
+                  onValueChange={(value) =>
+                    setLocalSettings((prev) => ({
+                      ...prev,
+                      advanced: {
+                        ...prev.advanced,
+                        tonePreset: value,
+                      },
+                    }))
+                  }
+                >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -228,7 +410,18 @@ export const ProjectSettings = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label>Max Sentence Length</Label>
-                  <Select defaultValue="medium">
+                  <Select
+                    value={localSettings.advanced.maxSentenceLength}
+                    onValueChange={(value) =>
+                      setLocalSettings((prev) => ({
+                        ...prev,
+                        advanced: {
+                          ...prev.advanced,
+                          maxSentenceLength: value,
+                        },
+                      }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -242,7 +435,18 @@ export const ProjectSettings = () => {
 
                 <div className="space-y-2">
                   <Label>Vocabulary Complexity</Label>
-                  <Select defaultValue="medium">
+                  <Select
+                    value={localSettings.advanced.vocabularyComplexity}
+                    onValueChange={(value) =>
+                      setLocalSettings((prev) => ({
+                        ...prev,
+                        advanced: {
+                          ...prev.advanced,
+                          vocabularyComplexity: value,
+                        },
+                      }))
+                    }
+                  >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
@@ -301,7 +505,10 @@ export const ProjectSettings = () => {
                   <Label className="text-base font-semibold">Allow Copy</Label>
                   <p className="text-sm text-muted-foreground">Enable others to copy content from your shared documents</p>
                 </div>
-                <Switch checked={copyAllowed} onCheckedChange={setCopyAllowed} />
+                <Switch 
+                  checked={localSettings.collaboration.copyAllowed} 
+                  onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, collaboration: { ...prev.collaboration, copyAllowed: checked } }))} 
+                />
               </div>
 
               <Separator />
@@ -311,15 +518,24 @@ export const ProjectSettings = () => {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <Label>Allow Comments</Label>
-                    <Switch defaultChecked />
+                    <Switch 
+                      checked={localSettings.collaboration.allowComments} 
+                      onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, collaboration: { ...prev.collaboration, allowComments: checked } }))} 
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label>Allow Suggestions</Label>
-                    <Switch defaultChecked />
+                    <Switch 
+                      checked={localSettings.collaboration.allowSuggestions} 
+                      onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, collaboration: { ...prev.collaboration, allowSuggestions: checked } }))} 
+                    />
                   </div>
                   <div className="flex items-center justify-between">
                     <Label>Allow Track Changes</Label>
-                    <Switch />
+                    <Switch 
+                      checked={localSettings.collaboration.allowTrackChanges} 
+                      onCheckedChange={(checked) => setLocalSettings((prev) => ({ ...prev, collaboration: { ...prev.collaboration, allowTrackChanges: checked } }))} 
+                    />
                   </div>
                 </div>
               </div>
@@ -339,10 +555,10 @@ export const ProjectSettings = () => {
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label className="font-medium">Temperature / Creativity: {temperature[0]}</Label>
+                  <Label className="font-medium">Temperature / Creativity: {localSettings.advanced.temperature}</Label>
                   <Slider
-                    value={temperature}
-                    onValueChange={setTemperature}
+                    value={[localSettings.advanced.temperature]}
+                    onValueChange={(value) => setLocalSettings((prev) => ({ ...prev, advanced: { ...prev.advanced, temperature: value[0] } }))}
                     max={1.5}
                     min={0}
                     step={0.1}
@@ -352,10 +568,10 @@ export const ProjectSettings = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="font-medium">Max Tokens: {maxTokens[0]}</Label>
+                  <Label className="font-medium">Max Tokens: {localSettings.advanced.maxTokens}</Label>
                   <Slider
-                    value={maxTokens}
-                    onValueChange={setMaxTokens}
+                    value={[localSettings.advanced.maxTokens]}
+                    onValueChange={(value) => setLocalSettings((prev) => ({ ...prev, advanced: { ...prev.advanced, maxTokens: value[0] } }))}
                     max={2000}
                     min={100}
                     step={50}
@@ -432,7 +648,7 @@ export const ProjectSettings = () => {
 
       <div className="flex justify-end gap-4 pt-6">
         <Button variant="outline">Reset to Defaults</Button>
-        <Button className="bg-gradient-to-r from-primary to-purple-600 text-white">
+        <Button className="bg-gradient-to-r from-primary to-purple-600 text-white" onClick={handleSave}>
           Save Settings
         </Button>
       </div>
