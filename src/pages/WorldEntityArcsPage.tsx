@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider } from '@xyflow/react';
@@ -77,13 +76,19 @@ const WorldEntityArcsPage: React.FC = () => {
             linkedNodeIds: [],
             position: { x: 100, y: 100 },
             characters: [],
-            attributes:   [{ 
+            attributes: nodeType === 'WorldLocation' ? {
               id: selectedWorldEntity.id, 
               name: selectedWorldEntity.name,
               description: selectedWorldEntity.description || '',
               customAttributes: selectedWorldEntity?.customAttributes || {},  
               history: selectedWorldEntity?.history || []
-            }],
+            } : {
+              id: selectedWorldEntity.id, 
+              name: selectedWorldEntity.name,
+              description: selectedWorldEntity.description || '',
+              customAttributes: selectedWorldEntity?.customAttributes || {},  
+              history: selectedWorldEntity?.history || []
+            },
             description: selectedWorldEntity?.description,
             customAttributes: selectedWorldEntity?.customAttributes || {},
             rulesAndBeliefs: selectedWorldEntity?.rulesAndBeliefs || [],
@@ -129,14 +134,19 @@ const WorldEntityArcsPage: React.FC = () => {
               y: Math.floor(index / 4) * 200 + 100 
             },
             characters: [],
-            attributes:   [{ 
+            attributes: nodeType === 'WorldLocation' ? {
               id: entity.id, 
               name: entity.name,
               description: entity.description || '',
               customAttributes: entity?.customAttributes || {},  
               history: entity?.history || []
-            }],
-           
+            } : {
+              id: entity.id, 
+              name: entity.name,
+              description: entity.description || '',
+              customAttributes: entity?.customAttributes || {},  
+              history: entity?.history || []
+            },
             description: entity.description,
             customAttributes: entity.customAttributes || {},
             rulesAndBeliefs: entity.rulesAndBeliefs || [],

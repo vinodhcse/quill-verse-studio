@@ -8,7 +8,7 @@ import {
   ContextMenuSeparator,
   ContextMenuTrigger,
 } from '@/components/ui/context-menu';
-import { Bold, Italic, Quote, List, ListOrdered, Heading, Underline, Strikethrough, Expand, Rephrase, Chat, Shorten, Generate } from 'lucide-react';
+import { Bold, Italic, Quote, List, ListOrdered, Heading, Underline, Strikethrough, Expand, RefreshCw, MessageCircle, Minimize, Zap } from 'lucide-react';
 
 interface TextContextMenuProps {
   editor: Editor | null;
@@ -122,7 +122,7 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({ editor, childr
             className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
             title="Rephrase text"
           >
-            <Rephrase size={14} />
+            <RefreshCw size={14} />
             Rephrase
           </button>
           <button
@@ -130,7 +130,7 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({ editor, childr
             className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
             title="Shorten text"
           >
-            <Shorten size={14} />
+            <Minimize size={14} />
             Shorten
           </button>
           <button
@@ -138,7 +138,7 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({ editor, childr
             className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
             title="Generate more content"
           >
-            <Generate size={14} />
+            <Zap size={14} />
             Generate
           </button>
           <button
@@ -146,7 +146,7 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({ editor, childr
             className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
             title="Chat about selection"
           >
-            <Chat size={14} />
+            <MessageCircle size={14} />
             Chat
           </button>
         </div>
