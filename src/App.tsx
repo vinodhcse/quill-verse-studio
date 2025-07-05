@@ -16,6 +16,7 @@ import NotFound from "./pages/NotFound";
 import PlanPage from "./pages/PlanPage";
 import CharacterArcPage from "./pages/CharacterArcPage";
 import WorldEntityArcsPage from "./pages/WorldEntityArcsPage";
+import Account from "./pages/Account";
 import { BookProvider } from '@/lib/BookContextProvider';
 import { UserContextProvider } from '@/lib/UserContextProvider';
 import EditPage from "./pages/EditPage";
@@ -76,6 +77,7 @@ const App = () => (
                     } />
                     <Route path="/dashboard" element={<Dashboard />} />
                     <Route path="/book/:bookId" element={<BookDetails />} />
+                    <Route path="/account" element={<Account />} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </UserContextProvider>

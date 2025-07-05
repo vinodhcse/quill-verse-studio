@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { PenTool, User, Settings, LogOut, Sun, Moon, Monitor } from 'lucide-react';
 import { useUserContext } from '@/lib/UserContextProvider';
-import { useTheme } from 'next-themes';
+import { useTheme } from '@/components/ThemeProvider';
 
 const AppHeader = () => {
   const { name, email } = useUserContext();
@@ -85,9 +85,11 @@ const AppHeader = () => {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem className="cursor-pointer">
-                  <User className="mr-2 h-4 w-4" />
-                  Account
+                <DropdownMenuItem asChild className="cursor-pointer">
+                  <Link to="/account">
+                    <User className="mr-2 h-4 w-4" />
+                    Account
+                  </Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem className="cursor-pointer">
                   <Settings className="mr-2 h-4 w-4" />
