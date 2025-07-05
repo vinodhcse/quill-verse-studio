@@ -45,7 +45,6 @@ const WorldEntityArcsPage = () => {
           <TabsContent value="location" className="mt-6">
             <div className="h-[600px] border rounded-lg">
               <WorldEntityArcCanvas
-                entityType="location"
                 bookId={bookId!}
                 versionId={versionId!}
               />
@@ -55,7 +54,6 @@ const WorldEntityArcsPage = () => {
           <TabsContent value="object" className="mt-6">
             <div className="h-[600px] border rounded-lg">
               <WorldEntityArcCanvas
-                entityType="object"
                 bookId={bookId!}
                 versionId={versionId!}
               />

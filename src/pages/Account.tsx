@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { AppHeader } from '@/components/AppHeader';
+import AppHeader from '@/components/AppHeader';
 import { AccountSidebar } from '@/components/Account/AccountSidebar';
 import { AccountDetails } from '@/components/Account/AccountDetails';
 import { SubscriptionManagement } from '@/components/Account/SubscriptionManagement';
