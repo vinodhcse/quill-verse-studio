@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share, Edit, UserPlus, Trash2, Building2, Link as LinkIcon } from 'lucide-react';
+import { Book, Calendar, User, FileText, Mail, Plus, Edit, UserPlus, Trash2, Building2, Link as LinkIcon, Star, Globe, Palette } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
 import { useForm } from 'react-hook-form';
@@ -16,6 +16,7 @@ import { CreateVersionModal } from '@/components/CreateVersionModal';
 import { useToast } from '@/hooks/use-toast';
 import { getLoggedInUserId } from '../lib/authService';
 import { useUserContext } from '../lib/UserContextProvider';
+import AppHeader from '@/components/AppHeader';
 
 interface InviteFormData {
   email: string;
@@ -37,7 +38,6 @@ const BookDetails = () => {
   const [bookUserRole, setBookUserRole] = useState<string | null>(null);
 
   const { userId: currentUserId } = useUserContext();
-  console.log('Current User ID:', currentUserId);
 
   const form = useForm<InviteFormData>({
     defaultValues: {
@@ -59,7 +59,6 @@ const BookDetails = () => {
         const bookData = bookResponse.data;
         setBookDetails(bookData);
         
-        // Transform versions to match the expected Version type
         const transformedVersions = versionsResponse.data.map((version: any) => ({
           ...version,
           name: version.name || version.title || 'Untitled Version',
@@ -68,28 +67,18 @@ const BookDetails = () => {
         }));
         setVersions(transformedVersions);
 
-        // Determine user role
         const loggedInUserId = currentUserId || getLoggedInUserId();
-        console.log('Logged In User ID:', loggedInUserId);
-        console.log('Book Author ID:', bookData.authorId);
-
         let userRole = null;
         
-        // Check if user is the author first
         if (bookData.authorId === loggedInUserId) {
           userRole = 'AUTHOR';
-          console.log('User is the AUTHOR of this book');
         } else {
-          // Check if user is a collaborator
-          console.log('Book collaborators:', bookData.collaborators);
           const collaborator = bookData.collaborators?.find(
             (collab) => collab.user_id === loggedInUserId
           );
-          console.log('Found collaborator:', collaborator);
           userRole = collaborator ? collaborator.collaborator_type : 'VIEWER';
         }
         
-        console.log('Final determined role:', userRole);
         setBookUserRole(userRole);
         
       } catch (error) {
@@ -105,18 +94,15 @@ const BookDetails = () => {
   const handleInviteCollaborator = async (data: InviteFormData) => {
     setIsInviting(true);
     try {
-      // Step 1: Check if email is already registered
       let existingUser = null;
       try {
         const userResponse = await apiClient.get(`/users/email/${data.email}`);
         existingUser = userResponse.data;
-        console.log('Found existing user:', existingUser);
       } catch (error) {
         console.log('User not found, will create placeholder');
       }
 
       if (existingUser) {
-        // User exists, add them directly to collaborators
         const currentCollaborators = bookDetails?.collaborators || [];
         const currentCollaboratorsIds = bookDetails?.collaboratorIds || [];
         const newCollaborator = {
@@ -124,7 +110,7 @@ const BookDetails = () => {
           user_email: existingUser.email,
           name: existingUser.name,
           collaborator_type: data.role,
-          addedBy: currentUserId || "user_001", // This should come from current user context
+          addedBy: currentUserId || "user_001",
           addedAt: new Date().toISOString(),
           expiresAt: null
         };
@@ -137,7 +123,6 @@ const BookDetails = () => {
           collaboratorIds: updatedCollaboratorids
         });
       } else {
-        // User doesn't exist, create placeholder and send invitation
         await apiClient.post(`/books/${bookId}/invite`, {
           email: data.email,
           role: data.role
@@ -147,7 +132,6 @@ const BookDetails = () => {
       form.reset();
       setShowInviteForm(false);
       
-      // Refresh book details to show new collaborator
       const response = await apiClient.get(`/books/${bookId}`);
       setBookDetails(response.data);
     } catch (error) {
@@ -158,27 +142,8 @@ const BookDetails = () => {
     }
   };
 
-  const handleUpdateBook = async (bookData: {
-    title: string;
-    subtitle: string;
-    language: string;
-    description: string;
-    bookType?: string;
-    genre?: string;
-    subGenre?: string;
-    bookProse?: string;
-    synopsis?: string;
-    authorName?: string;
-    publisherName?: string;
-    publisherLink?: string;
-    printISBN?: string;
-    ebookISBN?: string;
-    publisherLogo?: string;
-    file?: File;
-    publisherLogoFile?: File;
-  }) => {
+  const handleUpdateBook = async (bookData: any) => {
     try {
-      // Update book details
       const updateData: any = {
         title: bookData.title,
         subtitle: bookData.subtitle,
@@ -196,7 +161,6 @@ const BookDetails = () => {
         ebookISBN: bookData.ebookISBN,
       };
 
-      // If there's a new image file, upload it first
       if (bookData.file) {
         const uploadResponse = await apiClient.post(`/books/${bookId}/files`, {
           file: bookData.file,
@@ -210,7 +174,6 @@ const BookDetails = () => {
         updateData.bookImage = uploadResponse.data.url;
       }
 
-      // If there's a new publisher logo file, upload it
       if (bookData.publisherLogoFile) {
         const uploadResponse = await apiClient.post(`/books/${bookId}/files`, {
           file: bookData.publisherLogoFile,
@@ -226,7 +189,6 @@ const BookDetails = () => {
 
       await apiClient.patch(`/books/${bookId}`, updateData);
       
-      // Refresh book details
       const response = await apiClient.get(`/books/${bookId}`);
       setBookDetails(response.data);
       setIsEditModalOpen(false);
@@ -290,11 +252,11 @@ const BookDetails = () => {
 
   const getRoleColor = (role: string) => {
     switch (role) {
-      case 'AUTHOR': return 'bg-purple-100 text-purple-800';
-      case 'CO_WRITER': return 'bg-blue-100 text-blue-800';
-      case 'EDITOR': return 'bg-green-100 text-green-800';
-      case 'REVIEWER': return 'bg-orange-100 text-orange-800';
-      default: return 'bg-gray-100 text-gray-800';
+      case 'AUTHOR': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300';
+      case 'CO_WRITER': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+      case 'EDITOR': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+      case 'REVIEWER': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
+      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
     }
   };
 
@@ -303,7 +265,6 @@ const BookDetails = () => {
     
     setIsDeletingCollaborator(collaboratorId);
     try {
-      // Filter out the collaborator to be deleted
       const updatedCollaborators = bookDetails.collaborators.filter(
         collaborator => collaborator.user_id !== collaboratorId
       );
@@ -312,13 +273,11 @@ const BookDetails = () => {
          id => id !== collaboratorId
       );
 
-      // Update the book with the new collaborators list
       await apiClient.patch(`/books/${bookId}`, {
         collaborators: updatedCollaborators,
         collaboratorIds: updatedCollaboratorids
       });
 
-      // Update local state
       setBookDetails({
         ...bookDetails,
         collaborators: updatedCollaborators
@@ -342,10 +301,13 @@ const BookDetails = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Loading book details...</p>
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="text-muted-foreground">Loading book details...</p>
+          </div>
         </div>
       </div>
     );
@@ -353,12 +315,15 @@ const BookDetails = () => {
 
   if (!bookDetails) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-2xl font-bold mb-4">Book not found</h2>
-          <Button asChild>
-            <Link to="/dashboard">Back to Dashboard</Link>
-          </Button>
+      <div className="min-h-screen bg-background">
+        <AppHeader />
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center">
+          <div className="text-center space-y-4">
+            <h2 className="text-2xl font-bold">Book not found</h2>
+            <Button asChild>
+              <Link to="/dashboard">Back to Dashboard</Link>
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -366,195 +331,218 @@ const BookDetails = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b">
-        <div className="container mx-auto px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <Button variant="ghost" size="sm" asChild>
-                <Link to="/dashboard">
-                  <ArrowLeft size={16} className="mr-2" />
-                  Back to Dashboard
-                </Link>
-              </Button>
+      <AppHeader />
+      
+      <div className="container mx-auto px-6 py-8 max-w-7xl">
+        {/* Modern Book Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-accent/5 border shadow-sm mb-8">
+          <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]"></div>
+          <div className="relative p-8">
+            <div className="flex items-start gap-8">
+              {/* Book Cover */}
+              <div className="flex-shrink-0">
+                <div className="w-48 h-64 rounded-xl overflow-hidden shadow-2xl border-2 border-white/10">
+                  {bookDetails.bookImage ? (
+                    <img
+                      src={bookDetails.bookImage}
+                      alt={bookDetails.title}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
+                      <Book size={48} className="text-primary/60" />
+                    </div>
+                  )}
+                </div>
+              </div>
+              
+              {/* Book Info */}
+              <div className="flex-1 space-y-6">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
+                      {bookDetails.title}
+                    </h1>
+                    <Button 
+                      onClick={() => setIsEditModalOpen(true)} 
+                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                      size="sm"
+                    >
+                      <Edit size={16} className="mr-2" />
+                      Edit Book
+                    </Button>
+                  </div>
+                  
+                  {bookDetails.subtitle && (
+                    <p className="text-xl text-muted-foreground">{bookDetails.subtitle}</p>
+                  )}
+                  
+                  <p className="text-lg font-medium text-muted-foreground">
+                    by {(bookDetails as any).authorName || bookDetails.authorname}
+                  </p>
+                </div>
+
+                {/* Book Details Grid */}
+                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                  {(bookDetails as any).bookType && (
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Type:</span>
+                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                        {(bookDetails as any).bookType}
+                      </Badge>
+                    </div>
+                  )}
+                  {(bookDetails as any).genre && (
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Genre:</span>
+                      <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/20">
+                        {(bookDetails as any).genre}
+                      </Badge>
+                    </div>
+                  )}
+                  {(bookDetails as any).subGenre && (
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Sub-Genre:</span>
+                      <Badge variant="outline" className="border-muted-foreground/30">
+                        {(bookDetails as any).subGenre}
+                      </Badge>
+                    </div>
+                  )}
+                  {(bookDetails as any).bookProse && (
+                    <div className="flex items-center space-x-3">
+                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Prose:</span>
+                      <Badge variant="outline" className="border-muted-foreground/30">
+                        {(bookDetails as any).bookProse}
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+
+                {/* Synopsis */}
+                {(bookDetails as any).synopsis && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-foreground">Synopsis</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {(bookDetails as any).synopsis}
+                    </p>
+                  </div>
+                )}
+
+                {/* Description */}
+                {bookDetails.description && (
+                  <div className="space-y-2">
+                    <h3 className="font-semibold text-foreground">Description</h3>
+                    <p className="text-muted-foreground text-sm leading-relaxed">
+                      {bookDetails.description}
+                    </p>
+                  </div>
+                )}
+
+                {/* Stats */}
+                <div className="flex items-center gap-6 pt-4 border-t border-border/50">
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <Calendar size={16} />
+                    <span>Created {formatDate(bookDetails.createdAt)}</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <FileText size={16} />
+                    <span>{(bookDetails.wordCount || 0).toLocaleString()} words</span>
+                  </div>
+                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                    <User size={16} />
+                    <span>{bookDetails.collaborators?.length || 0} collaborators</span>
+                  </div>
+                </div>
+              </div>
             </div>
-            <Button onClick={() => setIsEditModalOpen(true)} size="sm">
-              <Edit size={16} className="mr-2" />
-              Edit Book
-            </Button>
           </div>
         </div>
-      </div>
 
-      <div className="container mx-auto px-6 py-8">
-        {/* Book Header */}
-        <div className="flex items-start space-x-6 mb-8">
-          <div className="w-32 h-44 flex-shrink-0">
-            {bookDetails.bookImage ? (
-              <img
-                src={bookDetails.bookImage}
-                alt={bookDetails.title}
-                className="w-full h-full object-cover rounded-lg"
-              />
-            ) : (
-              <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center rounded-lg">
-                <Book size={32} className="text-primary/60" />
-              </div>
-            )}
-          </div>
-          
-          <div className="flex-1">
-            <h1 className="text-3xl font-bold mb-2">{bookDetails.title}</h1>
-            {bookDetails.subtitle && (
-              <p className="text-xl text-muted-foreground mb-2">{bookDetails.subtitle}</p>
-            )}
-            <p className="text-lg text-muted-foreground mb-4">by {(bookDetails as any).authorName || bookDetails.authorname}</p>
-            
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
-              <div className="flex items-center space-x-2">
-                <Calendar size={16} className="text-muted-foreground" />
-                <span>Created: {formatDate(bookDetails.createdAt)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Calendar size={16} className="text-muted-foreground" />
-                <span>Modified: {formatDate(bookDetails.lastModified)}</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <FileText size={16} className="text-muted-foreground" />
-                <span>{(bookDetails.wordCount || 0).toLocaleString()} words</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <User size={16} className="text-muted-foreground" />
-                <span>{bookDetails.collaborators?.length || 0} collaborators</span>
-              </div>
-              {bookDetails.language && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">Language:</span>
-                  <span>{bookDetails.language}</span>
-                </div>
-              )}
-            </div>
-
-            {/* New Book Details in Two Column Structure */}
-            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-4">
-              {(bookDetails as any).bookType && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground font-medium">Type:</span>
-                  <Badge variant="outline">{(bookDetails as any).bookType}</Badge>
-                </div>
-              )}
-              {(bookDetails as any).genre && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground font-medium">Genre:</span>
-                  <Badge variant="outline">{(bookDetails as any).genre}</Badge>
-                </div>
-              )}
-              {(bookDetails as any).subGenre && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground font-medium">Sub-Genre:</span>
-                  <Badge variant="outline">{(bookDetails as any).subGenre}</Badge>
-                </div>
-              )}
-              {(bookDetails as any).bookProse && (
-                <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground font-medium">Prose:</span>
-                  <Badge variant="outline">{(bookDetails as any).bookProse}</Badge>
-                </div>
-              )}
-            </div>
-
-            {(bookDetails as any).synopsis && (
-              <div className="mb-4">
-                <h3 className="font-medium mb-2">Synopsis</h3>
-                <p className="text-muted-foreground">{(bookDetails as any).synopsis}</p>
-              </div>
-            )}
-
-            {bookDetails.description && (
-              <div className="mt-4">
-                <h3 className="font-medium mb-2">Description</h3>
-                <p className="text-muted-foreground">{bookDetails.description}</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Tabs */}
+        {/* Modern Tabs */}
         <Tabs defaultValue="versions" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="versions">Versions</TabsTrigger>
-            <TabsTrigger value="collaborators">Collaborators</TabsTrigger>
-            <TabsTrigger value="publisher">Publisher</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-3 bg-muted/50 p-1 rounded-xl">
+            <TabsTrigger value="versions" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Versions
+            </TabsTrigger>
+            <TabsTrigger value="collaborators" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Collaborators
+            </TabsTrigger>
+            <TabsTrigger value="publisher" className="rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm">
+              Publisher
+            </TabsTrigger>
           </TabsList>
 
           {/* Versions Tab */}
-          <TabsContent value="versions" className="space-y-4">
+          <TabsContent value="versions" className="space-y-6 mt-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Book Versions</h3>
+              <h3 className="text-2xl font-semibold">Book Versions</h3>
               <Button 
                 onClick={() => setIsCreateVersionOpen(true)} 
-                size="sm"
+                className="bg-primary hover:bg-primary/90"
               >
                 <Plus size={16} className="mr-2" />
                 Create Version
               </Button>
             </div>
             
-            <div className="grid gap-4">
+            <div className="grid gap-6">
               {versions?.map((version) => (
-                <Card key={version.id} className="cursor-pointer hover:shadow-md transition-all duration-200 group">
-                  <CardContent className="p-4">
+                <Card key={version.id} className="group hover:shadow-lg transition-all duration-300 border-border/50 hover:border-primary/20">
+                  <CardContent className="p-6">
                     <div className="flex items-center justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-2">
-                          <h4 className="font-medium">{version.name}</h4>
-                          <Badge className="bg-blue-100 text-blue-800">Manuscript</Badge>
-                          <Badge className="bg-yellow-100 text-yellow-800">Draft</Badge>
+                      <div className="flex-1 space-y-3">
+                        <div className="flex items-center space-x-3">
+                          <h4 className="font-semibold text-lg">{version.name}</h4>
+                          <Badge className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300">
+                            Manuscript
+                          </Badge>
+                          <Badge className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300">
+                            Draft
+                          </Badge>
                         </div>
                         
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 text-sm text-muted-foreground">
-                          <div className="flex items-center space-x-1">
-                            <Calendar size={12} />
-                            <span>Created: {formatDate(version.createdAt)}</span>
+                        <div className="grid grid-cols-3 gap-6">
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            <Calendar size={14} />
+                            <span>Created {formatDate(version.createdAt)}</span>
                           </div>
-                          <div className="flex items-center space-x-1">
-                            <FileText size={12} />
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            <FileText size={14} />
                             <span>{(version.wordCount || 0).toLocaleString()} words</span>
                           </div>
-                          <div className="flex items-center space-x-1">
-                            <User size={12} />
+                          <div className="flex items-center space-x-2 text-sm text-muted-foreground">
+                            <User size={14} />
                             <span>{version.createdBy || 'Unknown'}</span>
                           </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center space-x-2 ml-4">
-                        <Button
-                          onClick={() => handleOpenVersion(version.id)}
-                          size="sm"
-                        >
-                          Open
-                        </Button>
-                      </div>
+                      <Button
+                        onClick={() => handleOpenVersion(version.id)}
+                        className="bg-primary hover:bg-primary/90 text-primary-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Open
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>
               )) || (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No versions found</p>
+                <div className="text-center py-12">
+                  <Book size={48} className="mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-lg">No versions found</p>
                 </div>
               )}
             </div>
           </TabsContent>
 
           {/* Collaborators Tab */}
-          <TabsContent value="collaborators" className="space-y-4">
+          <TabsContent value="collaborators" className="space-y-6 mt-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Collaborators</h3>
+              <h3 className="text-2xl font-semibold">Collaborators</h3>
               <Button 
                 onClick={() => setShowInviteForm(!showInviteForm)} 
-                size="sm"
                 variant={showInviteForm ? "outline" : "default"}
+                className={showInviteForm ? "" : "bg-primary hover:bg-primary/90"}
               >
                 <UserPlus size={16} className="mr-2" />
                 {showInviteForm ? 'Cancel' : 'Invite Collaborator'}
@@ -563,9 +551,12 @@ const BookDetails = () => {
 
             {/* Invite Form */}
             {showInviteForm && (
-              <Card>
+              <Card className="border-primary/20 bg-primary/5">
                 <CardHeader>
-                  <CardTitle>Invite New Collaborator</CardTitle>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Mail size={20} />
+                    <span>Invite New Collaborator</span>
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Form {...form}>
@@ -614,7 +605,7 @@ const BookDetails = () => {
                       />
 
                       <div className="flex space-x-2">
-                        <Button type="submit" disabled={isInviting}>
+                        <Button type="submit" disabled={isInviting} className="bg-primary hover:bg-primary/90">
                           <Mail size={16} className="mr-2" />
                           {isInviting ? 'Inviting...' : 'Send Invitation'}
                         </Button>
@@ -633,21 +624,21 @@ const BookDetails = () => {
             )}
             
             {/* Collaborators List */}
-            <div className="grid gap-3">
+            <div className="grid gap-4">
               {bookDetails.collaborators?.map((collaborator) => (
-                <Card key={collaborator.user_id}>
+                <Card key={collaborator.user_id} className="hover:shadow-md transition-shadow border-border/50">
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User size={16} className="text-primary" />
+                      <div className="flex items-center space-x-4">
+                        <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                          <User size={20} className="text-primary" />
                         </div>
                         <div>
-                          <p className="font-medium">{collaborator.name}</p>
+                          <p className="font-medium text-foreground">{collaborator.name}</p>
                           <p className="text-sm text-muted-foreground">{collaborator.user_email}</p>
                         </div>
                       </div>
-                      <div className="flex items-center space-x-2">
+                      <div className="flex items-center space-x-3">
                         <Badge className={getRoleColor(collaborator.collaborator_type)}>
                           {collaborator.collaborator_type}
                         </Badge>
@@ -656,7 +647,7 @@ const BookDetails = () => {
                           size="sm"
                           onClick={() => handleDeleteCollaborator(collaborator.user_id)}
                           disabled={isDeletingCollaborator === collaborator.user_id}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
                         >
                           {isDeletingCollaborator === collaborator.user_id ? (
                             <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
@@ -669,67 +660,72 @@ const BookDetails = () => {
                   </CardContent>
                 </Card>
               )) || (
-                <div className="text-center py-8">
-                  <p className="text-muted-foreground">No collaborators yet</p>
+                <div className="text-center py-12">
+                  <UserPlus size={48} className="mx-auto text-muted-foreground mb-4" />
+                  <p className="text-muted-foreground text-lg">No collaborators yet</p>
                 </div>
               )}
             </div>
           </TabsContent>
 
           {/* Publisher Tab */}
-          <TabsContent value="publisher" className="space-y-4">
+          <TabsContent value="publisher" className="space-y-6 mt-8">
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium">Publisher Details</h3>
+              <h3 className="text-2xl font-semibold">Publisher Details</h3>
             </div>
             
-            <Card>
-              <CardContent className="p-6">
+            <Card className="border-border/50">
+              <CardContent className="p-8">
                 {(bookDetails as any).publisherName || (bookDetails as any).publisherLink || (bookDetails as any).printISBN || (bookDetails as any).ebookISBN ? (
-                  <div className="space-y-4">
-                    <div className="flex items-start space-x-4">
+                  <div className="space-y-6">
+                    <div className="flex items-start space-x-6">
                       {(bookDetails as any).publisherLogo && (
-                        <div className="w-16 h-12 flex-shrink-0">
+                        <div className="w-20 h-16 flex-shrink-0">
                           <img
                             src={(bookDetails as any).publisherLogo}
                             alt="Publisher logo"
-                            className="w-full h-full object-contain rounded border"
+                            className="w-full h-full object-contain rounded-lg border border-border/50"
                           />
                         </div>
                       )}
-                      <div className="flex-1 space-y-3">
+                      <div className="flex-1 space-y-4">
                         {(bookDetails as any).publisherName && (
-                          <div className="flex items-center space-x-2">
-                            <Building2 size={16} className="text-muted-foreground" />
-                            <span className="font-medium">{(bookDetails as any).publisherName}</span>
+                          <div className="flex items-center space-x-3">
+                            <Building2 size={20} className="text-primary" />
+                            <span className="font-semibold text-lg">{(bookDetails as any).publisherName}</span>
                           </div>
                         )}
                         
                         {(bookDetails as any).publisherLink && (
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-3">
                             <LinkIcon size={16} className="text-muted-foreground" />
                             <a 
                               href={(bookDetails as any).publisherLink} 
                               target="_blank" 
                               rel="noopener noreferrer"
-                              className="text-blue-600 hover:underline"
+                              className="text-primary hover:text-primary/80 hover:underline transition-colors"
                             >
                               {(bookDetails as any).publisherLink}
                             </a>
                           </div>
                         )}
                         
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
                           {(bookDetails as any).printISBN && (
-                            <div>
-                              <span className="text-sm text-muted-foreground">Print ISBN:</span>
-                              <p className="font-mono text-sm">{(bookDetails as any).printISBN}</p>
+                            <div className="space-y-1">
+                              <span className="text-sm font-medium text-muted-foreground">Print ISBN:</span>
+                              <p className="font-mono text-sm bg-muted/50 px-3 py-2 rounded-lg">
+                                {(bookDetails as any).printISBN}
+                              </p>
                             </div>
                           )}
                           
                           {(bookDetails as any).ebookISBN && (
-                            <div>
-                              <span className="text-sm text-muted-foreground">E-book ISBN:</span>
-                              <p className="font-mono text-sm">{(bookDetails as any).ebookISBN}</p>
+                            <div className="space-y-1">
+                              <span className="text-sm font-medium text-muted-foreground">E-book ISBN:</span>
+                              <p className="font-mono text-sm bg-muted/50 px-3 py-2 rounded-lg">
+                                {(bookDetails as any).ebookISBN}
+                              </p>
                             </div>
                           )}
                         </div>
@@ -737,10 +733,10 @@ const BookDetails = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className="text-center py-8">
+                  <div className="text-center py-12">
                     <Building2 size={48} className="mx-auto text-muted-foreground mb-4" />
-                    <p className="text-muted-foreground">No publisher details available</p>
-                    <p className="text-sm text-muted-foreground mt-1">Use the Edit Book button to add publisher information</p>
+                    <p className="text-muted-foreground text-lg mb-2">No publisher details available</p>
+                    <p className="text-sm text-muted-foreground">Use the Edit Book button to add publisher information</p>
                   </div>
                 )}
               </CardContent>

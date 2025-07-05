@@ -1,10 +1,11 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { WorldEntityArcCanvas } from '@/components/WorldArcs/WorldEntityArcCanvas';
+import WorldEntityArcCanvas from '@/components/WorldArcs/WorldEntityArcCanvas';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { CanvasNode, WorldLocationAttributes, WorldObjectAttributes } from '@/types/plotCanvas';
 
