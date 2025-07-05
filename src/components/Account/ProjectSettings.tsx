@@ -53,6 +53,17 @@ export const ProjectSettings = () => {
     'Formal', 'Conversational', 'Lyrical/Poetic', 'Dark/Gritty', 'Epic/Grand', 'Custom'
   ];
 
+  const colorOptions = [
+    { name: 'Blue', value: 'blue', bgClass: 'bg-blue-500' },
+    { name: 'Purple', value: 'purple', bgClass: 'bg-purple-500' },
+    { name: 'Green', value: 'green', bgClass: 'bg-green-500' },
+    { name: 'Orange', value: 'orange', bgClass: 'bg-orange-500' },
+    { name: 'Red', value: 'red', bgClass: 'bg-red-500' },
+    { name: 'Pink', value: 'pink', bgClass: 'bg-pink-500' },
+    { name: 'Cyan', value: 'cyan', bgClass: 'bg-cyan-500' },
+    { name: 'Yellow', value: 'yellow', bgClass: 'bg-yellow-500' },
+  ];
+
   return (
     <div className="space-y-8">
       <div className="text-center mb-8">
@@ -222,9 +233,9 @@ export const ProjectSettings = () => {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="short">Short (< 15 words)</SelectItem>
-                      <SelectItem value="medium">Medium (< 20 words)</SelectItem>
-                      <SelectItem value="long">Long (< 30 words)</SelectItem>
+                      <SelectItem value="short">Short (&lt; 15 words)</SelectItem>
+                      <SelectItem value="medium">Medium (&lt; 20 words)</SelectItem>
+                      <SelectItem value="long">Long (&lt; 30 words)</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -258,10 +269,10 @@ export const ProjectSettings = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                {['Blue', 'Purple', 'Green', 'Orange', 'Red', 'Pink', 'Cyan', 'Yellow'].map((color) => (
-                  <div key={color} className="text-center space-y-2">
-                    <div className={`w-12 h-12 rounded-full mx-auto cursor-pointer transition-transform hover:scale-110 bg-${color.toLowerCase()}-500`} />
-                    <Label className="text-sm">{color}</Label>
+                {colorOptions.map((color) => (
+                  <div key={color.value} className="text-center space-y-2">
+                    <div className={`w-12 h-12 rounded-full mx-auto cursor-pointer transition-transform hover:scale-110 ${color.bgClass}`} />
+                    <Label className="text-sm">{color.name}</Label>
                   </div>
                 ))}
               </div>
