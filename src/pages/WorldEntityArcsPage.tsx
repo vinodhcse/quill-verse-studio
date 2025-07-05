@@ -1,144 +1,240 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
-import { ReactFlowProvider, Node } from '@xyflow/react';
+import { ReactFlowProvider } from '@xyflow/react';
 import WorldEntityArcCanvas from '@/components/WorldArcs/WorldEntityArcCanvas';
-import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
+import { PlotCanvasProvider } from '@/contexts/PlotCanvasContext';
+import { PlotCanvasData, CanvasNode, WorldLocationAttributes, WorldObjectAttributes } from '@/types/plotCanvas';
+import { WorldLocation, WorldObject } from '@/types/world';
 import { apiClient } from '@/lib/api';
-import { PlotCanvasData } from '@/types/plotCanvas';
 
 const WorldEntityArcsPage: React.FC = () => {
   const { bookId, versionId } = useParams<{ bookId: string; versionId: string }>();
   const [searchParams] = useSearchParams();
-  const selectedEntityType = searchParams.get('entityType') || 'character';
+  const worldEntityId = searchParams.get('worldEntityId');
+  const worldId = searchParams.get('worldId');
+  const [canvasData, setCanvasData] = useState<PlotCanvasData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [worldData, setWorldData] = useState(null);
+  const [updatingCanvas, setUpdatingCanvas] = useState(false);
 
-  const [canvasData, setCanvasData] = useState<PlotCanvasData>({
-    nodes: [],
-    edges: [],
-    timelineEvents: [],
-    nodePositions: {},
-    lastUpdated: new Date().toISOString()
-  });
-
-  const fetchCanvasData = async () => {
-    if (!bookId || !versionId) return;
-
-    try {
-      const endpoint = `/books/${bookId}/versions/${versionId}/worldEntityArcs/${selectedEntityType}`;
-      const response = await apiClient.get(endpoint);
-      setCanvasData(response.data);
-    } catch (error) {
-      console.error('Failed to fetch canvas data:', error);
-    }
-  };
+  console.log('WorldEntityArcsPage mounted with bookId:', bookId, 'versionId:', versionId, 'worldEntityId:', worldEntityId);
 
   useEffect(() => {
-    fetchCanvasData();
-  }, [bookId, versionId, selectedEntityType]);
+    fetchWorldEntityData();
+  }, [bookId, versionId, worldEntityId]);
 
-  const handleCanvasUpdate = async (data: PlotCanvasData) => {
+  const fetchWorldEntityData = async () => {
     if (!bookId || !versionId) return;
 
+    setLoading(true);
     try {
-      const endpoint = `/books/${bookId}/versions/${versionId}/worldEntityArcs/${selectedEntityType}`;
-      await apiClient.patch(endpoint, data);
-      setCanvasData(data);
+      if (worldEntityId) {
+        // Load specific world entity's arc
+        console.log('Loading specific world entity arc for:', worldEntityId);
+        const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/world/${worldId}  `);
+        const worldData = response.data || { world: { locations: [], objects: [] } };
+        
+        // Find the world entity (could be location or object)
+        const allWorldEntities = [
+          ...worldData.world.locations.map((loc: WorldLocation) => ({ ...loc, entityType: 'WorldLocation' })),
+          ...worldData.world.objects.map((obj: WorldObject) => ({ ...obj, entityType: 'WorldObject' }))
+        ];
+        
+        const selectedWorldEntity = allWorldEntities.find(entity => entity.id === worldEntityId);
+        console.log('Found selected world entity:', selectedWorldEntity);
+        setWorldData(worldData)
+        
+        if (selectedWorldEntity && selectedWorldEntity.arc && 
+            typeof selectedWorldEntity.arc === 'object' &&
+            'nodes' in selectedWorldEntity.arc && Array.isArray(selectedWorldEntity.arc.nodes) &&
+            'edges' in selectedWorldEntity.arc && Array.isArray(selectedWorldEntity.arc.edges)) {
+          // World entity has proper canvas data - ensure it has required properties
+          const arcData = selectedWorldEntity.arc as any;
+          const properCanvasData: PlotCanvasData = {
+            nodes: arcData.nodes || [],
+            edges: arcData.edges || [],
+            timelineEvents: arcData.timelineEvents || [],
+            lastUpdated: arcData.lastUpdated || new Date().toISOString()
+          };
+          console.log('Loading world entity arc canvas data:', properCanvasData);
+          setCanvasData(properCanvasData);
+          
+        } else {
+          // Create initial node from world entity data with proper node type
+          const nodeType = selectedWorldEntity?.entityType === 'WorldLocation' ? 'WorldLocation' : 'WorldObject';
+          
+          const initialNode: CanvasNode = {
+            id: `${worldEntityId}-arc-initial`,
+            type: nodeType,
+            name: selectedWorldEntity?.name || 'World Entity',
+            detail: 'Initial world entity state',
+            goal: '',
+            status: 'Not Completed',
+            timelineEventIds: [],
+            parentId: null,
+            childIds: [],
+            linkedNodeIds: [],
+            position: { x: 100, y: 100 },
+            characters: [],
+            attributes:   [{ 
+              id: selectedWorldEntity.id, 
+              name: selectedWorldEntity.name,
+              description: selectedWorldEntity.description || '',
+              customAttributes: selectedWorldEntity?.customAttributes || {},  
+              history: selectedWorldEntity?.history || []
+            }],
+            description: selectedWorldEntity?.description,
+            customAttributes: selectedWorldEntity?.customAttributes || {},
+            rulesAndBeliefs: selectedWorldEntity?.rulesAndBeliefs || [],
+            history: selectedWorldEntity?.history || []
+          };
+
+          setCanvasData({ 
+            nodes: [initialNode], 
+            edges: [], 
+            timelineEvents: [], 
+            lastUpdated: new Date().toISOString() 
+          });
+        }
+      } else {
+        // Load all world entities as nodes
+        console.log('Loading all world entities');
+        const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/world`);
+        const worldData = response.data || { world: { locations: [], objects: [] } };
+        
+        console.log('Fetched world data:', worldData);
+
+        const allWorldEntities = [
+          ...worldData.world.locations.map((loc: WorldLocation) => ({ ...loc, entityType: 'WorldLocation' })),
+          ...worldData.world.objects.map((obj: WorldObject) => ({ ...obj, entityType: 'WorldObject' }))
+        ];
+
+        const worldEntityNodes: CanvasNode[] = allWorldEntities.map((entity, index) => {
+          const nodeType = entity.entityType === 'WorldLocation' ? 'WorldLocation' : 'WorldObject';
+          
+          return {
+            id: entity.id,
+            type: nodeType,
+            name: entity.name,
+            detail: entity.description || '',
+            goal: '',
+            status: 'Not Completed',
+            timelineEventIds: [],
+            parentId: null,
+            childIds: [],
+            linkedNodeIds: [],
+            position: { 
+              x: (index % 4) * 300 + 100, 
+              y: Math.floor(index / 4) * 200 + 100 
+            },
+            characters: [],
+            attributes:   [{ 
+              id: entity.id, 
+              name: entity.name,
+              description: entity.description || '',
+              customAttributes: entity?.customAttributes || {},  
+              history: entity?.history || []
+            }],
+           
+            description: entity.description,
+            customAttributes: entity.customAttributes || {},
+            rulesAndBeliefs: entity.rulesAndBeliefs || [],
+            history: entity.history || []
+          };
+        });
+
+        const worldEntityCanvasData: PlotCanvasData = {
+          nodes: worldEntityNodes,
+          edges: [],
+          timelineEvents: [],
+          lastUpdated: new Date().toISOString()
+        };
+
+        setCanvasData(worldEntityCanvasData);
+        console.log('World entity canvas data set:', worldEntityCanvasData);
+      }
     } catch (error) {
-      console.error('Failed to save canvas data:', error);
-      setCanvasData(data);
+      console.error('Failed to fetch world entity data:', error);
+      setCanvasData({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const onNodeDragStop = (event: any, node: Node) => {
-    console.log('Node drag stopped:', node);
-    const updatedNodes = canvasData.nodes.map((canvasNode) => {
-      if (canvasNode.id === node.id) {
-        return {
-          ...canvasNode,
-          position: node.position,
-        };
+  const handleCanvasUpdate = async (updatedCanvasData: PlotCanvasData) => {
+    if (!bookId || !versionId) return;
+
+    setUpdatingCanvas(true);
+    try {
+      console.log('Updating world entity canvas data:', updatedCanvasData);
+      
+      if (worldEntityId && worldData) {
+        // Update specific world entity's arc
+
+         const allWorldEntities = [
+          ...worldData.world.locations.map((loc: WorldLocation) => ({ ...loc, entityType: 'WorldLocation' })),
+          ...worldData.world.objects.map((obj: WorldObject) => ({ ...obj, entityType: 'WorldObject' }))
+        ];
+
+        const selectedWorldEntity = allWorldEntities.find(entity => entity.id === worldEntityId);
+        console.log('Found selected world entity:', selectedWorldEntity);
+
+        if (!selectedWorldEntity) {
+          console.error('Selected world entity not found:', worldEntityId);
+          return;
+        }
+        // Update the selected world entity's arc in worldData
+        const updatedWorldData = { ...worldData };
+        if (selectedWorldEntity.entityType === 'WorldLocation') {
+          updatedWorldData.world.locations = updatedWorldData.world.locations.map((loc: WorldLocation) =>
+            loc.id === selectedWorldEntity.id
+              ? { ...loc, arc: updatedCanvasData }
+              : loc
+          );
+        } else if (selectedWorldEntity.entityType === 'WorldObject') {
+          updatedWorldData.world.objects = updatedWorldData.world.objects.map((obj: WorldObject) =>
+            obj.id === selectedWorldEntity.id
+              ? { ...obj, arc: updatedCanvasData }
+              : obj
+          );
+        }
+        setWorldData(updatedWorldData);
+
+        await apiClient.patch(`/books/${bookId}/versions/${versionId}/world/${worldId}`, {
+          world: updatedWorldData.world
+        });
       }
-      return canvasNode;
-    });
-
-    const updatedCanvasData = { 
-      ...canvasData, 
-      nodes: updatedNodes,
-      timelineEvents: [],
-      lastUpdated: new Date().toISOString()
-    };
-    handleCanvasUpdate(updatedCanvasData);
-  };
-
-  const renderEntityCanvas = () => {
-    const emptyCanvasData = {
-      nodes: [],
-      edges: [],
-      timelineEvents: [],
-      nodePositions: {},
-      lastUpdated: new Date().toISOString()
-    };
-
-    switch (selectedEntityType) {
-      case 'character':
-        return (
-          <WorldEntityArcCanvas
-            bookId={bookId}
-            versionId={versionId}
-            canvasData={canvasData || emptyCanvasData}
-            onCanvasUpdate={handleCanvasUpdate}
-            onNodeDragStop={onNodeDragStop}
-          />
-        );
-      case 'location':
-        return (
-          <WorldEntityArcCanvas
-            bookId={bookId}
-            versionId={versionId}
-            canvasData={canvasData || emptyCanvasData}
-            onCanvasUpdate={handleCanvasUpdate}
-            onNodeDragStop={onNodeDragStop}
-          />
-        );
-      default:
-        return null;
+      
+      setCanvasData(updatedCanvasData);
+      console.log('World entity canvas data updated successfully');
+    } catch (error) {
+      console.error('Failed to update world entity canvas data:', error);
+    } finally {
+      setUpdatingCanvas(false);
     }
   };
 
   return (
-    <div className="h-screen flex flex-col">
-      <div className="border-b bg-background p-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold">World Entity Arcs</h1>
-            <p className="text-muted-foreground">Visualize and manage arcs for characters and locations</p>
-          </div>
-          <div>
-            <select
-              className="border rounded px-2 py-1"
-              value={selectedEntityType}
-              onChange={(e) => {
-                const newEntityType = e.target.value;
-                searchParams.set('entityType', newEntityType);
-                window.history.replaceState(null, '', `?${searchParams.toString()}`);
-                fetchCanvasData();
-              }}
-            >
-              <option value="character">Character Arcs</option>
-              <option value="location">Location Arcs</option>
-            </select>
+    <div className="relative h-screen">
+      {(loading || updatingCanvas) && (
+        <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-75 z-50">
+          <div className="spinner-border animate-spin inline-block w-8 h-8 border-4 rounded-full" role="status">
+            <span className="sr-only">Loading...</span>
           </div>
         </div>
-      </div>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar (if needed) */}
-        {/* Main Content */}
-        <div className="flex-1 p-4">
-          <ReactFlowProvider>
-            {renderEntityCanvas()}
-          </ReactFlowProvider>
-        </div>
-      </div>
+      )}
+      <PlotCanvasProvider bookId={bookId} versionId={versionId}>
+        <ReactFlowProvider>
+          <WorldEntityArcCanvas 
+            bookId={bookId} 
+            versionId={versionId}
+            worldEntityId={worldEntityId}
+            canvasData={canvasData}
+            onCanvasUpdate={handleCanvasUpdate}
+          />
+        </ReactFlowProvider>
+      </PlotCanvasProvider>
     </div>
   );
 };
