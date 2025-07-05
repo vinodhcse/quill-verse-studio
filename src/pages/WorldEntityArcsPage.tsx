@@ -17,6 +17,17 @@ const WorldEntityArcsPage = () => {
   
   const { state } = useBookContext();
 
+  // Mock canvas data - replace with actual data from context/API
+  const mockCanvasData = {
+    nodes: [],
+    edges: []
+  };
+
+  const handleCanvasUpdate = (data: any) => {
+    console.log('Canvas updated:', data);
+    // TODO: Implement canvas update logic
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <div className="border-b">
@@ -47,6 +58,9 @@ const WorldEntityArcsPage = () => {
               <WorldEntityArcCanvas
                 bookId={bookId!}
                 versionId={versionId!}
+                worldEntityId={worldEntityId || ''}
+                canvasData={mockCanvasData}
+                onCanvasUpdate={handleCanvasUpdate}
               />
             </div>
           </TabsContent>
@@ -56,6 +70,9 @@ const WorldEntityArcsPage = () => {
               <WorldEntityArcCanvas
                 bookId={bookId!}
                 versionId={versionId!}
+                worldEntityId={worldEntityId || ''}
+                canvasData={mockCanvasData}
+                onCanvasUpdate={handleCanvasUpdate}
               />
             </div>
           </TabsContent>
