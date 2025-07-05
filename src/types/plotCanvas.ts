@@ -28,9 +28,39 @@ export interface CharacterAttributes {
   }>;
 }
 
+export interface WorldLocationAttributes {
+  id: string;
+  name: string;
+  description: string;
+  image?: string;
+  customAttributes: Record<string, any>;
+  rulesAndBeliefs: string[];
+  history: Array<{
+    event: string;
+    eventNote?: string;
+    date: string;
+  }>;
+  
+}
+
+ export interface WorldObjectAttributes {
+   id: string;
+   name: string;
+  description: string;
+  image?: string;
+  customAttributes: Record<string, any>;
+  rulesAndBeliefs: string[];
+  history: Array<{
+    event: string;
+    eventNote?: string;
+    date: string;
+  }>;
+  
+ }
+
 export interface CanvasNode {
   id: string;
-  type: 'Outline' | 'Act' | 'Chapter' | 'SceneBeats' | 'Character' | 'WorldLocation' | 'WorldObject' | 'Arc' | 'Chart' | 'world-location' | 'world-object';
+  type: 'Outline' | 'Act' | 'Chapter' | 'SceneBeats' | 'Character' | 'WorldLocation' | 'WorldObject' | 'Arc' | 'Chart';
   name: string;
   detail: string;
   goal?: string;
@@ -104,7 +134,7 @@ export interface CanvasNode {
   }>;
 
   // New structured attributes for character arcs
-  attributes?: CharacterAttributes | Attribute[];
+  attributes?: CharacterAttributes | WorldLocationAttributes| WorldObjectAttributes|  Attribute[];
 }
 
 export interface TimelineEvent {

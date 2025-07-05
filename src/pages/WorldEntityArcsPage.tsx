@@ -4,7 +4,7 @@ import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider } from '@xyflow/react';
 import WorldEntityArcCanvas from '@/components/WorldArcs/WorldEntityArcCanvas';
 import { PlotCanvasProvider } from '@/contexts/PlotCanvasContext';
-import { PlotCanvasData, CanvasNode } from '@/types/plotCanvas';
+import { PlotCanvasData, CanvasNode, WorldLocationAttributes, WorldObjectAttributes } from '@/types/plotCanvas';
 import { WorldLocation, WorldObject } from '@/types/world';
 import { apiClient } from '@/lib/api';
 
@@ -12,8 +12,10 @@ const WorldEntityArcsPage: React.FC = () => {
   const { bookId, versionId } = useParams<{ bookId: string; versionId: string }>();
   const [searchParams] = useSearchParams();
   const worldEntityId = searchParams.get('worldEntityId');
+  const worldId = searchParams.get('worldId');
   const [canvasData, setCanvasData] = useState<PlotCanvasData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [worldData, setWorldData] = useState(null);
   const [updatingCanvas, setUpdatingCanvas] = useState(false);
 
   console.log('WorldEntityArcsPage mounted with bookId:', bookId, 'versionId:', versionId, 'worldEntityId:', worldEntityId);
@@ -30,7 +32,7 @@ const WorldEntityArcsPage: React.FC = () => {
       if (worldEntityId) {
         // Load specific world entity's arc
         console.log('Loading specific world entity arc for:', worldEntityId);
-        const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/world`);
+        const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/world/${worldId}  `);
         const worldData = response.data || { world: { locations: [], objects: [] } };
         
         // Find the world entity (could be location or object)
@@ -41,6 +43,7 @@ const WorldEntityArcsPage: React.FC = () => {
         
         const selectedWorldEntity = allWorldEntities.find(entity => entity.id === worldEntityId);
         console.log('Found selected world entity:', selectedWorldEntity);
+        setWorldData(worldData)
         
         if (selectedWorldEntity && selectedWorldEntity.arc && 
             typeof selectedWorldEntity.arc === 'object' &&
@@ -56,9 +59,10 @@ const WorldEntityArcsPage: React.FC = () => {
           };
           console.log('Loading world entity arc canvas data:', properCanvasData);
           setCanvasData(properCanvasData);
+          
         } else {
           // Create initial node from world entity data with proper node type
-          const nodeType = selectedWorldEntity?.entityType === 'WorldLocation' ? 'world-location' : 'world-object';
+          const nodeType = selectedWorldEntity?.entityType === 'WorldLocation' ? 'WorldLocation' : 'WorldObject';
           
           const initialNode: CanvasNode = {
             id: `${worldEntityId}-arc-initial`,
@@ -73,22 +77,13 @@ const WorldEntityArcsPage: React.FC = () => {
             linkedNodeIds: [],
             position: { x: 100, y: 100 },
             characters: [],
-            worlds: selectedWorldEntity ? [{ 
+            attributes:   [{ 
               id: selectedWorldEntity.id, 
-              name: selectedWorldEntity.name, 
-              type: selectedWorldEntity.entityType,
-              locations: selectedWorldEntity.entityType === 'WorldLocation' ? [{ 
-                id: selectedWorldEntity.id, 
-                name: selectedWorldEntity.name, 
-                selected: true 
-              }] : [],
-              objects: selectedWorldEntity.entityType === 'WorldObject' ? [{ 
-                id: selectedWorldEntity.id, 
-                name: selectedWorldEntity.name, 
-                description: selectedWorldEntity.description,
-                selected: true 
-              }] : []
-            }] : [],
+              name: selectedWorldEntity.name,
+              description: selectedWorldEntity.description || '',
+              customAttributes: selectedWorldEntity?.customAttributes || {},  
+              history: selectedWorldEntity?.history || []
+            }],
             description: selectedWorldEntity?.description,
             customAttributes: selectedWorldEntity?.customAttributes || {},
             rulesAndBeliefs: selectedWorldEntity?.rulesAndBeliefs || [],
@@ -116,7 +111,7 @@ const WorldEntityArcsPage: React.FC = () => {
         ];
 
         const worldEntityNodes: CanvasNode[] = allWorldEntities.map((entity, index) => {
-          const nodeType = entity.entityType === 'WorldLocation' ? 'world-location' : 'world-object';
+          const nodeType = entity.entityType === 'WorldLocation' ? 'WorldLocation' : 'WorldObject';
           
           return {
             id: entity.id,
@@ -134,22 +129,14 @@ const WorldEntityArcsPage: React.FC = () => {
               y: Math.floor(index / 4) * 200 + 100 
             },
             characters: [],
-            worlds: [{ 
+            attributes:   [{ 
               id: entity.id, 
-              name: entity.name, 
-              type: entity.entityType,
-              locations: entity.entityType === 'WorldLocation' ? [{ 
-                id: entity.id, 
-                name: entity.name, 
-                selected: true 
-              }] : [],
-              objects: entity.entityType === 'WorldObject' ? [{ 
-                id: entity.id, 
-                name: entity.name, 
-                description: entity.description,
-                selected: true 
-              }] : []
+              name: entity.name,
+              description: entity.description || '',
+              customAttributes: entity?.customAttributes || {},  
+              history: entity?.history || []
             }],
+           
             description: entity.description,
             customAttributes: entity.customAttributes || {},
             rulesAndBeliefs: entity.rulesAndBeliefs || [],
@@ -182,10 +169,40 @@ const WorldEntityArcsPage: React.FC = () => {
     try {
       console.log('Updating world entity canvas data:', updatedCanvasData);
       
-      if (worldEntityId) {
+      if (worldEntityId && worldData) {
         // Update specific world entity's arc
-        await apiClient.patch(`/books/${bookId}/versions/${versionId}/world/entities/${worldEntityId}`, {
-          arc: updatedCanvasData
+
+         const allWorldEntities = [
+          ...worldData.world.locations.map((loc: WorldLocation) => ({ ...loc, entityType: 'WorldLocation' })),
+          ...worldData.world.objects.map((obj: WorldObject) => ({ ...obj, entityType: 'WorldObject' }))
+        ];
+
+        const selectedWorldEntity = allWorldEntities.find(entity => entity.id === worldEntityId);
+        console.log('Found selected world entity:', selectedWorldEntity);
+
+        if (!selectedWorldEntity) {
+          console.error('Selected world entity not found:', worldEntityId);
+          return;
+        }
+        // Update the selected world entity's arc in worldData
+        const updatedWorldData = { ...worldData };
+        if (selectedWorldEntity.entityType === 'WorldLocation') {
+          updatedWorldData.world.locations = updatedWorldData.world.locations.map((loc: WorldLocation) =>
+            loc.id === selectedWorldEntity.id
+              ? { ...loc, arc: updatedCanvasData }
+              : loc
+          );
+        } else if (selectedWorldEntity.entityType === 'WorldObject') {
+          updatedWorldData.world.objects = updatedWorldData.world.objects.map((obj: WorldObject) =>
+            obj.id === selectedWorldEntity.id
+              ? { ...obj, arc: updatedCanvasData }
+              : obj
+          );
+        }
+        setWorldData(updatedWorldData);
+
+        await apiClient.patch(`/books/${bookId}/versions/${versionId}/world/${worldId}`, {
+          world: updatedWorldData.world
         });
       }
       

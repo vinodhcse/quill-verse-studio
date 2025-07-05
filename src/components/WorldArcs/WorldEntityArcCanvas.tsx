@@ -1,5 +1,4 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   ReactFlow,
   addEdge,
@@ -15,12 +14,13 @@ import {
 import '@xyflow/react/dist/style.css';
 import WorldEntityArcPlotNode from './WorldEntityArcPlotNode';
 import DeletableEdge from '@/components/DeletableEdge';
-import { PlotNodeData, CanvasNode, PlotCanvasData } from '@/types/plotCanvas';
+import { PlotNodeData, CanvasNode, PlotCanvasData, TimelineEvent } from '@/types/plotCanvas';
 import { Button } from '@/components/ui/button';
 import { debounce } from 'lodash';
 import { useReactFlow } from '@xyflow/react';
 import { apiClient } from '@/lib/api';
 import { QuickNodeModal } from '@/components/QuickNodeModal';
+import WorldEntityNodeEditModal from '@/components/WorldArcs/WorldEntityNodeEditModal';
 
 const nodeTypes = { plotNode: WorldEntityArcPlotNode };
 const edgeTypes = {
@@ -50,14 +50,41 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
   const [showQuickModal, setShowQuickModal] = useState(false);
   const [quickModalPosition, setQuickModalPosition] = useState<{ x: number; y: number } | null>(null);
 
+    const [connectFromNodeId, setConnectFromNodeId] = useState<string | null>(null);
+    const [isCreatingEdge, setIsCreatingEdge] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingNode, setEditingNode] = useState<CanvasNode | null>(null);
+
   const reactFlowInstance = useReactFlow();
+  const [plotCanvasData, setPlotCanvasData] = useState<PlotCanvasData>({ nodes: [], edges: [], timelineEvents: [], lastUpdated: '' });
 
   useEffect(() => {
     if (canvasData && canvasData.nodes) {
       loadNodesForCurrentView();
     }
+    
   }, [canvasData, currentViewNodeId, currentViewType]);
 
+
+    useEffect(() => {
+      if (bookId && versionId) {
+        fetchPlotCanvasData();
+      }
+    }, [bookId, versionId]);
+
+    const fetchPlotCanvasData = async () => {
+      if (!bookId || !versionId) return;
+      
+      try {
+        const response = await apiClient.get(`/books/${bookId}/versions/${versionId}/plotCanvas`);
+        if (response.data) {
+          setPlotCanvasData(response.data);
+          console.log('Fetched plot canvas data:', response.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch plot canvas data:', error);
+      }
+    }  
   const loadNodesForCurrentView = () => {
     if (!canvasData) return;
 
@@ -67,9 +94,8 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
     if (!currentViewNodeId) {
       // Show top-level nodes (world-location and world-object entities)
       nodesToShow = canvasData.nodes.filter(node => 
-        node.type === 'world-location' || node.type === 'world-object' || 
         node.type === 'WorldLocation' || node.type === 'WorldObject' ||
-        (node.parentId === null && ['world-location', 'world-object', 'WorldLocation', 'WorldObject'].includes(node.type))
+        (node.parentId === null && ['WorldLocation', 'WorldObject'].includes(node.type))
       );
     } else {
       // Show children and linked nodes of the selected node
@@ -196,13 +222,43 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
     }
   };
 
+   const handleEditNode = (nodeId: string) => {
+    console.log('Edit node:', nodeId);
+    const node = canvasData?.nodes.find(n => n.id === nodeId);
+    if (node && (node.type === 'WorldLocation' || node.type === 'WorldObject')) {
+      setEditingNode(node);
+      setShowEditModal(true);
+    }
+  };
+
+  const handleNavigateToEntity = (entityId: string) => {
+    console.log('Navigating to entity:', entityId);
+    const entity = canvasData?.nodes.find(n => n.id === entityId);
+    if (entity) {
+      console.log('Setting current view to:', entityId, entity.type);
+      setCurrentViewNodeId(entityId);
+      setCurrentViewType(entity.type);
+    }
+  };
+
+  const handleDeleteNode = async (nodeId: string) => {
+    console.log('Deleting node:', nodeId);
+    if (!canvasData) return;
+
+    const updatedNodes = canvasData.nodes.filter(node => node.id !== nodeId);
+    const updatedEdges = canvasData.edges.filter(edge => edge.source !== nodeId && edge.target !== nodeId);
+
+    const updatedCanvasData = { ...canvasData, nodes: updatedNodes, edges: updatedEdges };
+    await onCanvasUpdate(updatedCanvasData);
+  };
+
   const createReactFlowNode = (nodeData: CanvasNode): Node => {
     // Determine the correct node type based on entity type
     let nodeType = nodeData.type;
     if (nodeData.type === 'WorldLocation') {
-      nodeType = 'world-location';
+      nodeType = 'WorldLocation';
     } else if (nodeData.type === 'WorldObject') {
-      nodeType = 'world-object';
+      nodeType = 'WorldObject';
     }
 
     return {
@@ -226,9 +282,9 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
         customAttributes: nodeData.customAttributes,
         rulesAndBeliefs: nodeData.rulesAndBeliefs,
         history: nodeData.history,
-        onEdit: (nodeId: string) => console.log('Edit node:', nodeId),
-        onAddChild: (parentId: string) => console.log('Add child to:', parentId),
-        onDelete: (nodeId: string) => console.log('Delete node:', nodeId),
+        onEdit: handleEditNode,        
+        onNavigateToEntity: handleNavigateToEntity,
+        onDelete: handleDeleteNode,
         onFetchWorldEntityDetails: fetchWorldEntityDetails,
       },
     };
@@ -247,9 +303,76 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
     return { x: Math.random() * 400, y: Math.random() * 400 };
   };
 
+
+  const handleNodeDragStop = async (event: any, node: Node) => {
+      console.log('Node drag stopped:', node.id, 'at position:', node.position);
+      if (!canvasData) return;
+      if (!node.position) return;
+
+      const updatedCanvasData = {
+              ...canvasData,
+              nodes: canvasData?.nodes.map(existingNode => {
+                if (existingNode.id ===  node.id) {
+                  return {
+                    ...existingNode,
+                   position: node.position,
+                  };
+                }
+                return existingNode;
+              }) || [],
+            };
+  
+      console.log('Node drag stopped: Updating canvas data with new node position:', updatedCanvasData);
+      await onCanvasUpdate(updatedCanvasData);
+    };
+
+   const onConnect = useCallback(
+      (params: Connection) => {
+        console.log('Connecting nodes:', params);
+        const parentNodeId = params.source;
+        const targetNodeId = params.target;
+        if (canvasData) {
+
+          setNodes(nds => {
+              const updatedNodes = nds.map(node => {
+                if (node.id === parentNodeId) {
+                  return {
+                    ...node,
+                    data: {
+                      ...node.data,
+                      linkedNodeIds: [...(Array.isArray(node.data.linkedNodeIds) ? node.data.linkedNodeIds : []), targetNodeId],
+                    },
+                  };
+                }
+                return node;
+              });
+              return updatedNodes;
+            });
+
+            const updatedCanvasData = {
+              ...canvasData,
+              nodes: canvasData?.nodes.map(node => {
+                if (node.id === parentNodeId) {
+                  return {
+                    ...node,
+                    linkedNodeIds: [...(node.linkedNodeIds || []), targetNodeId],
+                  };
+                }
+                return node;
+              }) || [],
+            };
+
+            onCanvasUpdate(updatedCanvasData);
+            
+          console.log('New Connection created between two ndoes:', parentNodeId, targetNodeId);
+        }
+      },
+      [setEdges, canvasData, onCanvasUpdate]
+    );
+
   const handleAddLinkedNode = (params: Connection) => {
     const parentNodeId = params.source;
-    const currentNodeType = 'world-location'; // Default to 'world-location' for now
+    const currentNodeType = 'WorldLocation'; // Default to 'world-location' for now
 
     console.log('Adding linked node:', parentNodeId);
 
@@ -316,10 +439,10 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
     console.log('Saving quick node:', nodeData, position, sourceNodeId);
 
     const parentNode = nodes.find(node => node.id === sourceNodeId);
-    const worldEntityId = parentNode?.data?.id || canvasData?.nodes.find(node => node.type === 'world-location' || node.type === 'world-object')?.id || 'fallback-world-entity-id';
+    const worldEntityId = parentNode?.data?.id || canvasData?.nodes.find(node => node.type === 'WorldLocation' || node.type === 'WorldObject')?.id || 'fallback-world-entity-id';
     
     // Determine node type based on the selected type
-    const nodeType = nodeData.type === 'world-object' ? 'world-object' : 'world-location';
+    const nodeType = nodeData.type === 'WorldObject' ? 'WorldObject' : 'WorldLocation';
 
     const newNodeId = `${worldEntityId}-arc-${Date.now()}`;
 
@@ -334,7 +457,8 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
       childIds: [],
       linkedNodeIds: [],
       characters: [],
-      worlds: [{ id: worldEntityId as string, name: nodeData.name || 'New Node', type: nodeType === 'world-location' ? 'WorldLocation' : 'WorldObject' }],
+      worlds: [{ id: worldEntityId as string, name: nodeData.name || 'New Node', type: nodeType === 'WorldLocation' ? 'WorldLocation' : 'WorldObject' }],
+      attributes:   parentNode?.data?.attributes || [],
       position,
       timelineEventIds: [],
       description: nodeData.description || '',
@@ -369,11 +493,10 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
           };
         }
         return node;
-      }).concat({
-        ...newNode,
-        linkedNodeIds: [],
       }) || [],
+      
     };
+    updatedCanvasData.nodes.push(newNode);
 
     onCanvasUpdate(updatedCanvasData);
     setShowQuickModal(false);
@@ -469,6 +592,82 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
     }
   };
 
+   const handleConnectStart = (event: any, params: { nodeId: string; handleType: string }) => {
+    console.log('Connect start:', params, ' nodeId:', params.nodeId);
+    setIsCreatingEdge(true);
+    setConnectFromNodeId(params.nodeId); // Store source node ID
+    console.log('Setting connectFromNodeId:', connectFromNodeId);
+  };
+
+  const handleConnectEnd = (event: any) => {
+    console.log('Connect end:', event, 'connectFromNodeId:', connectFromNodeId);
+      setShowQuickModal(true);
+      setQuickModalPosition({ x: event.clientX, y: event.clientY });
+      setIsCreatingEdge(false);
+  };
+
+  const handleNodeUpdate = async (updatedNode: CanvasNode) => {
+      if (!canvasData) return;
+  
+      const updatedNodes = canvasData.nodes.map(node => 
+        node.id === updatedNode.id ? updatedNode : node
+      );
+  
+      const updatedCanvasData = { 
+        ...canvasData, 
+        nodes: updatedNodes,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      await onCanvasUpdate(updatedCanvasData);
+      
+      // Update plot canvas if there are linked nodes
+      if (updatedNode.linkedNodeIds && updatedNode.linkedNodeIds.length > 0) {
+        await updatePlotCanvasLinks(updatedNode);
+      }
+    };
+  
+    const updatePlotCanvasLinks = async (characterNode: CanvasNode) => {
+      if (!bookId || !versionId) return;
+      
+      try {
+        // Update the plot canvas with character node links
+        const updatedPlotCanvasData = {
+          ...plotCanvasData,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        await apiClient.patch(`/books/${bookId}/versions/${versionId}/plotCanvas`, updatedPlotCanvasData);
+        console.log('Plot canvas updated with character links');
+      } catch (error) {
+        console.error('Failed to update plot canvas:', error);
+      }
+    };
+
+    
+      const handleCreateTimelineEvent = async (eventData: Partial<TimelineEvent>) => {
+        if (!canvasData) return;
+    
+        const newEvent: TimelineEvent = {
+          id: `timeline_${Date.now()}`,
+          name: eventData.name || '',
+          date: eventData.date || '',
+          description: eventData.description || '',
+          type: eventData.type || 'character',
+          linkedNodeIds: []
+        };
+    
+        const updatedCanvasData = {
+          ...canvasData,
+          timelineEvents: [...canvasData.timelineEvents, newEvent],
+          lastUpdated: new Date().toISOString()
+        };
+    
+        await onCanvasUpdate(updatedCanvasData);
+        return newEvent.id;
+      };
+    
+
   return (
     <div className="h-full w-full relative">
       <ReactFlow
@@ -480,22 +679,50 @@ const WorldEntityArcCanvas: React.FC<WorldEntityArcCanvasProps> = ({
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
         fitView
-        onConnect={handleAddLinkedNode}
+        onConnect={onConnect}
         onPaneClick={handlePaneClick}
-        proOptions={{ hideAttribution: true }}
+        onConnectStart={handleConnectStart}
+        onConnectEnd={handleConnectEnd}
+        onNodeDragStop={handleNodeDragStop}
+        style={{ height: '100%', width: '100%' }}
       >
-        <Controls />
+        <Controls
+          showZoom={true}
+          showFitView={true}
+          showInteractive={true}
+          style={{ position: 'absolute', bottom: '20%', left: '1rem', zIndex: 10 }}
+        />
         <Background color="#aaa" gap={16} />
       </ReactFlow>
 
-      {showQuickModal && quickModalPosition && (
+            {showQuickModal && quickModalPosition && (
         <QuickNodeModal
           isOpen={showQuickModal}
           onClose={() => setShowQuickModal(false)}
-          onSave={(nodeData, position) => handleQuickNodeSave(nodeData, position, currentViewNodeId || '')}
+          onSave={(nodeData, position) => handleQuickNodeSave(nodeData, position, connectFromNodeId || '')}
           position={{ x: 0, y: 0 }}
         />
-      )}
+            )}
+      <WorldEntityNodeEditModal
+        isOpen={showEditModal}
+        onClose={() => {
+          setShowEditModal(false);
+          setEditingNode(null);
+        }}
+        onSave={(updatedNode) => {
+          const updatedNodes = canvasData?.nodes.map(node => 
+            node.id === updatedNode.id ? updatedNode : node
+          );
+
+          const updatedCanvasData = {
+            ...canvasData,
+            nodes: updatedNodes || [],
+          };
+
+          onCanvasUpdate(updatedCanvasData);
+        }}
+        node={editingNode}
+      />
     </div>
   );
 };

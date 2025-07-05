@@ -86,6 +86,8 @@ export const QuickNodeModal: React.FC<QuickNodeModalProps> = ({
                 <SelectItem value="Act">Act</SelectItem>
                 <SelectItem value="Chapter">Chapter</SelectItem>
                 <SelectItem value="SceneBeats">Scene Beats</SelectItem>
+                <SelectItem value="WorldLocation">World Location</SelectItem>
+                <SelectItem value="WorldObject">World Object</SelectItem>
               </SelectContent>
             </Select>
           </div>

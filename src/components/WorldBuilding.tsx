@@ -114,7 +114,7 @@ export const WorldBuilding: React.FC<WorldBuildingProps> = ({ bookId, versionId 
   const handleEditArc = (entityId: string, entityType: 'WorldLocation' | 'WorldObject') => {
     if (!currentBookId || !currentVersionId) return;
     
-    const url = `/plan/book/${currentBookId}/version/${currentVersionId}?boards=plot-arcs&tab=world-entity-arcs&worldEntityId=${entityId}&worldEntityType=${entityType}`;
+    const url = `/plan/book/${currentBookId}/version/${currentVersionId}?boards=plot-arcs&tab=world-entity-arcs&worldId=${selectedWorld?.id}&worldEntityId=${entityId}&worldEntityType=${entityType}`;
     navigate(url);
   };
 
