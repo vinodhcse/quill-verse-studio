@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider, Node } from '@xyflow/react';
@@ -205,11 +206,29 @@ const PlanPage: React.FC = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-gradient-to-br from-background via-background to-muted/20">
+    <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/20 relative overflow-hidden">
+      {/* Enhanced animated background elements with Apple-style floating particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        {/* Primary floating orbs */}
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-primary/8 to-accent/8 rounded-full blur-3xl animate-pulse floating" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-br from-accent/6 to-secondary/6 rounded-full blur-3xl animate-pulse floating-delayed" style={{ animationDelay: '2s' }} />
+        <div className="absolute top-1/2 left-1/2 w-64 h-64 bg-gradient-to-br from-primary/4 to-accent/4 rounded-full blur-2xl animate-pulse floating" style={{ animationDelay: '4s' }} />
+        
+        {/* Additional floating particles for depth */}
+        <div className="absolute top-1/4 right-1/4 w-32 h-32 bg-primary/3 rounded-full blur-xl floating" style={{ animationDelay: '1s' }} />
+        <div className="absolute bottom-1/4 left-1/4 w-24 h-24 bg-accent/4 rounded-full blur-xl floating-delayed" style={{ animationDelay: '3s' }} />
+        <div className="absolute top-3/4 right-1/3 w-20 h-20 bg-secondary/5 rounded-full blur-lg floating" style={{ animationDelay: '5s' }} />
+        
+        {/* Subtle grid pattern overlay */}
+        <div className="absolute inset-0 opacity-[0.02] bg-[radial-gradient(circle_at_1px_1px,_rgb(255,255,255)_1px,_transparent_0)] bg-[length:40px_40px]" />
+      </div>
+
       {/* App Header */}
-      <AppHeader />
-      
-      <div className="border-b bg-background p-4">
+      <div className="relative z-30">
+        <AppHeader />
+      </div>
+
+      <div className="relative z-30 border-b bg-background p-4">
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold">Story Planning</h1>
@@ -221,7 +240,7 @@ const PlanPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="relative z-10 flex-1 flex overflow-hidden h-[calc(100vh-113px)]">
         {/* Left Sidebar */}
         <div className="w-64">
           <PlanLeftSidebar
