@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { ReactFlowProvider, Node } from '@xyflow/react';
-import { WorldEntityArcCanvas } from '@/components/WorldArcs/WorldEntityArcCanvas';
+import WorldEntityArcCanvas from '@/components/WorldArcs/WorldEntityArcCanvas';
 import { PlanLeftSidebar } from '@/components/PlanLeftSidebar';
 import { apiClient } from '@/lib/api';
 import { PlotCanvasData } from '@/types/plotCanvas';
