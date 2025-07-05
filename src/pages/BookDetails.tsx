@@ -435,29 +435,29 @@ const BookDetails = () => {
               )}
             </div>
 
-            {/* New Book Details */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+            {/* New Book Details in Two Column Structure */}
+            <div className="grid grid-cols-2 gap-x-8 gap-y-2 text-sm mb-4">
               {(bookDetails as any).bookType && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">Type:</span>
+                  <span className="text-muted-foreground font-medium">Type:</span>
                   <Badge variant="outline">{(bookDetails as any).bookType}</Badge>
                 </div>
               )}
               {(bookDetails as any).genre && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">Genre:</span>
+                  <span className="text-muted-foreground font-medium">Genre:</span>
                   <Badge variant="outline">{(bookDetails as any).genre}</Badge>
                 </div>
               )}
               {(bookDetails as any).subGenre && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">Sub-Genre:</span>
+                  <span className="text-muted-foreground font-medium">Sub-Genre:</span>
                   <Badge variant="outline">{(bookDetails as any).subGenre}</Badge>
                 </div>
               )}
               {(bookDetails as any).bookProse && (
                 <div className="flex items-center space-x-2">
-                  <span className="text-muted-foreground">Prose:</span>
+                  <span className="text-muted-foreground font-medium">Prose:</span>
                   <Badge variant="outline">{(bookDetails as any).bookProse}</Badge>
                 </div>
               )}
