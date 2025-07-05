@@ -60,7 +60,7 @@ const Index = () => {
 
       {/* Updated Header with AppHeader sections */}
       <header className="relative z-30 sticky top-0 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-        <div className="container mx-auto px-6">
+        <div className=" mx-auto px-6">
           <div className="flex h-16 items-center justify-between">
             {/* Logo - Left Section from AppHeader */}
             <Link to="/dashboard" className="flex items-center space-x-2 hover:opacity-80 transition-opacity">
@@ -69,6 +69,20 @@ const Index = () => {
                 AuthorStudio
               </span>
             </Link>
+
+            {/* Navigation */}
+            <div className="relative z-30">
+              <div className="backdrop-blur-md bg-background/80 border-b border-border/50 sticky top-16 z-30 animate-slide-down">
+                <ModeNavigation 
+                  currentMode={currentMode}
+                  onModeChange={handleModeChange}
+                  leftSidebarCollapsed={leftSidebarCollapsed}
+                  rightSidebarCollapsed={rightSidebarCollapsed}
+                  onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
+                  onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
+                />
+              </div>
+            </div>
 
             {/* Right side actions - Right Section from AppHeader */}
             <div className="flex items-center space-x-2">
@@ -139,19 +153,7 @@ const Index = () => {
         </div>
       </header>
 
-      {/* Navigation */}
-      <div className="relative z-30">
-        <div className="backdrop-blur-md bg-background/80 border-b border-border/50 sticky top-16 z-30 animate-slide-down">
-          <ModeNavigation 
-            currentMode={currentMode}
-            onModeChange={handleModeChange}
-            leftSidebarCollapsed={leftSidebarCollapsed}
-            rightSidebarCollapsed={rightSidebarCollapsed}
-            onToggleLeftSidebar={() => setLeftSidebarCollapsed(!leftSidebarCollapsed)}
-            onToggleRightSidebar={() => setRightSidebarCollapsed(!rightSidebarCollapsed)}
-          />
-        </div>
-      </div>
+      
         
       {/* Main Content Area */}
       <div className="relative z-10 h-[calc(100vh-113px)] w-full flex">

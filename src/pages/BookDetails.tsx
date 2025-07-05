@@ -18,6 +18,7 @@ import { getLoggedInUserId } from '../lib/authService';
 import { useUserContext } from '../lib/UserContextProvider';
 import AppHeader from '@/components/AppHeader';
 
+
 interface InviteFormData {
   email: string;
   role: 'Co-Author' | 'Editor' | 'Reviewer';
@@ -35,7 +36,9 @@ const BookDetails = () => {
   const [isCreateVersionOpen, setIsCreateVersionOpen] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
   const [isDeletingCollaborator, setIsDeletingCollaborator] = useState<string | null>(null);
+  const [isDeletingVersion, setIsDeletingVersion] = useState<string | null>(null);
   const [bookUserRole, setBookUserRole] = useState<string | null>(null);
+  const [isCreatingVersion, setIsCreatingVersion] = useState(false);
 
   const { userId: currentUserId } = useUserContext();
 
@@ -199,12 +202,15 @@ const BookDetails = () => {
   };
 
   const handleCreateVersion = async (versionData: { name: string; baseVersionId?: string }) => {
+    setIsCreatingVersion(true);
     try {
+      console.log('Creating version with data:', versionData);
       const response = await apiClient.post(`/books/${bookId}/versions`, {
         name: versionData.name,
         type: 'Manuscript',
         status: 'Draft',
         lastModifiedBy: bookDetails?.authorname,
+        baseVersionId: versionData.baseVersionId || null,
         metaData: {
           totalWords: 0,
           totalCharacters: 0,
@@ -233,6 +239,8 @@ const BookDetails = () => {
         description: "Failed to create version. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsCreatingVersion(false);
     }
   };
 
@@ -257,6 +265,38 @@ const BookDetails = () => {
       case 'EDITOR': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
       case 'REVIEWER': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300';
       default: return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300';
+    }
+  };
+
+  const handleDeleteVersion = async (versionId: string) => {
+    if (!bookDetails) return;
+    console.log('Deleting version with ID:', versionId, ' bookDetails:', bookDetails);
+    setIsDeletingVersion(versionId);
+    try {
+      const updatedVersions = versions?.filter(
+        version => version.id !== versionId
+      );
+
+      await apiClient.delete(`/books/${bookId}/versions/${versionId}`);
+
+     
+
+      toast({
+        title: 'Success',
+        description: 'Version removed successfully',
+      });
+      
+      console.log('Updated versions:', updatedVersions);
+      setVersions(updatedVersions || []);
+    } catch (error) {
+      console.error('Failed to delete version:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to remove version. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingVersion(null);
     }
   };
 
@@ -297,6 +337,44 @@ const BookDetails = () => {
     } finally {
       setIsDeletingCollaborator(null);
     }
+  };
+
+  const confirmDeleteVersion = (versionId: string) => {
+    toast({
+      title: "Are you sure?",
+      description: "This action is irreversible. Once deleted, the version cannot be retrieved.",
+      variant: "default",
+      style: {
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        zIndex: 9999,
+        width: "auto",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      },
+      action: (
+        <div className="flex space-x-4 mt-4">
+          <Button
+            onClick={() => {
+              handleDeleteVersion(versionId);
+            }}
+            className="bg-red-600 hover:bg-red-700 text-white"
+          >
+            Accept
+          </Button>
+          <Button
+            onClick={() => toast.dismiss()}
+            variant="outline"
+          >
+            Cancel
+          </Button>
+        </div>
+      ),
+    });
   };
 
   if (isLoading) {
@@ -479,9 +557,16 @@ const BookDetails = () => {
               <Button 
                 onClick={() => setIsCreateVersionOpen(true)} 
                 className="bg-primary hover:bg-primary/90"
+                disabled={isCreatingVersion}
               >
-                <Plus size={16} className="mr-2" />
-                Create Version
+                {isCreatingVersion ? (
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <>
+                    <Plus size={16} className="mr-2" />
+                    Create Version
+                  </>
+                )}
               </Button>
             </div>
             
@@ -523,6 +608,18 @@ const BookDetails = () => {
                       >
                         Open
                       </Button>
+                      <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => confirmDeleteVersion(version.id)}                         
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                        >
+                          {isDeletingVersion === version.id ? (
+                            <div className="w-4 h-4 border-2 border-red-600 border-t-transparent rounded-full animate-spin" />
+                          ) : (
+                            <Trash2 size={16} />
+                          )}
+                        </Button>
                     </div>
                   </CardContent>
                 </Card>
@@ -758,6 +855,14 @@ const BookDetails = () => {
         onCreateVersion={handleCreateVersion}
         existingVersions={versions}
       />
+      {/* Loading Spinner Overlay */}
+      {isCreatingVersion && (
+        <div className="fixed inset-0 flex items-center justify-center bg-background/80 z-[9999]">
+          <div className="relative inline-block w-12 h-12">
+            <span className="absolute inline-block w-full h-full border-4 border-t-primary border-b-secondary rounded-full animate-spin"></span>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
