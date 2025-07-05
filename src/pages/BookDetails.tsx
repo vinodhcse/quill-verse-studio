@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share, Edit, UserPlus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Book, Calendar, User, FileText, Mail, Plus, Share, Edit, UserPlus, Trash2, Building2, Link as LinkIcon } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
 import { useForm } from 'react-hook-form';
@@ -163,7 +163,19 @@ const BookDetails = () => {
     subtitle: string;
     language: string;
     description: string;
+    bookType?: string;
+    genre?: string;
+    subGenre?: string;
+    bookProse?: string;
+    synopsis?: string;
+    authorName?: string;
+    publisherName?: string;
+    publisherLink?: string;
+    printISBN?: string;
+    ebookISBN?: string;
+    publisherLogo?: string;
     file?: File;
+    publisherLogoFile?: File;
   }) => {
     try {
       // Update book details
@@ -172,6 +184,16 @@ const BookDetails = () => {
         subtitle: bookData.subtitle,
         language: bookData.language,
         description: bookData.description,
+        bookType: bookData.bookType,
+        genre: bookData.genre,
+        subGenre: bookData.subGenre,
+        bookProse: bookData.bookProse,
+        synopsis: bookData.synopsis,
+        authorName: bookData.authorName,
+        publisherName: bookData.publisherName,
+        publisherLink: bookData.publisherLink,
+        printISBN: bookData.printISBN,
+        ebookISBN: bookData.ebookISBN,
       };
 
       // If there's a new image file, upload it first
@@ -186,6 +208,20 @@ const BookDetails = () => {
           },
         });
         updateData.bookImage = uploadResponse.data.url;
+      }
+
+      // If there's a new publisher logo file, upload it
+      if (bookData.publisherLogoFile) {
+        const uploadResponse = await apiClient.post(`/books/${bookId}/files`, {
+          file: bookData.publisherLogoFile,
+          tags: 'publisher-logo',
+          description: 'Publisher logo image',
+        }, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+        });
+        updateData.publisherLogo = uploadResponse.data.url;
       }
 
       await apiClient.patch(`/books/${bookId}`, updateData);
@@ -372,9 +408,9 @@ const BookDetails = () => {
             {bookDetails.subtitle && (
               <p className="text-xl text-muted-foreground mb-2">{bookDetails.subtitle}</p>
             )}
-            <p className="text-lg text-muted-foreground mb-4">by {bookDetails.authorname}</p>
+            <p className="text-lg text-muted-foreground mb-4">by {(bookDetails as any).authorName || bookDetails.authorname}</p>
             
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm mb-4">
               <div className="flex items-center space-x-2">
                 <Calendar size={16} className="text-muted-foreground" />
                 <span>Created: {formatDate(bookDetails.createdAt)}</span>
@@ -399,6 +435,41 @@ const BookDetails = () => {
               )}
             </div>
 
+            {/* New Book Details */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm mb-4">
+              {(bookDetails as any).bookType && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">Type:</span>
+                  <Badge variant="outline">{(bookDetails as any).bookType}</Badge>
+                </div>
+              )}
+              {(bookDetails as any).genre && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">Genre:</span>
+                  <Badge variant="outline">{(bookDetails as any).genre}</Badge>
+                </div>
+              )}
+              {(bookDetails as any).subGenre && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">Sub-Genre:</span>
+                  <Badge variant="outline">{(bookDetails as any).subGenre}</Badge>
+                </div>
+              )}
+              {(bookDetails as any).bookProse && (
+                <div className="flex items-center space-x-2">
+                  <span className="text-muted-foreground">Prose:</span>
+                  <Badge variant="outline">{(bookDetails as any).bookProse}</Badge>
+                </div>
+              )}
+            </div>
+
+            {(bookDetails as any).synopsis && (
+              <div className="mb-4">
+                <h3 className="font-medium mb-2">Synopsis</h3>
+                <p className="text-muted-foreground">{(bookDetails as any).synopsis}</p>
+              </div>
+            )}
+
             {bookDetails.description && (
               <div className="mt-4">
                 <h3 className="font-medium mb-2">Description</h3>
@@ -410,9 +481,10 @@ const BookDetails = () => {
 
         {/* Tabs */}
         <Tabs defaultValue="versions" className="w-full">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="versions">Versions</TabsTrigger>
             <TabsTrigger value="collaborators">Collaborators</TabsTrigger>
+            <TabsTrigger value="publisher">Publisher</TabsTrigger>
           </TabsList>
 
           {/* Versions Tab */}
@@ -602,6 +674,77 @@ const BookDetails = () => {
                 </div>
               )}
             </div>
+          </TabsContent>
+
+          {/* Publisher Tab */}
+          <TabsContent value="publisher" className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-medium">Publisher Details</h3>
+            </div>
+            
+            <Card>
+              <CardContent className="p-6">
+                {(bookDetails as any).publisherName || (bookDetails as any).publisherLink || (bookDetails as any).printISBN || (bookDetails as any).ebookISBN ? (
+                  <div className="space-y-4">
+                    <div className="flex items-start space-x-4">
+                      {(bookDetails as any).publisherLogo && (
+                        <div className="w-16 h-12 flex-shrink-0">
+                          <img
+                            src={(bookDetails as any).publisherLogo}
+                            alt="Publisher logo"
+                            className="w-full h-full object-contain rounded border"
+                          />
+                        </div>
+                      )}
+                      <div className="flex-1 space-y-3">
+                        {(bookDetails as any).publisherName && (
+                          <div className="flex items-center space-x-2">
+                            <Building2 size={16} className="text-muted-foreground" />
+                            <span className="font-medium">{(bookDetails as any).publisherName}</span>
+                          </div>
+                        )}
+                        
+                        {(bookDetails as any).publisherLink && (
+                          <div className="flex items-center space-x-2">
+                            <LinkIcon size={16} className="text-muted-foreground" />
+                            <a 
+                              href={(bookDetails as any).publisherLink} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-600 hover:underline"
+                            >
+                              {(bookDetails as any).publisherLink}
+                            </a>
+                          </div>
+                        )}
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {(bookDetails as any).printISBN && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">Print ISBN:</span>
+                              <p className="font-mono text-sm">{(bookDetails as any).printISBN}</p>
+                            </div>
+                          )}
+                          
+                          {(bookDetails as any).ebookISBN && (
+                            <div>
+                              <span className="text-sm text-muted-foreground">E-book ISBN:</span>
+                              <p className="font-mono text-sm">{(bookDetails as any).ebookISBN}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Building2 size={48} className="mx-auto text-muted-foreground mb-4" />
+                    <p className="text-muted-foreground">No publisher details available</p>
+                    <p className="text-sm text-muted-foreground mt-1">Use the Edit Book button to add publisher information</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>
