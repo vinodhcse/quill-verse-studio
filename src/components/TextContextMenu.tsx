@@ -1,167 +1,167 @@
 
-import React from 'react';
-import { Editor } from '@tiptap/react';
+import React, { useState } from 'react';
+import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSeparator,
   ContextMenuTrigger,
+  ContextMenuSeparator,
 } from '@/components/ui/context-menu';
-import { Bold, Italic, Quote, List, ListOrdered, Heading, Underline, Strikethrough, Expand, RefreshCw, MessageCircle, Minimize, Zap } from 'lucide-react';
+import { Bold, Italic, Underline, Link, RefreshCw, Copy, Scissors, Clipboard } from 'lucide-react';
 
 interface TextContextMenuProps {
-  editor: Editor | null;
   children: React.ReactNode;
-  onRephraseClick?: (selectedText: string, textBlocks: string[]) => void;
+  editor: any;
+  onRephraseClick?: (selectedText: string, textBlocks: string[], editor: any) => void;
 }
 
-export const TextContextMenu: React.FC<TextContextMenuProps> = ({ 
-  editor, 
-  children, 
-  onRephraseClick 
+export const TextContextMenu: React.FC<TextContextMenuProps> = ({
+  children,
+  editor,
+  onRephraseClick,
 }) => {
-  if (!editor) {
-    return <>{children}</>;
-  }
-
-  const handleAIAction = (action: string) => {
-    const { from, to } = editor.state.selection;
-    const selectedText = editor.state.doc.textBetween(from, to);
+  const handleRephrase = () => {
+    if (!editor || !onRephraseClick) return;
     
-    if (!selectedText.trim()) {
-      console.log(`No text selected for ${action}`);
-      return;
-    }
-
-    if (action === 'Rephrase' && onRephraseClick) {
-      // Extract text blocks for rephrasing
-      const textBlocks = selectedText.split('\n\n').filter(block => block.trim());
-      onRephraseClick(selectedText, textBlocks);
-      return;
-    }
-
-    console.log(`${action} action triggered for text:`, selectedText);
-    // TODO: Implement other AI actions
+    const { state } = editor;
+    const { selection } = state;
+    const { from, to } = selection;
+    
+    if (from === to) return; // No text selected
+    
+    // Get the selected text as plain text
+    const selectedText = state.doc.textBetween(from, to, '\n');
+    
+    // Extract text blocks (paragraphs/nodes) from the selection
+    const textBlocks: string[] = [];
+    
+    state.doc.nodesBetween(from, to, (node, pos) => {
+      if (node.isText && node.text) {
+        // Split by paragraphs/lines and filter out empty strings
+        const paragraphs = node.text.split('\n').filter(p => p.trim().length > 0);
+        textBlocks.push(...paragraphs);
+      } else if (node.isBlock && node.textContent) {
+        // Handle block nodes (paragraphs, headings, etc.)
+        const blockText = node.textContent.trim();
+        if (blockText.length > 0) {
+          textBlocks.push(blockText);
+        }
+      }
+    });
+    
+    // Remove duplicates and filter out very short blocks
+    const uniqueBlocks = [...new Set(textBlocks)].filter(block => block.trim().length > 10);
+    
+    console.log('Selected text blocks:', uniqueBlocks);
+    onRephraseClick(selectedText, uniqueBlocks, editor);
   };
+
+  const getSelectedText = () => {
+    if (!editor) return '';
+    const { state } = editor;
+    const { selection } = state;
+    const { from, to } = selection;
+    return state.doc.textBetween(from, to, ' ');
+  };
+
+  const hasSelection = () => {
+    if (!editor) return false;
+    const { state } = editor;
+    const { selection } = state;
+    return !selection.empty;
+  };
+
+  const selectedText = getSelectedText();
+  const isTextSelected = hasSelection();
 
   return (
     <ContextMenu>
       <ContextMenuTrigger asChild>
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-auto min-w-0 p-2">
-        {/* First row - Basic formatting tools */}
-        <div className="flex items-center gap-1 mb-2">
-          <button
-            onClick={() => editor.chain().focus().toggleBold().run()}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              editor.isActive('bold') ? 'bg-accent' : ''
-            }`}
-            title="Bold"
-          >
-            <Bold size={16} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleItalic().run()}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              editor.isActive('italic') ? 'bg-accent' : ''
-            }`}
-            title="Italic"
-          >
-            <Italic size={16} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleUnderline().run()}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              editor.isActive('underline') ? 'bg-accent' : ''
-            }`}
-            title="Underline"
-          >
-            <Underline size={16} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleStrike().run()}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              editor.isActive('strike') ? 'bg-accent' : ''
-            }`}
-            title="Strikethrough"
-          >
-            <Strikethrough size={16} />
-          </button>
-          <div className="w-px h-6 bg-border mx-1" />
-          <button
-            onClick={() => editor.chain().focus().toggleBulletList().run()}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              editor.isActive('bulletList') ? 'bg-accent' : ''
-            }`}
-            title="Bullet List"
-          >
-            <List size={16} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleOrderedList().run()}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              editor.isActive('orderedList') ? 'bg-accent' : ''
-            }`}
-            title="Numbered List"
-          >
-            <ListOrdered size={16} />
-          </button>
-          <button
-            onClick={() => editor.chain().focus().toggleBlockquote().run()}
-            className={`p-2 rounded hover:bg-accent transition-colors ${
-              editor.isActive('blockquote') ? 'bg-accent' : ''
-            }`}
-            title="Quote"
-          >
-            <Quote size={16} />
-          </button>
-        </div>
+      <ContextMenuContent className="w-64 bg-background/95 backdrop-blur-sm border border-border/50 shadow-lg">
+        {isTextSelected && (
+          <>
+            <ContextMenuItem
+              onClick={() => {
+                navigator.clipboard.writeText(selectedText);
+              }}
+              className="flex items-center gap-2"
+            >
+              <Copy className="w-4 h-4" />
+              Copy
+            </ContextMenuItem>
+            
+            <ContextMenuItem
+              onClick={() => {
+                navigator.clipboard.writeText(selectedText);
+                editor?.commands.deleteSelection();
+              }}
+              className="flex items-center gap-2"
+            >
+              <Scissors className="w-4 h-4" />
+              Cut
+            </ContextMenuItem>
+            
+            <ContextMenuSeparator />
+            
+            <ContextMenuItem
+              onClick={handleRephrase}
+              className="flex items-center gap-2 text-primary hover:text-primary focus:text-primary"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Rephrase with AI
+            </ContextMenuItem>
+            
+            <ContextMenuSeparator />
+          </>
+        )}
+        
+        <ContextMenuItem
+          onClick={async () => {
+            try {
+              const text = await navigator.clipboard.readText();
+              editor?.commands.insertContent(text);
+            } catch (err) {
+              console.error('Failed to paste:', err);
+            }
+          }}
+          className="flex items-center gap-2"
+        >
+          <Clipboard className="w-4 h-4" />
+          Paste
+        </ContextMenuItem>
 
-        {/* Second row - AI features */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => handleAIAction('Expand')}
-            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
-            title="Expand text"
-          >
-            <Expand size={14} />
-            Expand
-          </button>
-          <button
-            onClick={() => handleAIAction('Rephrase')}
-            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
-            title="Rephrase text"
-          >
-            <RefreshCw size={14} />
-            Rephrase
-          </button>
-          <button
-            onClick={() => handleAIAction('Shorten')}
-            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
-            title="Shorten text"
-          >
-            <Minimize size={14} />
-            Shorten
-          </button>
-          <button
-            onClick={() => handleAIAction('Generate')}
-            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
-            title="Generate more content"
-          >
-            <Zap size={14} />
-            Generate
-          </button>
-          <button
-            onClick={() => handleAIAction('Chat')}
-            className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
-            title="Chat about selection"
-          >
-            <MessageCircle size={14} />
-            Chat
-          </button>
-        </div>
+        {isTextSelected && (
+          <>
+            <ContextMenuSeparator />
+            
+            <ContextMenuItem
+              onClick={() => editor?.chain().focus().toggleBold().run()}
+              className="flex items-center gap-2"
+            >
+              <Bold className="w-4 h-4" />
+              Bold
+            </ContextMenuItem>
+            
+            <ContextMenuItem
+              onClick={() => editor?.chain().focus().toggleItalic().run()}
+              className="flex items-center gap-2"
+            >
+              <Italic className="w-4 h-4" />
+              Italic
+            </ContextMenuItem>
+            
+            <ContextMenuItem
+              onClick={() => editor?.chain().focus().toggleUnderline().run()}
+              className="flex items-center gap-2"
+            >
+              <Underline className="w-4 h-4" />
+              Underline
+            </ContextMenuItem>
+          </>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );

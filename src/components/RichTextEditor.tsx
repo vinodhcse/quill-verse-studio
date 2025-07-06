@@ -66,7 +66,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   });
 
   // Handle rephraser modal
-  const handleRephraseClick = (selectedText: string, textBlocks: string[]) => {
+  const handleRephraseClick = (selectedText: string, textBlocks: string[], editorInstance: any) => {
     setSelectedTextForRephrasing(selectedText);
     setTextBlocksForRephrasing(textBlocks);
     setShowRephraserModal(true);
@@ -144,6 +144,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         versionId={versionId}
         chapterId={chapterId}
         onApplyChanges={handleApplyRephrasedText}
+        editor={editor}
       />
     </div>
   );

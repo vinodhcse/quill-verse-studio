@@ -108,7 +108,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   const isEditMode = location.pathname.includes('/edit');
   
   // Local state for track changes functionality
-  const [trackChangesEnabled, setTrackChangesEnabled] = useState(isEditMode); // Always on for edit mode
+  const [trackChangesEnabled, setTrackChangesEnabled] = useState(isEditMode);
   const [showChangesEnabled, setShowChangesEnabled] = useState(showTrackChanges);
   
   // AI Rephraser modal state
@@ -138,7 +138,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   const { copyToClipboard, canCopy } = useClipboard();
 
   // Handle rephraser modal
-  const handleRephraseClick = (selectedText: string, textBlocks: string[]) => {
+  const handleRephraseClick = (selectedText: string, textBlocks: string[], editorInstance: any) => {
     setSelectedTextForRephrasing(selectedText);
     setTextBlocksForRephrasing(textBlocks);
     setShowRephraserModal(true);
@@ -587,6 +587,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         versionId={state.versionId || ''}
         chapterId={selectedChapter?.id || ''}
         onApplyChanges={handleApplyRephrasedText}
+        editor={editor}
       />
     </div>
   );
