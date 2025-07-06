@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -228,21 +227,19 @@ export const EditCenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
                         >
                           {selectedChapter?.title || 'Untitled Chapter'}
                         </h2>
-                        <div className="flex items-center space-x-1">
-                          <Edit
-                            className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
-                            onClick={() => setIsEditingTitle(true)}
-                          />
-                          <Settings
-                            className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
-                            onClick={() => setShowChapterLinkModal(true)}
-                          />
-                        </div>
+                        <Edit
+                          className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
+                          onClick={() => setIsEditingTitle(true)}
+                        />
                       </div>
                     )}
                     <UploadCloud
                       className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
                       onClick={() => document.getElementById('imageUploadInput')?.click()}
+                    />
+                    <Settings
+                      className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
+                      onClick={() => setShowChapterLinkModal(true)}
                     />
                   </div>
                 </div>
