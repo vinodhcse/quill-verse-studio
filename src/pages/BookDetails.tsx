@@ -340,7 +340,7 @@ const BookDetails = () => {
   };
 
   const confirmDeleteVersion = (versionId: string) => {
-    toast({
+    const deleteToast = toast({
       title: "Are you sure?",
       description: "This action is irreversible. Once deleted, the version cannot be retrieved.",
       variant: "default",
@@ -361,13 +361,14 @@ const BookDetails = () => {
           <Button
             onClick={() => {
               handleDeleteVersion(versionId);
+              deleteToast.dismiss();
             }}
             className="bg-red-600 hover:bg-red-700 text-white"
           >
             Accept
           </Button>
           <Button
-            onClick={() => toast.dismiss()}
+            onClick={() => deleteToast.dismiss()}
             variant="outline"
           >
             Cancel
