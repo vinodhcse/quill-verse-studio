@@ -21,6 +21,7 @@ import { TrackChangesToggle } from './TrackChangesToggle';
 import { Button } from '@/components/ui/button';
 import { useCollaboration } from '@/hooks/useCollaboration';
 import { useUserContext } from '@/lib/UserContextProvider';
+import { useBookContext } from '@/lib/BookContextProvider';
 import { cn } from '@/lib/utils';
 import './editor-styles.css';
 import './collaboration-styles.css';
@@ -100,6 +101,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   onChangeClick,
 }) => {
   const { userId, name: userName } = useUserContext();
+  const { state } = useBookContext();
   const location = useLocation();
   
   // Determine if we're in edit mode based on the route
