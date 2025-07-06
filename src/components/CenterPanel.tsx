@@ -1,13 +1,15 @@
+
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Mode } from './ModeNavigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { CollaborativeRichTextEditor } from '@/components/CollaborativeRichTextEditor';
 import { EditorRichTextEditor } from '@/components/EditorRichTextEditor';
-import { Plus, Edit, UploadCloud } from 'lucide-react';
+import { TrackChangesToggle } from '@/components/TrackChangesToggle';
+import { Plus, Edit, UploadCloud, Settings } from 'lucide-react';
 import { useBookContext } from '@/lib/BookContextProvider';
 import { apiClient } from '@/lib/api';
 import { debounce } from 'lodash';
+import { ChapterLinkModal } from '@/components/ChapterLinkModal';
 
 export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
   const { state, dispatch } = useBookContext();
@@ -18,7 +20,7 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
   const [newImage, setNewImage] = useState<File | null>(null);
   const [status, setStatus] = useState('');
   const [showTrackChanges, setShowTrackChanges] = useState(false);
-  const [extractedChanges, setExtractedChanges] = useState<any[]>([]);
+  const [showChapterLinkModal, setShowChapterLinkModal] = useState(false);
   const statusRef = useRef('');
 
   const latestContentRef = useRef(selectedChapter?.content?.blocks || []);
@@ -63,6 +65,25 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
       setIsEditingTitle(false);
     } catch (error) {
       console.error('Failed to update chapter title:', error);
+    }
+  };
+
+  const handleChapterLinkSave = async (linkedNodeId: string | null) => {
+    try {
+      await apiClient.patch(`/books/${bookId}/versions/${versionId}/chapters/${selectedChapter?.id}`, {
+        linkedPlotNodeId: linkedNodeId,
+      });
+
+      const updatedChapters = state.chapters.map((chapter) =>
+        chapter.id === selectedChapter?.id ? { ...chapter, linkedPlotNodeId: linkedNodeId } : chapter
+      );
+
+      dispatch({ type: 'SET_CHAPTERS', payload: updatedChapters });
+      dispatch({ type: 'SET_SELECTED_CHAPTER', payload: { ...selectedChapter, linkedPlotNodeId: linkedNodeId } });
+
+      console.log('Chapter linked to plot node:', linkedNodeId);
+    } catch (error) {
+      console.error('Failed to link chapter to plot node:', error);
     }
   };
 
@@ -114,23 +135,23 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
       console.log('saveContent triggered with content:', content);
       try {
         statusRef.current = 'Saving';
-        setStatus('Saving'); // Update the label
+        setStatus('Saving');
         const currentContent = latestContentRef.current;
         if (JSON.stringify(currentContent) !== JSON.stringify(content)) {
           await apiClient.patch(`/books/${bookId}/versions/${versionId}/chapters/${selectedChapter?.id}`, {
             content,
           });
-          latestContentRef.current = content; // Update the ref with the latest content
+          latestContentRef.current = content;
           statusRef.current = 'Saved';
-          setStatus('Saved'); // Update the label
+          setStatus('Saved');
         } else {
           statusRef.current = 'Latest';
-          setStatus('Latest'); // Update the label
+          setStatus('Latest');
         }
       } catch (error) {
         console.error('Failed to save chapter content:', error);
         statusRef.current = 'Changed';
-        setStatus('Changed'); // Update the label
+        setStatus('Changed');
       }
     }, 10000),
     [bookId, versionId, selectedChapter?.id]
@@ -141,44 +162,18 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
       console.log('onChangeHandler triggered with content:', changedContent);
       let parsedContent = changedContent;
       if (typeof changedContent === 'string') {
-        // If the content is a string, parse it as JSON
         console.log('Parsing content as JSON');
         parsedContent = JSON.parse(changedContent);
       } else {
         console.log('Content is already an object, no parsing needed');
       }
-      //const parsedContent = JSON.parse(changedContent);
       const tiptapBlocks = parsedContent?.content || [];
-      setStatus('Changed'); // Update the label to 'Changed'
+      setStatus('Changed');
       statusRef.current = 'Changed';
       saveContent({ blocks: tiptapBlocks, metadata: { totalCharacters, totalWords } });
     } catch (error) {
       console.error('Failed to parse content:', error);
     }
-  };
-
-  const handleTrackChangesToggle = (show: boolean) => {
-    setShowTrackChanges(show);
-  };
-
-  const handleExtractedChangesUpdate = (changes: any[]) => {
-    setExtractedChanges(changes);
-    // Dispatch event to notify sidebar
-    window.dispatchEvent(new CustomEvent('editorChangesUpdate', {
-      detail: { changes }
-    }));
-  };
-
-  const handleAcceptChange = (changeId: string) => {
-    console.log('CenterPanel: Accepting change:', changeId);
-  };
-
-  const handleRejectChange = (changeId: string) => {
-    console.log('CenterPanel: Rejecting change:', changeId);
-  };
-
-  const handleChangeClick = (changeId: string) => {
-    console.log('CenterPanel: Change clicked:', changeId);
   };
 
   const renderContent = () => {
@@ -241,12 +236,20 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
                       className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
                       onClick={() => document.getElementById('imageUploadInput')?.click()}
                     />
+                    <Settings
+                      className="w-5 h-5 cursor-pointer text-muted-foreground hover:text-primary"
+                      onClick={() => setShowChapterLinkModal(true)}
+                    />
                   </div>
                 </div>
                 <div className="flex items-center space-x-2">
                   <span className="text-sm text-muted-foreground">Status: {statusRef.current}</span>
                   <div className="w-4 h-4 rounded-full bg-primary" title={statusRef.current}></div>
                 </div>
+                <TrackChangesToggle
+                  showChanges={showTrackChanges}
+                  onToggle={setShowTrackChanges}
+                />
               </div>
             </div>
 
@@ -258,16 +261,12 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
                   content: selectedChapter.content.blocks
                 } : null}
                 onChange={onChangeHandler}
-                placeholder="Start writing your story with TipTap editor..."
+                placeholder="Start writing your story..."
                 className="h-full"
                 blockId="block_001"
                 selectedChapter={selectedChapter}
                 showTrackChanges={showTrackChanges}
-                onTrackChangesToggle={handleTrackChangesToggle}
-                onExtractedChangesUpdate={handleExtractedChangesUpdate}
-                onAcceptChange={handleAcceptChange}
-                onRejectChange={handleRejectChange}
-                onChangeClick={handleChangeClick}
+                onTrackChangesToggle={setShowTrackChanges}
               />
             </div>
           </div>
@@ -361,7 +360,7 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
           <div className="h-full flex items-center justify-center">
             <div className="text-center">
               <h2 className="text-xl font-semibold mb-2">Welcome to AuthorStudio</h2>
-              <p className="text-muted-foreground">Select a mode to get started with TipTap editor</p>
+              <p className="text-muted-foreground">Select a mode to get started</p>
             </div>
           </div>
         );
@@ -371,6 +370,17 @@ export const CenterPanel: React.FC<{ mode: Mode }> = ({ mode }) => {
   return (
     <div className="flex-1 bg-background">
       {renderContent()}
+      
+      {/* Chapter Link Modal */}
+      <ChapterLinkModal
+        isOpen={showChapterLinkModal}
+        onClose={() => setShowChapterLinkModal(false)}
+        onSave={handleChapterLinkSave}
+        bookId={bookId}
+        versionId={versionId}
+        currentLinkedNodeId={selectedChapter?.linkedPlotNodeId || null}
+        chapterTitle={selectedChapter?.title || 'Untitled Chapter'}
+      />
     </div>
   );
 };
