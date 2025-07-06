@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -7,6 +7,7 @@ import CharacterCount from '@tiptap/extension-character-count';
 import Focus from '@tiptap/extension-focus';
 import { EditorToolbar } from './EditorToolbar';
 import { TextContextMenu } from './TextContextMenu';
+import { AIRephraserModal } from './AIRephraserModal';
 import { cn } from '@/lib/utils';
 
 interface RichTextEditorProps {
@@ -14,14 +15,25 @@ interface RichTextEditorProps {
   onChange: (content: string) => void;
   placeholder?: string;
   className?: string;
+  bookId?: string;
+  versionId?: string;
+  chapterId?: string;
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   content,
   onChange,
   placeholder = "Start writing your story...",
-  className
+  className,
+  bookId = '',
+  versionId = '',
+  chapterId = ''
 }) => {
+  // AI Rephraser modal state
+  const [showRephraserModal, setShowRephraserModal] = useState(false);
+  const [selectedTextForRephrasing, setSelectedTextForRephrasing] = useState('');
+  const [textBlocksForRephrasing, setTextBlocksForRephrasing] = useState<string[]>([]);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -53,6 +65,46 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     },
   });
 
+  // Handle rephraser modal
+  const handleRephraseClick = (selectedText: string, textBlocks: string[]) => {
+    setSelectedTextForRephrasing(selectedText);
+    setTextBlocksForRephrasing(textBlocks);
+    setShowRephraserModal(true);
+  };
+
+  const handleApplyRephrasedText = (newText: string) => {
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      
+      // Replace the selected text with the rephrased text
+      editor.chain()
+        .focus()
+        .deleteRange({ from, to })
+        .insertContent(newText)
+        .run();
+
+      // Add temporary highlighting that fades after a minute
+      setTimeout(() => {
+        const { from: newFrom } = editor.state.selection;
+        const newTo = newFrom + newText.length;
+        
+        // Apply temporary highlight
+        editor.chain()
+          .setTextSelection({ from: newFrom - newText.length, to: newFrom })
+          .setMark('textStyle', { backgroundColor: '#fef3c7' }) // yellow highlight
+          .run();
+
+        // Remove highlight after 1 minute
+        setTimeout(() => {
+          editor.chain()
+            .setTextSelection({ from: newFrom - newText.length, to: newFrom })
+            .unsetMark('textStyle')
+            .run();
+        }, 60000);
+      }, 100);
+    }
+  };
+
   if (!editor) {
     return null;
   }
@@ -61,7 +113,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
     <div className="flex flex-col h-full">
       <EditorToolbar editor={editor} />
       
-      <TextContextMenu editor={editor}>
+      <TextContextMenu editor={editor} onRephraseClick={handleRephraseClick}>
         <EditorContent 
           editor={editor} 
           className="flex-1 overflow-y-auto"
@@ -81,6 +133,18 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
           Last saved: just now
         </div>
       </div>
+
+      {/* AI Rephraser Modal */}
+      <AIRephraserModal
+        isOpen={showRephraserModal}
+        onClose={() => setShowRephraserModal(false)}
+        selectedText={selectedTextForRephrasing}
+        textBlocks={textBlocksForRephrasing}
+        bookId={bookId}
+        versionId={versionId}
+        chapterId={chapterId}
+        onApplyChanges={handleApplyRephrasedText}
+      />
     </div>
   );
 };

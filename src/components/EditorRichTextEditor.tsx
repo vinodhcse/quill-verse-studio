@@ -28,6 +28,7 @@ import { Node } from '@tiptap/core';
 import { consolidateTrackChanges, extractChangesFromContent } from '@/utils/trackChangesUtils';
 import { useLocation } from 'react-router-dom';
 import { useClipboard } from '@/hooks/useClipboard';
+import { AIRephraserModal } from '@/components/AIRephraserModal';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -108,6 +109,11 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   const [trackChangesEnabled, setTrackChangesEnabled] = useState(isEditMode); // Always on for edit mode
   const [showChangesEnabled, setShowChangesEnabled] = useState(showTrackChanges);
   
+  // AI Rephraser modal state
+  const [showRephraserModal, setShowRephraserModal] = useState(false);
+  const [selectedTextForRephrasing, setSelectedTextForRephrasing] = useState('');
+  const [textBlocksForRephrasing, setTextBlocksForRephrasing] = useState<string[]>([]);
+  
   const {
     currentUser,
     editMode,
@@ -128,6 +134,46 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
   console.log("📄 Editor received content:", content);
   
   const { copyToClipboard, canCopy } = useClipboard();
+
+  // Handle rephraser modal
+  const handleRephraseClick = (selectedText: string, textBlocks: string[]) => {
+    setSelectedTextForRephrasing(selectedText);
+    setTextBlocksForRephrasing(textBlocks);
+    setShowRephraserModal(true);
+  };
+
+  const handleApplyRephrasedText = (newText: string) => {
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      
+      // Replace the selected text with the rephrased text
+      editor.chain()
+        .focus()
+        .deleteRange({ from, to })
+        .insertContent(newText)
+        .run();
+
+      // Add temporary highlighting that fades after a minute
+      setTimeout(() => {
+        const { from: newFrom } = editor.state.selection;
+        const newTo = newFrom + newText.length;
+        
+        // Apply temporary highlight
+        editor.chain()
+          .setTextSelection({ from: newFrom - newText.length, to: newFrom })
+          .setMark('textStyle', { backgroundColor: '#fef3c7' }) // yellow highlight
+          .run();
+
+        // Remove highlight after 1 minute
+        setTimeout(() => {
+          editor.chain()
+            .setTextSelection({ from: newFrom - newText.length, to: newFrom })
+            .unsetMark('textStyle')
+            .run();
+        }, 60000);
+      }, 100);
+    }
+  };
 
   const editor = useEditor({
     extensions: [
@@ -506,7 +552,7 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
 
       <div className="flex-1 overflow-hidden">
         <div className="max-h-[calc(100vh-200px)] overflow-y-auto relative">
-          <TextContextMenu editor={editor}>
+          <TextContextMenu editor={editor} onRephraseClick={handleRephraseClick}>
             <EditorContent
               editor={editor}
               className="h-full overflow-y-auto scrollbar-thin scrollbar-thumb-border/50 scrollbar-track-transparent"
@@ -528,6 +574,18 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
           </span>
         </div>
       </div>
+
+      {/* AI Rephraser Modal */}
+      <AIRephraserModal
+        isOpen={showRephraserModal}
+        onClose={() => setShowRephraserModal(false)}
+        selectedText={selectedTextForRephrasing}
+        textBlocks={textBlocksForRephrasing}
+        bookId={state.bookId || ''}
+        versionId={state.versionId || ''}
+        chapterId={selectedChapter?.id || ''}
+        onApplyChanges={handleApplyRephrasedText}
+      />
     </div>
   );
 };

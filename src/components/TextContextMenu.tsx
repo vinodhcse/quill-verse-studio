@@ -13,9 +13,14 @@ import { Bold, Italic, Quote, List, ListOrdered, Heading, Underline, Strikethrou
 interface TextContextMenuProps {
   editor: Editor | null;
   children: React.ReactNode;
+  onRephraseClick?: (selectedText: string, textBlocks: string[]) => void;
 }
 
-export const TextContextMenu: React.FC<TextContextMenuProps> = ({ editor, children }) => {
+export const TextContextMenu: React.FC<TextContextMenuProps> = ({ 
+  editor, 
+  children, 
+  onRephraseClick 
+}) => {
   if (!editor) {
     return <>{children}</>;
   }
@@ -29,8 +34,15 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({ editor, childr
       return;
     }
 
+    if (action === 'Rephrase' && onRephraseClick) {
+      // Extract text blocks for rephrasing
+      const textBlocks = selectedText.split('\n\n').filter(block => block.trim());
+      onRephraseClick(selectedText, textBlocks);
+      return;
+    }
+
     console.log(`${action} action triggered for text:`, selectedText);
-    // TODO: Implement AI actions
+    // TODO: Implement other AI actions
   };
 
   return (
