@@ -33,28 +33,46 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({
     // Get the selected text as plain text
     const selectedText = state.doc.textBetween(from, to, '\n');
     
-    // Extract text blocks (paragraphs/nodes) from the selection
+    // Extract distinct paragraphs from the selection
     const textBlocks: string[] = [];
+    const seenTexts = new Set<string>();
     
+    // Process each node in the selection
     state.doc.nodesBetween(from, to, (node, pos) => {
-      if (node.isText && node.text) {
-        // Split by paragraphs/lines and filter out empty strings
-        const paragraphs = node.text.split('\n').filter(p => p.trim().length > 0);
-        textBlocks.push(...paragraphs);
-      } else if (node.isBlock && node.textContent) {
-        // Handle block nodes (paragraphs, headings, etc.)
+      if (node.isBlock && node.textContent) {
+        // Get the full text content of block nodes (paragraphs, headings, etc.)
         const blockText = node.textContent.trim();
-        if (blockText.length > 0) {
+        if (blockText.length > 0 && !seenTexts.has(blockText)) {
           textBlocks.push(blockText);
+          seenTexts.add(blockText);
         }
       }
     });
     
-    // Remove duplicates and filter out very short blocks
-    const uniqueBlocks = [...new Set(textBlocks)].filter(block => block.trim().length > 10);
+    // If no block-level text found, fall back to splitting by double line breaks
+    if (textBlocks.length === 0) {
+      const paragraphs = selectedText.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
+      paragraphs.forEach(p => {
+        if (!seenTexts.has(p)) {
+          textBlocks.push(p);
+          seenTexts.add(p);
+        }
+      });
+    }
     
-    console.log('Selected text blocks:', uniqueBlocks);
-    onRephraseClick(selectedText, uniqueBlocks, editor);
+    // If still no meaningful blocks, use single line breaks
+    if (textBlocks.length === 0) {
+      const lines = selectedText.split('\n').map(l => l.trim()).filter(l => l.length > 10);
+      lines.forEach(l => {
+        if (!seenTexts.has(l)) {
+          textBlocks.push(l);
+          seenTexts.add(l);
+        }
+      });
+    }
+    
+    console.log('Selected text blocks:', textBlocks);
+    onRephraseClick(selectedText, textBlocks, editor);
   };
 
   const getSelectedText = () => {

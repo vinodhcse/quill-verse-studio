@@ -56,35 +56,55 @@ const extractContextLines = (editor: any, currentSelection: any, lineCount: numb
   const { state } = editor;
   const { doc } = state;
   const lines: string[] = [];
+  const seenLines = new Set<string>();
   
-  const startPos = direction === 'before' ? 0 : currentSelection.to;
-  const endPos = direction === 'before' ? currentSelection.from : doc.content.size;
-  
-  let currentPos = startPos;
-  let linesFound = 0;
-  
-  while (currentPos < endPos && linesFound < lineCount) {
-    const node = doc.nodeAt(currentPos);
-    if (node && node.isText) {
-      const text = node.text || '';
-      const textLines = text.split('\n').filter(line => {
-        const trimmed = line.trim();
-        // Skip titles (headings) and quoted lines
-        return trimmed && !trimmed.startsWith('#') && !trimmed.startsWith('"') && !trimmed.startsWith("'");
+  if (direction === 'before') {
+    // Extract text before the selection
+    if (currentSelection.from > 0) {
+      const beforeText = doc.textBetween(0, currentSelection.from, '\n');
+      const beforeLines = beforeText.split('\n')
+        .map(line => line.trim())
+        .filter(line => {
+          // Filter out empty lines, headings, and very short lines
+          return line && 
+                 line.length > 10 && 
+                 !line.startsWith('#') && 
+                 !line.startsWith('"') && 
+                 !line.startsWith("'") &&
+                 !seenLines.has(line);
+        })
+        .slice(-lineCount); // Get the last N lines
+      
+      beforeLines.forEach(line => {
+        seenLines.add(line);
+        lines.push(line);
       });
-      
-      if (direction === 'before') {
-        lines.unshift(...textLines.slice(-Math.min(textLines.length, lineCount - linesFound)));
-      } else {
-        lines.push(...textLines.slice(0, Math.min(textLines.length, lineCount - linesFound)));
-      }
-      
-      linesFound += textLines.length;
     }
-    currentPos++;
+  } else {
+    // Extract text after the selection
+    if (currentSelection.to < doc.content.size) {
+      const afterText = doc.textBetween(currentSelection.to, doc.content.size, '\n');
+      const afterLines = afterText.split('\n')
+        .map(line => line.trim())
+        .filter(line => {
+          // Filter out empty lines, headings, and very short lines
+          return line && 
+                 line.length > 10 && 
+                 !line.startsWith('#') && 
+                 !line.startsWith('"') && 
+                 !line.startsWith("'") &&
+                 !seenLines.has(line);
+        })
+        .slice(0, lineCount); // Get the first N lines
+      
+      afterLines.forEach(line => {
+        seenLines.add(line);
+        lines.push(line);
+      });
+    }
   }
   
-  return lines.slice(0, lineCount).join('\n');
+  return lines.join('\n');
 };
 
 export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
@@ -157,10 +177,19 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   const handleRephrase = async () => {
     setIsLoading(true);
     try {
-      // Process textBlocks to create textToRephrase array
-      const textToRephrase = textBlocks.map(block => escapeQuote(block.trim())).filter(text => text.length > 0);
+      // Process textBlocks to create textToRephrase array - remove duplicates and escape quotes
+      const seenTexts = new Set<string>();
+      const textToRephrase = textBlocks
+        .map(block => escapeQuote(block.trim()))
+        .filter(text => {
+          if (text.length > 0 && !seenTexts.has(text)) {
+            seenTexts.add(text);
+            return true;
+          }
+          return false;
+        });
       
-      // Get context from editor
+      // Get context from editor - extract unique lines
       const currentSelection = editor?.state?.selection;
       const textBefore = extractContextLines(editor, currentSelection, 10, 'before');
       const textAfter = extractContextLines(editor, currentSelection, 10, 'after');
