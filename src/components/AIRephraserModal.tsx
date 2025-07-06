@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -118,7 +119,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   onApplyChanges,
   editor,
 }) => {
-  const { state } = useBookContext();
+  const { state, updateChapterContent } = useBookContext();
   const [step, setStep] = useState<'setup' | 'results'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('Make the tone more engaging and vivid.');
@@ -261,6 +262,23 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     );
   };
 
+  const debounceSave = React.useMemo(() => {
+    let timeoutId: NodeJS.Timeout;
+    return (content: any) => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(async () => {
+        if (editor) {
+          const plainText = editor.getText();
+          const totalCharacters = plainText.length;
+          const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
+          
+          // Call the backend save API
+          await updateChapterContent(bookId, versionId, chapterId, content, totalCharacters, totalWords);
+        }
+      }, 500);
+    };
+  }, [bookId, versionId, chapterId, editor, updateChapterContent]);
+
   const handleApplyChanges = () => {
     const finalText = rephrasedResults
       .map(item => {
@@ -270,6 +288,41 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         return item.originalParagraph;
       })
       .join('\n\n');
+
+    if (editor) {
+      const { from, to } = editor.state.selection;
+      
+      // Replace the selected text with the rephrased text
+      editor.chain()
+        .focus()
+        .deleteRange({ from, to })
+        .insertContent(finalText)
+        .run();
+
+      // Add highlighting and trigger debounced save
+      setTimeout(() => {
+        const newContent = editor.getJSON();
+        const { from: newFrom } = editor.state.selection;
+        const newTo = newFrom + finalText.length;
+        
+        // Apply temporary highlight with yellow background
+        editor.chain()
+          .setTextSelection({ from: newFrom - finalText.length, to: newFrom })
+          .setMark('textStyle', { backgroundColor: '#fef3c7' })
+          .run();
+
+        // Trigger debounced save
+        debounceSave(newContent);
+
+        // Remove highlight after 3 seconds
+        setTimeout(() => {
+          editor.chain()
+            .setTextSelection({ from: newFrom - finalText.length, to: newFrom })
+            .unsetMark('textStyle')
+            .run();
+        }, 3000);
+      }, 100);
+    }
 
     onApplyChanges(finalText);
     onClose();
@@ -304,53 +357,49 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 border-0 shadow-2xl">
-        <DialogHeader className="relative pb-6">
-          <DialogTitle className="flex items-center gap-4 text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">
-            <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-cyan-500/20 backdrop-blur-sm border border-white/20 shadow-lg">
-              <Wand2 className="w-7 h-7 text-purple-600" />
-            </div>
-            AI Rephraser
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden bg-white border shadow-xl">
+        <DialogHeader className="pb-4 border-b">
+          <DialogTitle className="flex items-center gap-3 text-2xl font-semibold text-gray-900">
+            <Wand2 className="w-6 h-6 text-blue-600" />
+            AI Text Rephraser
             {step === 'results' && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => setStep('setup')}
-                className="ml-auto hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-all duration-300 transform hover:scale-105"
+                className="ml-auto text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
-                <ChevronLeft className="w-4 h-4 mr-2" />
-                Back to Setup
+                <ChevronLeft className="w-4 h-4 mr-1" />
+                Back
               </Button>
             )}
           </DialogTitle>
-          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 rounded-t-xl -z-10 animate-pulse" />
         </DialogHeader>
 
         {step === 'setup' && (
-          <div className="space-y-8 animate-fade-in overflow-y-auto max-h-[calc(95vh-120px)] pr-2">
+          <div className="space-y-6 overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
             {/* Custom Instructions */}
-            <div className="space-y-3 p-6 rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10 border border-border/50 backdrop-blur-sm">
-              <Label htmlFor="instructions" className="text-lg font-semibold flex items-center gap-2">
-                <Sparkles className="w-5 h-5 text-primary" />
-                Custom Instructions
+            <div className="space-y-2">
+              <Label htmlFor="instructions" className="text-sm font-medium text-gray-700">
+                Instructions
               </Label>
               <Textarea
                 id="instructions"
                 value={customInstructions}
                 onChange={(e) => setCustomInstructions(e.target.value)}
                 placeholder="Provide specific instructions for rephrasing..."
-                className="min-h-[100px] resize-none bg-background/50 border-border/30 focus:border-primary/50 transition-all duration-200"
+                className="min-h-[80px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
               />
             </div>
 
             {/* Context Selection */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
               {/* Plot Canvas Nodes */}
-              <div className="space-y-3 p-4 rounded-xl bg-gradient-to-br from-blue-50/50 to-blue-100/30 dark:from-blue-950/20 dark:to-blue-900/10 border border-blue-200/30">
-                <Label className="font-semibold text-blue-700 dark:text-blue-300">Plot Canvas Context</Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Plot Context</Label>
                 <Popover open={showPlotSearch} onOpenChange={setShowPlotSearch}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
                       <Search className="w-4 h-4 mr-2" />
                       Add Plot Nodes
                     </Button>
@@ -374,7 +423,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                             >
                               <div>
                                 <div className="font-medium">{node.name}</div>
-                                <div className="text-sm text-muted-foreground">{node.type}</div>
+                                <div className="text-sm text-gray-500">{node.type}</div>
                               </div>
                             </CommandItem>
                           ))}
@@ -383,17 +432,17 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                     </Command>
                   </PopoverContent>
                 </Popover>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   {selectedPlotNodes.map(node => (
-                    <Badge key={node.id} variant="secondary" className="flex items-center gap-1">
+                    <Badge key={node.id} variant="secondary" className="text-xs">
                       {node.name}
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-4 w-4 p-0"
+                        className="h-3 w-3 p-0 ml-1"
                         onClick={() => removeContextItem('plot', node.id)}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-2 w-2" />
                       </Button>
                     </Badge>
                   ))}
@@ -401,11 +450,11 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
               </div>
 
               {/* Characters */}
-              <div className="space-y-3 p-4 rounded-xl bg-gradient-to-br from-green-50/50 to-green-100/30 dark:from-green-950/20 dark:to-green-900/10 border border-green-200/30">
-                <Label className="font-semibold text-green-700 dark:text-green-300">Character Context</Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Characters</Label>
                 <Popover open={showCharacterSearch} onOpenChange={setShowCharacterSearch}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
                       <Search className="w-4 h-4 mr-2" />
                       Add Characters
                     </Button>
@@ -429,7 +478,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                             >
                               <div>
                                 <div className="font-medium">{char.name}</div>
-                                <div className="text-sm text-muted-foreground">{char.type}</div>
+                                <div className="text-sm text-gray-500">{char.type}</div>
                               </div>
                             </CommandItem>
                           ))}
@@ -438,17 +487,17 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                     </Command>
                   </PopoverContent>
                 </Popover>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   {selectedCharacters.map(char => (
-                    <Badge key={char.id} variant="secondary" className="flex items-center gap-1">
+                    <Badge key={char.id} variant="secondary" className="text-xs">
                       {char.name}
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-4 w-4 p-0"
+                        className="h-3 w-3 p-0 ml-1"
                         onClick={() => removeContextItem('character', char.id)}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-2 w-2" />
                       </Button>
                     </Badge>
                   ))}
@@ -456,13 +505,13 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
               </div>
 
               {/* World Objects */}
-              <div className="space-y-3 p-4 rounded-xl bg-gradient-to-br from-purple-50/50 to-purple-100/30 dark:from-purple-950/20 dark:to-purple-900/10 border border-purple-200/30">
-                <Label className="font-semibold text-purple-700 dark:text-purple-300">World Context</Label>
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">World Objects</Label>
                 <Popover open={showWorldSearch} onOpenChange={setShowWorldSearch}>
                   <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full justify-start">
+                    <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
                       <Search className="w-4 h-4 mr-2" />
-                      Add World Objects
+                      Add Objects
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-80 p-0">
@@ -484,7 +533,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                             >
                               <div>
                                 <div className="font-medium">{obj.name}</div>
-                                <div className="text-sm text-muted-foreground">{obj.type}</div>
+                                <div className="text-sm text-gray-500">{obj.type}</div>
                               </div>
                             </CommandItem>
                           ))}
@@ -493,17 +542,17 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                     </Command>
                   </PopoverContent>
                 </Popover>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1">
                   {selectedWorldObjects.map(obj => (
-                    <Badge key={obj.id} variant="secondary" className="flex items-center gap-1">
+                    <Badge key={obj.id} variant="secondary" className="text-xs">
                       {obj.name}
                       <Button
                         size="sm"
                         variant="ghost"
-                        className="h-4 w-4 p-0"
+                        className="h-3 w-3 p-0 ml-1"
                         onClick={() => removeContextItem('world', obj.id)}
                       >
-                        <X className="h-3 w-3" />
+                        <X className="h-2 w-2" />
                       </Button>
                     </Badge>
                   ))}
@@ -512,20 +561,19 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
             </div>
 
             {/* No Change Words */}
-            <div className="space-y-4 p-6 rounded-2xl bg-gradient-to-br from-orange-50/30 to-orange-100/10 dark:from-orange-950/20 dark:to-orange-900/10 border border-orange-200/30">
-              <Label htmlFor="noChangeWords" className="text-lg font-semibold flex items-center gap-2">
-                <Palette className="w-5 h-5 text-orange-500" />
+            <div className="space-y-2">
+              <Label htmlFor="noChangeWords" className="text-sm font-medium text-gray-700">
                 Protected Words
               </Label>
-              <div className="space-y-3">
-                <div className="flex flex-wrap gap-2">
+              <div className="space-y-2">
+                <div className="flex flex-wrap gap-1">
                   {preConfiguredWords.map((word, index) => (
                     <Button
                       key={index}
                       variant="outline"
                       size="sm"
                       onClick={() => addPreConfiguredWord(word)}
-                      className="hover:bg-orange-100 dark:hover:bg-orange-900/20 transition-all duration-200"
+                      className="text-xs h-6 px-2 text-gray-600 border-gray-200 hover:bg-gray-50"
                     >
                       <Plus className="w-3 h-3 mr-1" />
                       {word}
@@ -537,26 +585,17 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                   value={noChangeWords}
                   onChange={(e) => setNoChangeWords(e.target.value)}
                   placeholder="Enter words that should not be changed (comma-separated)"
-                  className="bg-background/50 border-border/30 focus:border-orange-400/50"
+                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 />
-                {noChangeWords && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {noChangeWords.split(',').map((word, index) => (
-                      <Badge key={index} variant="secondary" className="text-xs bg-orange-100 dark:bg-orange-900/20">
-                        {word.trim()}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 
             {/* Settings Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-3 p-4 rounded-xl bg-gradient-to-br from-indigo-50/50 to-indigo-100/30 dark:from-indigo-950/20 dark:to-indigo-900/10 border border-indigo-200/30">
-                <Label className="font-semibold text-indigo-700 dark:text-indigo-300">LLM Model</Label>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">AI Model</Label>
                 <Select value={llmModel} onValueChange={setLlmModel}>
-                  <SelectTrigger className="bg-background/50 border-border/30">
+                  <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -569,8 +608,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                 </Select>
               </div>
 
-              <div className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-teal-50/50 to-teal-100/30 dark:from-teal-950/20 dark:to-teal-900/10 border border-teal-200/30">
-                <Label htmlFor="showDiff" className="font-semibold text-teal-700 dark:text-teal-300">Show Differences</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="showDiff" className="text-sm font-medium text-gray-700">Show Differences</Label>
                 <Switch
                   id="showDiff"
                   checked={showDifference}
@@ -580,12 +619,12 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
             </div>
 
             {/* Selected Text Preview */}
-            <div className="space-y-3 p-6 rounded-2xl bg-gradient-to-br from-slate-50/50 to-slate-100/30 dark:from-slate-950/20 dark:to-slate-900/10 border border-slate-200/30">
-              <Label className="text-lg font-semibold">Selected Text Preview</Label>
-              <div className="p-4 bg-background/70 rounded-lg border border-border/30 max-h-48 overflow-y-auto">
-                <div className="space-y-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium text-gray-700">Selected Text Preview</Label>
+              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg max-h-32 overflow-y-auto">
+                <div className="space-y-1">
                   {textBlocks.map((block, index) => (
-                    <p key={index} className="text-sm text-muted-foreground border-l-2 border-primary/30 pl-3 py-1">
+                    <p key={index} className="text-xs text-gray-600 border-l-2 border-blue-300 pl-2 py-1">
                       {block}
                     </p>
                   ))}
@@ -597,18 +636,18 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
             <Button
               onClick={handleRephrase}
               disabled={isLoading || !selectedText}
-              className="w-full h-16 text-xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-700 hover:via-blue-700 hover:to-cyan-700 transition-all duration-500 transform hover:scale-[1.02] shadow-2xl hover:shadow-purple-500/25 animate-pulse hover:animate-none"
+              className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
               size="lg"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-6 h-6 mr-3 animate-spin" />
-                  Enhancing with AI Magic...
+                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  Rephrasing...
                 </>
               ) : (
                 <>
-                  <Wand2 className="w-6 h-6 mr-3" />
-                  Transform Text with AI
+                  <Wand2 className="w-5 h-5 mr-2" />
+                  Rephrase Text
                 </>
               )}
             </Button>
@@ -616,50 +655,31 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         )}
 
         {step === 'results' && (
-          <div className="space-y-6 animate-fade-in overflow-hidden">
-            {/* Modern Status Header */}
-            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 backdrop-blur-xl border border-white/20 shadow-lg">
-              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 via-blue-400/20 to-purple-400/20 animate-pulse" />
-              <div className="relative flex items-center justify-between p-6">
-                <div className="flex items-center gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 flex items-center justify-center shadow-lg">
-                      <span className="text-2xl font-bold text-white">
-                        {rephrasedResults.filter(r => r.selected).length}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-                        Paragraphs Selected
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        out of {rephrasedResults.length} total
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="h-12 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent mx-2" />
-                  
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Ready to apply
-                    </span>
-                  </div>
+          <div className="space-y-4 overflow-hidden">
+            {/* Clean Status Header */}
+            <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                  <span className="text-sm font-semibold text-white">
+                    {rephrasedResults.filter(r => r.selected).length}
+                  </span>
                 </div>
-
-                <Button 
-                  onClick={handleApplyChanges} 
-                  className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-                  size="lg"
-                >
-                  <Check className="w-5 h-5 mr-2" />
-                  Apply Magic ✨
-                </Button>
+                <div className="text-sm text-gray-700">
+                  of {rephrasedResults.length} paragraphs selected
+                </div>
               </div>
+
+              <Button 
+                onClick={handleApplyChanges} 
+                className="bg-green-600 hover:bg-green-700 text-white font-medium"
+                size="sm"
+              >
+                <Check className="w-4 h-4 mr-1" />
+                Apply Changes
+              </Button>
             </div>
 
-            <div className="max-h-[65vh] overflow-y-auto space-y-4 pr-2">
+            <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
               {rephrasedResults.map((result, index) => (
                 <CompactDiffCard
                   key={index}
@@ -696,7 +716,6 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
   const [editTextRephrased, setEditTextRephrased] = useState(result.customText || result.rephrasedParagraph);
 
   const handleSaveOriginal = () => {
-    // For original text editing, we don't change the selection but update the text
     onEditParagraph(index, editTextOriginal);
     setIsEditingOriginal(false);
   };
@@ -709,69 +728,51 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
   const displayRephrasedText = result.customText || result.rephrasedParagraph;
 
   return (
-    <div className={cn(
-      "group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl",
-      result.selected 
-        ? "bg-gradient-to-r from-emerald-50/50 via-blue-50/30 to-purple-50/50 dark:from-emerald-950/20 dark:via-blue-950/10 dark:to-purple-950/20 shadow-lg border border-emerald-200/50 dark:border-emerald-800/30" 
-        : "bg-gradient-to-r from-gray-50/50 to-slate-50/30 dark:from-gray-950/20 dark:to-slate-950/10 border border-gray-200/30 dark:border-gray-800/30"
-    )}>
-      {/* Animated Background Gradient */}
-      <div className={cn(
-        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
-        result.selected 
-          ? "bg-gradient-to-r from-emerald-500/5 via-blue-500/5 to-purple-500/5" 
-          : "bg-gradient-to-r from-gray-500/5 to-slate-500/5"
-      )} />
-      
-      <div className="relative flex items-start gap-4 p-6">
+    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
+      <div className="flex items-start gap-3 p-4">
         {/* Original Text */}
         <div className="flex-1 min-w-0">
           {isEditingOriginal ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Textarea
                 value={editTextOriginal}
                 onChange={(e) => setEditTextOriginal(e.target.value)}
-                className="min-h-[80px] resize-none text-sm bg-white/80 dark:bg-gray-900/80 border-red-200 focus:border-red-400 transition-colors"
+                className="min-h-[60px] resize-none text-sm border-gray-200 focus:border-red-400"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveOriginal} className="h-8 px-4 text-xs bg-emerald-500 hover:bg-emerald-600">
+                <Button size="sm" onClick={handleSaveOriginal} className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 text-white">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-8 px-4 text-xs">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-7 px-3 text-xs text-gray-600">
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
             <div 
-              className="group/original p-4 rounded-xl bg-gradient-to-br from-red-50/80 to-pink-50/60 dark:from-red-950/20 dark:to-pink-950/10 border border-red-200/40 dark:border-red-800/30 cursor-pointer hover:shadow-md transition-all duration-300 transform hover:scale-[1.01]"
+              className="p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer hover:bg-gray-100 transition-colors"
               onClick={() => setIsEditingOriginal(true)}
             >
-              <div className="flex items-start justify-between">
-                <p className="text-sm leading-relaxed text-red-800 dark:text-red-200 flex-1">
-                  {result.originalParagraph}
-                </p>
-                <div className="ml-2 opacity-0 group-hover/original:opacity-100 transition-opacity">
-                  <Edit3 className="w-4 h-4 text-red-500" />
-                </div>
-              </div>
+              <p className="text-sm leading-relaxed text-red-700">
+                {result.originalParagraph}
+              </p>
             </div>
           )}
         </div>
 
-        {/* Control Icons */}
-        <div className="flex flex-col items-center gap-3 px-2">
+        {/* Control Button */}
+        <div className="flex flex-col items-center gap-2 px-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onToggleSelection(index)}
             className={cn(
-              "h-10 w-10 p-0 rounded-full transition-all duration-300 transform hover:scale-110 shadow-lg",
+              "h-8 w-8 p-0 rounded-full transition-colors",
               result.selected 
-                ? "bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white shadow-emerald-500/30" 
-                : "bg-gradient-to-r from-gray-200 to-gray-300 hover:from-red-200 hover:to-red-300 text-gray-700 hover:text-red-700 dark:from-gray-700 dark:to-gray-600 dark:text-gray-300 dark:hover:from-red-800 dark:hover:to-red-700"
+                ? "bg-green-600 hover:bg-green-700 text-white" 
+                : "bg-gray-200 hover:bg-red-200 text-gray-600 hover:text-red-700"
             )}
           >
             {result.selected ? (
@@ -781,33 +782,28 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
             )}
           </Button>
           
-          <div className="relative">
-            <ArrowRight className={cn(
-              "w-5 h-5 transition-all duration-300",
-              result.selected ? "text-emerald-500 animate-pulse" : "text-gray-400"
-            )} />
-            {result.selected && (
-              <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
-            )}
-          </div>
+          <ArrowRight className={cn(
+            "w-4 h-4 transition-colors",
+            result.selected ? "text-green-600" : "text-gray-400"
+          )} />
         </div>
 
         {/* Rephrased Text */}
         <div className="flex-1 min-w-0">
           {isEditingRephrased ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Textarea
                 value={editTextRephrased}
                 onChange={(e) => setEditTextRephrased(e.target.value)}
-                className="min-h-[80px] resize-none text-sm bg-white/80 dark:bg-gray-900/80 border-emerald-200 focus:border-emerald-400 transition-colors"
+                className="min-h-[60px] resize-none text-sm border-gray-200 focus:border-green-400"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveRephrased} className="h-8 px-4 text-xs bg-emerald-500 hover:bg-emerald-600">
+                <Button size="sm" onClick={handleSaveRephrased} className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 text-white">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-8 px-4 text-xs">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-7 px-3 text-xs text-gray-600">
                   Cancel
                 </Button>
               </div>
@@ -815,33 +811,25 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
           ) : (
             <div 
               className={cn(
-                "group/rephrased p-4 rounded-xl border cursor-pointer transition-all duration-300 transform hover:scale-[1.01] hover:shadow-md relative",
+                "p-3 border rounded cursor-pointer transition-colors relative",
                 result.selected 
-                  ? "bg-gradient-to-br from-emerald-50/80 to-blue-50/60 dark:from-emerald-950/20 dark:to-blue-950/10 border-emerald-200/40 dark:border-emerald-800/30"
-                  : "bg-gradient-to-br from-gray-50/80 to-slate-50/60 dark:from-gray-950/20 dark:to-slate-950/10 border-gray-200/40 dark:border-gray-800/30"
+                  ? "bg-white border-gray-200 hover:bg-gray-50"
+                  : "bg-gray-50 border-gray-200 hover:bg-gray-100"
               )}
               onClick={() => setIsEditingRephrased(true)}
             >
-              <div className="flex items-start justify-between">
-                <p className={cn(
-                  "text-sm leading-relaxed flex-1",
-                  result.selected 
-                    ? "text-emerald-800 dark:text-emerald-200" 
-                    : "text-gray-600 dark:text-gray-400"
-                )}>
-                  {displayRephrasedText}
-                </p>
-                <div className="ml-2 opacity-0 group-hover/rephrased:opacity-100 transition-opacity">
-                  <Edit3 className={cn(
-                    "w-4 h-4",
-                    result.selected ? "text-emerald-500" : "text-gray-500"
-                  )} />
-                </div>
-              </div>
+              <p className={cn(
+                "text-sm leading-relaxed",
+                result.selected 
+                  ? "text-green-700" 
+                  : "text-gray-600"
+              )}>
+                {displayRephrasedText}
+              </p>
               
               {result.edited && (
                 <div className="absolute top-2 right-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                  <div className="w-2 h-2 rounded-full bg-blue-500" />
                 </div>
               )}
             </div>
