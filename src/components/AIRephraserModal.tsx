@@ -304,11 +304,11 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-background via-background to-primary/5">
-        <DialogHeader className="relative">
-          <DialogTitle className="flex items-center gap-3 text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-            <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 backdrop-blur-sm">
-              <Wand2 className="w-6 h-6 text-primary" />
+      <DialogContent className="max-w-7xl max-h-[95vh] overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-slate-800 border-0 shadow-2xl">
+        <DialogHeader className="relative pb-6">
+          <DialogTitle className="flex items-center gap-4 text-3xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 bg-clip-text text-transparent">
+            <div className="p-3 rounded-2xl bg-gradient-to-br from-purple-500/20 via-blue-500/20 to-cyan-500/20 backdrop-blur-sm border border-white/20 shadow-lg">
+              <Wand2 className="w-7 h-7 text-purple-600" />
             </div>
             AI Rephraser
             {step === 'results' && (
@@ -316,14 +316,14 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                 variant="ghost"
                 size="sm"
                 onClick={() => setStep('setup')}
-                className="ml-auto hover:bg-primary/10 transition-all duration-200"
+                className="ml-auto hover:bg-purple-100 dark:hover:bg-purple-900/20 transition-all duration-300 transform hover:scale-105"
               >
-                <ChevronLeft className="w-4 h-4 mr-1" />
+                <ChevronLeft className="w-4 h-4 mr-2" />
                 Back to Setup
               </Button>
             )}
           </DialogTitle>
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-transparent to-accent/10 rounded-t-lg -z-10" />
+          <div className="absolute inset-0 bg-gradient-to-r from-purple-500/5 via-blue-500/5 to-cyan-500/5 rounded-t-xl -z-10 animate-pulse" />
         </DialogHeader>
 
         {step === 'setup' && (
@@ -597,18 +597,18 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
             <Button
               onClick={handleRephrase}
               disabled={isLoading || !selectedText}
-              className="w-full h-14 text-lg font-semibold bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 transition-all duration-300 transform hover:scale-[1.02] shadow-lg hover:shadow-xl"
+              className="w-full h-16 text-xl font-bold bg-gradient-to-r from-purple-600 via-blue-600 to-cyan-600 hover:from-purple-700 hover:via-blue-700 hover:to-cyan-700 transition-all duration-500 transform hover:scale-[1.02] shadow-2xl hover:shadow-purple-500/25 animate-pulse hover:animate-none"
               size="lg"
             >
               {isLoading ? (
                 <>
-                  <Loader2 className="w-5 h-5 mr-3 animate-spin" />
-                  Rephrasing with AI...
+                  <Loader2 className="w-6 h-6 mr-3 animate-spin" />
+                  Enhancing with AI Magic...
                 </>
               ) : (
                 <>
-                  <Wand2 className="w-5 h-5 mr-3" />
-                  Rephrase Text
+                  <Wand2 className="w-6 h-6 mr-3" />
+                  Transform Text with AI
                 </>
               )}
             </Button>
@@ -616,22 +616,50 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         )}
 
         {step === 'results' && (
-          <div className="space-y-4 animate-fade-in overflow-hidden">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-              <div className="text-sm font-medium">
-                <span className="text-primary font-bold">{rephrasedResults.filter(r => r.selected).length}</span> of{' '}
-                <span className="text-accent font-bold">{rephrasedResults.length}</span> paragraphs selected
+          <div className="space-y-6 animate-fade-in overflow-hidden">
+            {/* Modern Status Header */}
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500/10 via-blue-500/10 to-purple-500/10 backdrop-blur-xl border border-white/20 shadow-lg">
+              <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/20 via-blue-400/20 to-purple-400/20 animate-pulse" />
+              <div className="relative flex items-center justify-between p-6">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-gradient-to-r from-emerald-500 to-blue-500 flex items-center justify-center shadow-lg">
+                      <span className="text-2xl font-bold text-white">
+                        {rephrasedResults.filter(r => r.selected).length}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-lg font-semibold text-gray-800 dark:text-gray-200">
+                        Paragraphs Selected
+                      </div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">
+                        out of {rephrasedResults.length} total
+                      </div>
+                    </div>
+                  </div>
+                  
+                  <div className="h-12 w-px bg-gradient-to-b from-transparent via-gray-300 to-transparent mx-2" />
+                  
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                      Ready to apply
+                    </span>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleApplyChanges} 
+                  className="px-8 py-3 bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                  size="lg"
+                >
+                  <Check className="w-5 h-5 mr-2" />
+                  Apply Magic ✨
+                </Button>
               </div>
-              <Button 
-                onClick={handleApplyChanges} 
-                className="px-6 bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 transition-all duration-200"
-              >
-                <Check className="w-4 h-4 mr-2" />
-                Apply Changes
-              </Button>
             </div>
 
-            <div className="max-h-[70vh] overflow-y-auto space-y-3 pr-2">
+            <div className="max-h-[65vh] overflow-y-auto space-y-4 pr-2">
               {rephrasedResults.map((result, index) => (
                 <CompactDiffCard
                   key={index}
@@ -682,53 +710,68 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
 
   return (
     <div className={cn(
-      "border rounded-lg transition-all duration-200 hover:shadow-md",
+      "group relative overflow-hidden rounded-2xl transition-all duration-500 hover:shadow-2xl",
       result.selected 
-        ? "border-primary/30 bg-primary/5 shadow-sm" 
-        : "border-border/50 bg-muted/20 hover:border-primary/20"
+        ? "bg-gradient-to-r from-emerald-50/50 via-blue-50/30 to-purple-50/50 dark:from-emerald-950/20 dark:via-blue-950/10 dark:to-purple-950/20 shadow-lg border border-emerald-200/50 dark:border-emerald-800/30" 
+        : "bg-gradient-to-r from-gray-50/50 to-slate-50/30 dark:from-gray-950/20 dark:to-slate-950/10 border border-gray-200/30 dark:border-gray-800/30"
     )}>
-      <div className="flex items-center gap-3 p-3">
+      {/* Animated Background Gradient */}
+      <div className={cn(
+        "absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500",
+        result.selected 
+          ? "bg-gradient-to-r from-emerald-500/5 via-blue-500/5 to-purple-500/5" 
+          : "bg-gradient-to-r from-gray-500/5 to-slate-500/5"
+      )} />
+      
+      <div className="relative flex items-start gap-4 p-6">
         {/* Original Text */}
         <div className="flex-1 min-w-0">
           {isEditingOriginal ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Textarea
                 value={editTextOriginal}
                 onChange={(e) => setEditTextOriginal(e.target.value)}
-                className="min-h-[80px] resize-none text-sm"
+                className="min-h-[80px] resize-none text-sm bg-white/80 dark:bg-gray-900/80 border-red-200 focus:border-red-400 transition-colors"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveOriginal} className="h-7 px-3 text-xs">
+                <Button size="sm" onClick={handleSaveOriginal} className="h-8 px-4 text-xs bg-emerald-500 hover:bg-emerald-600">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-7 px-3 text-xs">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-8 px-4 text-xs">
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
             <div 
-              className="p-3 rounded-md bg-red-50/50 dark:bg-red-950/10 border border-red-200/30 dark:border-red-800/30 cursor-pointer hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              className="group/original p-4 rounded-xl bg-gradient-to-br from-red-50/80 to-pink-50/60 dark:from-red-950/20 dark:to-pink-950/10 border border-red-200/40 dark:border-red-800/30 cursor-pointer hover:shadow-md transition-all duration-300 transform hover:scale-[1.01]"
               onClick={() => setIsEditingOriginal(true)}
             >
-              <p className="text-sm leading-relaxed text-red-900 dark:text-red-100">{result.originalParagraph}</p>
+              <div className="flex items-start justify-between">
+                <p className="text-sm leading-relaxed text-red-800 dark:text-red-200 flex-1">
+                  {result.originalParagraph}
+                </p>
+                <div className="ml-2 opacity-0 group-hover/original:opacity-100 transition-opacity">
+                  <Edit3 className="w-4 h-4 text-red-500" />
+                </div>
+              </div>
             </div>
           )}
         </div>
 
         {/* Control Icons */}
-        <div className="flex flex-col items-center gap-2 px-2">
+        <div className="flex flex-col items-center gap-3 px-2">
           <Button
-            variant={result.selected ? "default" : "outline"}
+            variant="ghost"
             size="sm"
             onClick={() => onToggleSelection(index)}
             className={cn(
-              "h-8 w-8 p-0 transition-all duration-200",
+              "h-10 w-10 p-0 rounded-full transition-all duration-300 transform hover:scale-110 shadow-lg",
               result.selected 
-                ? "bg-green-500 hover:bg-green-600 text-white shadow-md" 
-                : "hover:bg-red-50 hover:border-red-200 hover:text-red-700 dark:hover:bg-red-950/20"
+                ? "bg-gradient-to-r from-emerald-500 to-blue-500 hover:from-emerald-600 hover:to-blue-600 text-white shadow-emerald-500/30" 
+                : "bg-gradient-to-r from-gray-200 to-gray-300 hover:from-red-200 hover:to-red-300 text-gray-700 hover:text-red-700 dark:from-gray-700 dark:to-gray-600 dark:text-gray-300 dark:hover:from-red-800 dark:hover:to-red-700"
             )}
           >
             {result.selected ? (
@@ -738,28 +781,33 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
             )}
           </Button>
           
-          <ArrowRight className={cn(
-            "w-4 h-4 transition-colors",
-            result.selected ? "text-green-500" : "text-muted-foreground"
-          )} />
+          <div className="relative">
+            <ArrowRight className={cn(
+              "w-5 h-5 transition-all duration-300",
+              result.selected ? "text-emerald-500 animate-pulse" : "text-gray-400"
+            )} />
+            {result.selected && (
+              <div className="absolute inset-0 bg-emerald-500/20 rounded-full animate-ping" />
+            )}
+          </div>
         </div>
 
         {/* Rephrased Text */}
         <div className="flex-1 min-w-0">
           {isEditingRephrased ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Textarea
                 value={editTextRephrased}
                 onChange={(e) => setEditTextRephrased(e.target.value)}
-                className="min-h-[80px] resize-none text-sm"
+                className="min-h-[80px] resize-none text-sm bg-white/80 dark:bg-gray-900/80 border-emerald-200 focus:border-emerald-400 transition-colors"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveRephrased} className="h-7 px-3 text-xs">
+                <Button size="sm" onClick={handleSaveRephrased} className="h-8 px-4 text-xs bg-emerald-500 hover:bg-emerald-600">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-7 px-3 text-xs">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-8 px-4 text-xs">
                   Cancel
                 </Button>
               </div>
@@ -767,24 +815,33 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
           ) : (
             <div 
               className={cn(
-                "p-3 rounded-md border cursor-pointer transition-colors relative",
+                "group/rephrased p-4 rounded-xl border cursor-pointer transition-all duration-300 transform hover:scale-[1.01] hover:shadow-md relative",
                 result.selected 
-                  ? "bg-green-50/50 dark:bg-green-950/10 border-green-200/30 dark:border-green-800/30 hover:bg-green-50 dark:hover:bg-green-950/20"
-                  : "bg-muted/30 border-border/30 hover:bg-muted/50"
+                  ? "bg-gradient-to-br from-emerald-50/80 to-blue-50/60 dark:from-emerald-950/20 dark:to-blue-950/10 border-emerald-200/40 dark:border-emerald-800/30"
+                  : "bg-gradient-to-br from-gray-50/80 to-slate-50/60 dark:from-gray-950/20 dark:to-slate-950/10 border-gray-200/40 dark:border-gray-800/30"
               )}
               onClick={() => setIsEditingRephrased(true)}
             >
-              <p className={cn(
-                "text-sm leading-relaxed",
-                result.selected 
-                  ? "text-green-900 dark:text-green-100" 
-                  : "text-muted-foreground"
-              )}>
-                {displayRephrasedText}
-              </p>
+              <div className="flex items-start justify-between">
+                <p className={cn(
+                  "text-sm leading-relaxed flex-1",
+                  result.selected 
+                    ? "text-emerald-800 dark:text-emerald-200" 
+                    : "text-gray-600 dark:text-gray-400"
+                )}>
+                  {displayRephrasedText}
+                </p>
+                <div className="ml-2 opacity-0 group-hover/rephrased:opacity-100 transition-opacity">
+                  <Edit3 className={cn(
+                    "w-4 h-4",
+                    result.selected ? "text-emerald-500" : "text-gray-500"
+                  )} />
+                </div>
+              </div>
+              
               {result.edited && (
-                <div className="absolute top-1 right-1">
-                  <Edit3 className="w-3 h-3 text-blue-500" />
+                <div className="absolute top-2 right-2">
+                  <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
                 </div>
               )}
             </div>
