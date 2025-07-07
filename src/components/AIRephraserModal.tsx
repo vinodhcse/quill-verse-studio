@@ -347,11 +347,26 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     if (editor) {
       const { from, to } = editor.state.selection;
 
+      // Apply changes
       editor.chain()
         .focus()
         .deleteRange({ from, to })
         .insertContent(finalText)
         .run();
+
+      // Highlight the updated text temporarily
+      setTimeout(() => {
+        const newTo = from + finalText.length;
+        editor.chain()
+          .focus()
+          .setTextSelection({ from, to: newTo })
+          .run();
+        
+        // Remove selection after 2 seconds
+        setTimeout(() => {
+          editor.chain().focus().setTextSelection(newTo).run();
+        }, 2000);
+      }, 100);
 
       debounceSave(editor.getJSON());
     }
@@ -393,17 +408,19 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden bg-white border shadow-xl">
-        <DialogHeader className="pb-4 border-b">
-          <DialogTitle className="flex items-center gap-3 text-2xl font-semibold text-gray-900">
-            <Wand2 className="w-6 h-6 text-blue-600" />
+      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden bg-gradient-to-br from-slate-50 to-white border-0 shadow-2xl">
+        <DialogHeader className="pb-6 border-b border-slate-200/60">
+          <DialogTitle className="flex items-center gap-3 text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
+              <Wand2 className="w-5 h-5 text-white" />
+            </div>
             AI Text Rephraser
-            {step === 'results' && (
+            {step !== 'setup' && (
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setStep('comparison')}
-                className="ml-auto text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                onClick={() => setStep(step === 'results' ? 'comparison' : 'setup')}
+                className="ml-auto text-slate-600 hover:text-slate-900 hover:bg-slate-100/80 rounded-lg transition-all duration-200"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
                 Back
@@ -691,93 +708,179 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         )}
 
         {step === 'results' && (
-          <div className="space-y-4 overflow-hidden">
-            {/* Clean Status Header */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 border border-gray-200 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
-                  <span className="text-sm font-semibold text-white">
-                    {diffResults.filter(r => r.selected).length}
-                  </span>
+          <div className="space-y-6 overflow-hidden animate-fade-in">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse"></div>
+                  <Loader2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-spin" />
                 </div>
-                <div className="text-sm text-gray-700">
-                  of {diffResults.length} paragraphs selected
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Processing Differences</h3>
+                  <p className="text-slate-500">Analyzing and comparing text variations...</p>
                 </div>
               </div>
+            ) : (
+              <>
+                {/* Modern Status Header */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-slate-200/50">
+                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5"></div>
+                  <div className="relative flex items-center justify-between p-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-3">
+                        <div className="relative">
+                          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
+                            <span className="text-lg font-bold text-white">
+                              {diffResults.filter(r => r.selected).length}
+                            </span>
+                          </div>
+                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="w-2.5 h-2.5 text-white" />
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-lg font-semibold text-slate-800">
+                            {diffResults.filter(r => r.selected).length} of {diffResults.length} Selected
+                          </div>
+                          <div className="text-sm text-slate-500">Ready to apply changes</div>
+                        </div>
+                      </div>
+                    </div>
 
-              <Button 
-                onClick={handleApplyChanges} 
-                className="bg-green-600 hover:bg-green-700 text-white font-medium"
-                size="sm"
-              >
-                <Check className="w-4 h-4 mr-1" />
-                Apply Changes
-              </Button>
-            </div>
+                    <Button 
+                      onClick={handleApplyChanges} 
+                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
+                      size="lg"
+                    >
+                      <Check className="w-5 h-5 mr-2" />
+                      Apply Changes
+                    </Button>
+                  </div>
+                </div>
 
-            <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
-              {diffResults.map((result, index) => (
-                <CompactDiffCard
-                  key={index}
-                  result={result}
-                  index={index}
-                  onToggleSelection={(index) => {
-                    setDiffResults(prev => 
-                      prev.map((item, i) => 
-                        i === index ? { ...item, selected: !item.selected } : item
-                      )
-                    );
-                  }}
-                  onEditParagraph={(index, newText) => {
-                    setDiffResults(prev => 
-                      prev.map((item, i) => 
-                        i === index 
-                          ? { ...item, newParagraph: newText, edited: true, selected: true }
-                          : item
-                      )
-                    );
-                  }}
-                />
-              ))}
-            </div>
+                {/* Diff Results Grid */}
+                <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+                  {diffResults.map((result, index) => (
+                    <div key={index} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+                      <ModernDiffCard
+                        result={result}
+                        index={index}
+                        onToggleSelection={(index) => {
+                          setDiffResults(prev => 
+                            prev.map((item, i) => 
+                              i === index ? { ...item, selected: !item.selected } : item
+                            )
+                          );
+                        }}
+                        onEditParagraph={(index, newText) => {
+                          setDiffResults(prev => 
+                            prev.map((item, i) => 
+                              i === index 
+                                ? { ...item, newParagraph: newText, edited: true, selected: true }
+                                : item
+                            )
+                          );
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {step === 'comparison' && (
-          <div className="comparison-step grid grid-cols-2 gap-4 max-h-[calc(90vh-120px)] overflow-y-auto">
-            {/* Left Pane: Original Paragraph */}
-            <div className="original-pane p-4 bg-gray-50 border rounded overflow-y-auto">
-              <h3 className="text-lg font-semibold">Original Text</h3>
-              <pre className="text-sm whitespace-pre-wrap">
-                {rephrasedResults.originalParagraph.join('\n')}
-              </pre>
-            </div>
+          <div className="space-y-6 max-h-[calc(90vh-120px)] overflow-hidden animate-fade-in">
+            {isLoading ? (
+              <div className="flex flex-col items-center justify-center py-16 space-y-4">
+                <div className="relative">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse"></div>
+                  <Loader2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-spin" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Rephrasing Content</h3>
+                  <p className="text-slate-500">AI is working on your text...</p>
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* Comparison Header */}
+                <div className="text-center py-6">
+                  <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
+                    Text Comparison
+                  </h3>
+                  <p className="text-slate-600">Review the changes and decide what to keep</p>
+                </div>
 
-            {/* Right Pane: Rephrased Paragraph */}
-            <div className="rephrased-pane p-4 bg-gray-50 border rounded overflow-y-auto">
-              <h3 className="text-lg font-semibold">Rephrased Text</h3>
-              <pre className="text-sm whitespace-pre-wrap">
-                {rephrasedResults.rephrasedParagraph}
-              </pre>
-            </div>
+                {/* Comparison Grid */}
+                <div className="grid grid-cols-2 gap-6 h-[50vh]">
+                  {/* Original Text Panel */}
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+                    <div className="bg-gradient-to-r from-red-50 to-pink-50 px-6 py-4 border-b border-slate-200">
+                      <h4 className="font-semibold text-red-700 flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                        Original Text
+                      </h4>
+                    </div>
+                    <div className="p-6 h-full overflow-y-auto">
+                      <div className="prose prose-sm max-w-none">
+                        <pre className="text-sm leading-relaxed text-red-700 whitespace-pre-wrap font-sans">
+                          {rephrasedResults.originalParagraph.join('\n')}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
 
-            {/* Action Buttons */}
-            <div className="col-span-2 flex justify-end gap-2 mt-4 sticky bottom-0 bg-white py-2">
-              <button
-                className="btn btn-secondary"
-                onClick={handleDiffChecker}
-                disabled={isLoading}
-              >
-                {isLoading ? 'Loading Diff...' : 'Show Diff'}
-              </button>
+                  {/* Rephrased Text Panel */}
+                  <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
+                      <h4 className="font-semibold text-green-700 flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                        Rephrased Text
+                      </h4>
+                    </div>
+                    <div className="p-6 h-full overflow-y-auto">
+                      <div className="prose prose-sm max-w-none">
+                        <pre className="text-sm leading-relaxed text-green-700 whitespace-pre-wrap font-sans">
+                          {rephrasedResults.rephrasedParagraph}
+                        </pre>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-              <button
-                className="btn btn-primary"
-                onClick={handleApplyChanges}
-              >
-                Apply Changes
-              </button>
-            </div>
+                {/* Action Buttons */}
+                <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
+                  <Button
+                    variant="outline"
+                    onClick={handleDiffChecker}
+                    disabled={isLoading}
+                    className="border-slate-300 hover:bg-slate-50 transition-all duration-200"
+                  >
+                    {isLoading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        Loading Diff...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4 mr-2" />
+                        Show Detailed Diff
+                      </>
+                    )}
+                  </Button>
+
+                  <Button
+                    onClick={handleApplyChanges}
+                    className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                  >
+                    <Check className="w-4 h-4 mr-2" />
+                    Apply Changes
+                  </Button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </DialogContent>
@@ -785,14 +888,14 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   );
 };
 
-interface CompactDiffCardProps {
+interface ModernDiffCardProps {
   result: RephrasedParagraph;
   index: number;
   onToggleSelection: (index: number) => void;
   onEditParagraph: (index: number, text: string) => void;
 }
 
-const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
+const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
   result,
   index,
   onToggleSelection,
@@ -816,31 +919,41 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
   const displayRephrasedText = result.customText || result.rephrasedParagraph;
 
   return (
-    <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:border-gray-300 transition-colors">
-      <div className="flex items-start gap-3 p-4">
-        {/* Original Text */}
-        <div className="flex-1 min-w-0">
+    <div className={cn(
+      "group relative bg-white rounded-2xl border-2 transition-all duration-300 hover:shadow-lg",
+      result.selected 
+        ? "border-green-200 shadow-md bg-gradient-to-r from-green-50/30 to-emerald-50/30" 
+        : "border-slate-200 hover:border-slate-300"
+    )}>
+      <div className="flex items-start gap-4 p-6">
+        {/* Original Text Column */}
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+            <span className="text-xs font-medium text-red-600 uppercase tracking-wide">Original</span>
+          </div>
+          
           {isEditingOriginal ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Textarea
                 value={editTextOriginal}
                 onChange={(e) => setEditTextOriginal(e.target.value)}
-                className="min-h-[60px] resize-none text-sm border-gray-200 focus:border-red-400"
+                className="min-h-[80px] resize-none text-sm border-red-200 focus:border-red-400 rounded-xl"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveOriginal} className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 text-white">
+                <Button size="sm" onClick={handleSaveOriginal} className="h-7 px-3 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-7 px-3 text-xs text-gray-600">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-7 px-3 text-xs text-slate-600 rounded-lg">
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
             <div 
-              className="p-3 bg-gray-50 border border-gray-200 rounded cursor-pointer hover:bg-gray-100 transition-colors"
+              className="p-4 bg-red-50/50 border border-red-100 rounded-xl cursor-pointer hover:bg-red-50 transition-all duration-200 group-hover:shadow-sm"
               onClick={() => setIsEditingOriginal(true)}
             >
               <p className="text-sm leading-relaxed text-red-700">
@@ -850,48 +963,56 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
           )}
         </div>
 
-        {/* Control Button */}
-        <div className="flex flex-col items-center gap-2 px-2">
+        {/* Selection Control */}
+        <div className="flex flex-col items-center gap-3 px-2 py-4">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onToggleSelection(index)}
             className={cn(
-              "h-8 w-8 p-0 rounded-full transition-colors",
+              "h-10 w-10 p-0 rounded-full transition-all duration-200 shadow-lg",
               result.selected 
-                ? "bg-green-600 hover:bg-green-700 text-white" 
-                : "bg-gray-200 hover:bg-red-200 text-gray-600 hover:text-red-700"
+                ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-green-200" 
+                : "bg-gradient-to-r from-slate-200 to-slate-300 hover:from-red-200 hover:to-red-300 text-slate-600 hover:text-red-700"
             )}
           >
             {result.selected ? (
-              <Check className="w-4 h-4" />
+              <Check className="w-5 h-5" />
             ) : (
-              <X className="w-4 h-4" />
+              <X className="w-5 h-5" />
             )}
           </Button>
           
           <ArrowRight className={cn(
-            "w-4 h-4 transition-colors",
-            result.selected ? "text-green-600" : "text-gray-400"
+            "w-5 h-5 transition-all duration-200",
+            result.selected ? "text-green-500" : "text-slate-400"
           )} />
         </div>
 
-        {/* Rephrased Text */}
-        <div className="flex-1 min-w-0">
+        {/* Rephrased Text Column */}
+        <div className="flex-1 space-y-2">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Rephrased</span>
+            {result.edited && (
+              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+            )}
+          </div>
+          
           {isEditingRephrased ? (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Textarea
                 value={editTextRephrased}
                 onChange={(e) => setEditTextRephrased(e.target.value)}
-                className="min-h-[60px] resize-none text-sm border-gray-200 focus:border-green-400"
+                className="min-h-[80px] resize-none text-sm border-green-200 focus:border-green-400 rounded-xl"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveRephrased} className="h-7 px-3 text-xs bg-green-600 hover:bg-green-700 text-white">
+                <Button size="sm" onClick={handleSaveRephrased} className="h-7 px-3 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-7 px-3 text-xs text-gray-600">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-7 px-3 text-xs text-slate-600 rounded-lg">
                   Cancel
                 </Button>
               </div>
@@ -899,10 +1020,10 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
           ) : (
             <div 
               className={cn(
-                "p-3 border rounded cursor-pointer transition-colors relative",
+                "p-4 border rounded-xl cursor-pointer transition-all duration-200 group-hover:shadow-sm",
                 result.selected 
-                  ? "bg-white border-gray-200 hover:bg-gray-50"
-                  : "bg-gray-50 border-gray-200 hover:bg-gray-100"
+                  ? "bg-green-50/50 border-green-100 hover:bg-green-50"
+                  : "bg-slate-50/50 border-slate-100 hover:bg-slate-50"
               )}
               onClick={() => setIsEditingRephrased(true)}
             >
@@ -910,16 +1031,10 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
                 "text-sm leading-relaxed",
                 result.selected 
                   ? "text-green-700" 
-                  : "text-gray-600"
+                  : "text-slate-600"
               )}>
                 {displayRephrasedText}
               </p>
-              
-              {result.edited && (
-                <div className="absolute top-2 right-2">
-                  <div className="w-2 h-2 rounded-full bg-blue-500" />
-                </div>
-              )}
             </div>
           )}
         </div>
