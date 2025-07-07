@@ -131,6 +131,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     selected: false,
   });
   const [diffResults, setDiffResults] = useState<RephrasedParagraph[]>([]);
+  const [diffStreamingComplete, setDiffStreamingComplete] = useState(false);
   
   // Context selection state
   const [selectedPlotNodes, setSelectedPlotNodes] = useState<ContextItem[]>([]);
@@ -256,6 +257,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
 
   const handleDiffChecker = async () => {
     setIsLoading(true);
+    setDiffStreamingComplete(false);
+    setDiffResults([]); // Clear previous results
     setStep('results');
     try {
       const payload = {
@@ -286,7 +289,11 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         const chunk = decoder.decode(value, { stream: true });
         const parsedChunk = JSON.parse(chunk);
         console.log('Parsed diff chunk:', parsedChunk);
-        if (parsedChunk.done) break;
+        
+        if (parsedChunk.done) {
+          setDiffStreamingComplete(true);
+          break;
+        }
 
         setDiffResults((prev) => [
           ...prev,
@@ -337,38 +344,57 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     };
   }, [bookId, versionId, chapterId, editor, updateChapterContent]);
 
-  // Fixing map operation on rephrasedResults
+  // Fixed apply changes function for results step
   const handleApplyChanges = () => {
-    const finalText = diffResults
-      .filter(item => item.selected)
-      .map(item => item.customText || item.rephrasedParagraph)
-      .join('\n\n');
+    let finalText = '';
+    
+    if (step === 'results') {
+      // Use diff results for results step
+      finalText = diffResults
+        .filter(item => item.selected)
+        .map(item => item.customText || item.rephrasedParagraph)
+        .join('\n\n');
+    } else {
+      // Use rephrased results for comparison step
+      finalText = rephrasedResults.customText || rephrasedResults.rephrasedParagraph;
+    }
 
-    if (editor) {
+    if (editor && finalText) {
       const { from, to } = editor.state.selection;
 
-      // Apply changes
+      // Replace the selected text (not insert after)
       editor.chain()
         .focus()
         .deleteRange({ from, to })
         .insertContent(finalText)
         .run();
 
-      // Highlight the updated text temporarily
+      // Apply yellow highlighting that persists for 3 minutes
       setTimeout(() => {
-        const newTo = from + finalText.length;
+        const currentPos = editor.state.selection.from;
+        const endPos = currentPos + finalText.length;
+        
+        // Apply yellow highlight
         editor.chain()
-          .focus()
-          .setTextSelection({ from, to: newTo })
+          .setTextSelection({ from: currentPos - finalText.length, to: currentPos })
+          .setMark('textStyle', { backgroundColor: '#fef3c7', color: '#92400e' })
           .run();
         
-        // Remove selection after 2 seconds
+        // Remove highlight after 3 minutes
         setTimeout(() => {
-          editor.chain().focus().setTextSelection(newTo).run();
-        }, 2000);
+          if (editor && !editor.isDestroyed) {
+            editor.chain()
+              .setTextSelection({ from: currentPos - finalText.length, to: currentPos })
+              .unsetMark('textStyle')
+              .run();
+          }
+        }, 180000); // 3 minutes
       }, 100);
 
-      debounceSave(editor.getJSON());
+      // Save changes to backend
+      setTimeout(() => {
+        debounceSave(editor.getJSON());
+      }, 200);
     }
 
     onApplyChanges(finalText);
@@ -384,6 +410,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
       originalParagraph: [],
       selected: false,
     });
+    setDiffResults([]);
+    setDiffStreamingComplete(false);
   };
 
   const addPreConfiguredWord = (word: string) => {
@@ -408,8 +436,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-hidden bg-gradient-to-br from-slate-50 to-white border-0 shadow-2xl">
-        <DialogHeader className="pb-6 border-b border-slate-200/60">
+      <DialogContent className="max-w-6xl h-[90vh] flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-white border-0 shadow-2xl">
+        <DialogHeader className="pb-6 border-b border-slate-200/60 flex-shrink-0">
           <DialogTitle className="flex items-center gap-3 text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
             <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
               <Wand2 className="w-5 h-5 text-white" />
@@ -429,460 +457,472 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
           </DialogTitle>
         </DialogHeader>
 
-        {step === 'setup' && (
-          <div className="space-y-6 overflow-y-auto max-h-[calc(90vh-120px)] pr-2">
-            {/* Custom Instructions */}
-            <div className="space-y-2">
-              <Label htmlFor="instructions" className="text-sm font-medium text-gray-700">
-                Instructions
-              </Label>
-              <Textarea
-                id="instructions"
-                value={customInstructions}
-                onChange={(e) => setCustomInstructions(e.target.value)}
-                placeholder="Provide specific instructions for rephrasing..."
-                className="min-h-[80px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
-              />
-            </div>
-
-            {/* Context Selection */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* Plot Canvas Nodes */}
+        <div className="flex-1 overflow-hidden">
+          {step === 'setup' && (
+            <div className="space-y-6 overflow-y-auto h-full pr-2">
+              {/* Custom Instructions */}
               <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Plot Context</Label>
-                <Popover open={showPlotSearch} onOpenChange={setShowPlotSearch}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
-                      <Search className="w-4 h-4 mr-2" />
-                      Add Plot Nodes
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0">
-                    <Command>
-                      <CommandInput placeholder="Search plot nodes..." value={plotNodeSearch} onValueChange={setPlotNodeSearch} />
-                      <CommandList>
-                        <CommandEmpty>No nodes found.</CommandEmpty>
-                        <CommandGroup>
-                          {plotNodes.filter(node => 
-                            node.name.toLowerCase().includes(plotNodeSearch.toLowerCase()) &&
-                            !selectedPlotNodes.find(selected => selected.id === node.id)
-                          ).map(node => (
-                            <CommandItem
-                              key={node.id}
-                              onSelect={() => {
-                                setSelectedPlotNodes(prev => [...prev, node]);
-                                setShowPlotSearch(false);
-                              }}
-                            >
-                              <div>
-                                <div className="font-medium">{node.name}</div>
-                                <div className="text-sm text-gray-500">{node.type}</div>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <div className="flex flex-wrap gap-1">
-                  {selectedPlotNodes.map(node => (
-                    <Badge key={node.id} variant="secondary" className="text-xs">
-                      {node.name}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-3 w-3 p-0 ml-1"
-                        onClick={() => removeContextItem('plot', node.id)}
-                      >
-                        <X className="h-2 w-2" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* Characters */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">Characters</Label>
-                <Popover open={showCharacterSearch} onOpenChange={setShowCharacterSearch}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
-                      <Search className="w-4 h-4 mr-2" />
-                      Add Characters
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0">
-                    <Command>
-                      <CommandInput placeholder="Search characters..." value={characterSearch} onValueChange={setCharacterSearch} />
-                      <CommandList>
-                        <CommandEmpty>No characters found.</CommandEmpty>
-                        <CommandGroup>
-                          {characters.filter(char => 
-                            char.name.toLowerCase().includes(characterSearch.toLowerCase()) &&
-                            !selectedCharacters.find(selected => selected.id === char.id)
-                          ).map(char => (
-                            <CommandItem
-                              key={char.id}
-                              onSelect={() => {
-                                setSelectedCharacters(prev => [...prev, char]);
-                                setShowCharacterSearch(false);
-                              }}
-                            >
-                              <div>
-                                <div className="font-medium">{char.name}</div>
-                                <div className="text-sm text-gray-500">{char.type}</div>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <div className="flex flex-wrap gap-1">
-                  {selectedCharacters.map(char => (
-                    <Badge key={char.id} variant="secondary" className="text-xs">
-                      {char.name}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-3 w-3 p-0 ml-1"
-                        onClick={() => removeContextItem('character', char.id)}
-                      >
-                        <X className="h-2 w-2" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-
-              {/* World Objects */}
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">World Objects</Label>
-                <Popover open={showWorldSearch} onOpenChange={setShowWorldSearch}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
-                      <Search className="w-4 h-4 mr-2" />
-                      Add Objects
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-80 p-0">
-                    <Command>
-                      <CommandInput placeholder="Search world objects..." value={worldObjectSearch} onValueChange={setWorldObjectSearch} />
-                      <CommandList>
-                        <CommandEmpty>No world objects found.</CommandEmpty>
-                        <CommandGroup>
-                          {worldObjects.filter(obj => 
-                            obj.name.toLowerCase().includes(worldObjectSearch.toLowerCase()) &&
-                            !selectedWorldObjects.find(selected => selected.id === obj.id)
-                          ).map(obj => (
-                            <CommandItem
-                              key={obj.id}
-                              onSelect={() => {
-                                setSelectedWorldObjects(prev => [...prev, obj]);
-                                setShowWorldSearch(false);
-                              }}
-                            >
-                              <div>
-                                <div className="font-medium">{obj.name}</div>
-                                <div className="text-sm text-gray-500">{obj.type}</div>
-                              </div>
-                            </CommandItem>
-                          ))}
-                        </CommandGroup>
-                      </CommandList>
-                    </Command>
-                  </PopoverContent>
-                </Popover>
-                <div className="flex flex-wrap gap-1">
-                  {selectedWorldObjects.map(obj => (
-                    <Badge key={obj.id} variant="secondary" className="text-xs">
-                      {obj.name}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-3 w-3 p-0 ml-1"
-                        onClick={() => removeContextItem('world', obj.id)}
-                      >
-                        <X className="h-2 w-2" />
-                      </Button>
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* No Change Words */}
-            <div className="space-y-2">
-              <Label htmlFor="noChangeWords" className="text-sm font-medium text-gray-700">
-                Protected Words
-              </Label>
-              <div className="space-y-2">
-                <div className="flex flex-wrap gap-1">
-                  {preConfiguredWords.map((word, index) => (
-                    <Button
-                      key={index}
-                      variant="outline"
-                      size="sm"
-                      onClick={() => addPreConfiguredWord(word)}
-                      className="text-xs h-6 px-2 text-gray-600 border-gray-200 hover:bg-gray-50"
-                    >
-                      <Plus className="w-3 h-3 mr-1" />
-                      {word}
-                    </Button>
-                  ))}
-                </div>
-                <Input
-                  id="noChangeWords"
-                  value={noChangeWords}
-                  onChange={(e) => setNoChangeWords(e.target.value)}
-                  placeholder="Enter words that should not be changed (comma-separated)"
-                  className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                <Label htmlFor="instructions" className="text-sm font-medium text-gray-700">
+                  Instructions
+                </Label>
+                <Textarea
+                  id="instructions"
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  placeholder="Provide specific instructions for rephrasing..."
+                  className="min-h-[80px] resize-none border-gray-200 focus:border-blue-500 focus:ring-blue-500"
                 />
               </div>
-            </div>
 
-            {/* Settings Row */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium text-gray-700">AI Model</Label>
-                <Select value={llmModel} onValueChange={setLlmModel}>
-                  <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableModels.map((model) => (
-                      <SelectItem key={model.value} value={model.value}>
-                        {model.label}
-                      </SelectItem>
+              {/* Context Selection */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Plot Canvas Nodes */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Plot Context</Label>
+                  <Popover open={showPlotSearch} onOpenChange={setShowPlotSearch}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
+                        <Search className="w-4 h-4 mr-2" />
+                        Add Plot Nodes
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0">
+                      <Command>
+                        <CommandInput placeholder="Search plot nodes..." value={plotNodeSearch} onValueChange={setPlotNodeSearch} />
+                        <CommandList>
+                          <CommandEmpty>No nodes found.</CommandEmpty>
+                          <CommandGroup>
+                            {plotNodes.filter(node => 
+                              node.name.toLowerCase().includes(plotNodeSearch.toLowerCase()) &&
+                              !selectedPlotNodes.find(selected => selected.id === node.id)
+                            ).map(node => (
+                              <CommandItem
+                                key={node.id}
+                                onSelect={() => {
+                                  setSelectedPlotNodes(prev => [...prev, node]);
+                                  setShowPlotSearch(false);
+                                }}
+                              >
+                                <div>
+                                  <div className="font-medium">{node.name}</div>
+                                  <div className="text-sm text-gray-500">{node.type}</div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedPlotNodes.map(node => (
+                      <Badge key={node.id} variant="secondary" className="text-xs">
+                        {node.name}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-3 w-3 p-0 ml-1"
+                          onClick={() => removeContextItem('plot', node.id)}
+                        >
+                          <X className="h-2 w-2" />
+                        </Button>
+                      </Badge>
                     ))}
-                  </SelectContent>
-                </Select>
-              </div>
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-between">
-                <Label htmlFor="showDiff" className="text-sm font-medium text-gray-700">Show Differences</Label>
-                <Switch
-                  id="showDiff"
-                  checked={showDifference}
-                  onCheckedChange={setShowDifference}
-                />
-              </div>
-            </div>
+                {/* Characters */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">Characters</Label>
+                  <Popover open={showCharacterSearch} onOpenChange={setShowCharacterSearch}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
+                        <Search className="w-4 h-4 mr-2" />
+                        Add Characters
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0">
+                      <Command>
+                        <CommandInput placeholder="Search characters..." value={characterSearch} onValueChange={setCharacterSearch} />
+                        <CommandList>
+                          <CommandEmpty>No characters found.</CommandEmpty>
+                          <CommandGroup>
+                            {characters.filter(char => 
+                              char.name.toLowerCase().includes(characterSearch.toLowerCase()) &&
+                              !selectedCharacters.find(selected => selected.id === char.id)
+                            ).map(char => (
+                              <CommandItem
+                                key={char.id}
+                                onSelect={() => {
+                                  setSelectedCharacters(prev => [...prev, char]);
+                                  setShowCharacterSearch(false);
+                                }}
+                              >
+                                <div>
+                                  <div className="font-medium">{char.name}</div>
+                                  <div className="text-sm text-gray-500">{char.type}</div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedCharacters.map(char => (
+                      <Badge key={char.id} variant="secondary" className="text-xs">
+                        {char.name}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-3 w-3 p-0 ml-1"
+                          onClick={() => removeContextItem('character', char.id)}
+                        >
+                          <X className="h-2 w-2" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
 
-            {/* Selected Text Preview */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium text-gray-700">Selected Text Preview</Label>
-              <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg max-h-32 overflow-y-auto">
-                <div className="space-y-1">
-                  {textBlocks.map((block, index) => (
-                    <p key={index} className="text-xs text-gray-600 border-l-2 border-blue-300 pl-2 py-1">
-                      {block}
-                    </p>
-                  ))}
+                {/* World Objects */}
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">World Objects</Label>
+                  <Popover open={showWorldSearch} onOpenChange={setShowWorldSearch}>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className="w-full justify-start text-gray-600 border-gray-200">
+                        <Search className="w-4 h-4 mr-2" />
+                        Add Objects
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-0">
+                      <Command>
+                        <CommandInput placeholder="Search world objects..." value={worldObjectSearch} onValueChange={setWorldObjectSearch} />
+                        <CommandList>
+                          <CommandEmpty>No world objects found.</CommandEmpty>
+                          <CommandGroup>
+                            {worldObjects.filter(obj => 
+                              obj.name.toLowerCase().includes(worldObjectSearch.toLowerCase()) &&
+                              !selectedWorldObjects.find(selected => selected.id === obj.id)
+                            ).map(obj => (
+                              <CommandItem
+                                key={obj.id}
+                                onSelect={() => {
+                                  setSelectedWorldObjects(prev => [...prev, obj]);
+                                  setShowWorldSearch(false);
+                                }}
+                              >
+                                <div>
+                                  <div className="font-medium">{obj.name}</div>
+                                  <div className="text-sm text-gray-500">{obj.type}</div>
+                                </div>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        </CommandList>
+                      </Command>
+                    </PopoverContent>
+                  </Popover>
+                  <div className="flex flex-wrap gap-1">
+                    {selectedWorldObjects.map(obj => (
+                      <Badge key={obj.id} variant="secondary" className="text-xs">
+                        {obj.name}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-3 w-3 p-0 ml-1"
+                          onClick={() => removeContextItem('world', obj.id)}
+                        >
+                          <X className="h-2 w-2" />
+                        </Button>
+                      </Badge>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Rephrase Button */}
-            <Button
-              onClick={handleRephrase}
-              disabled={isLoading || !selectedText}
-              className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-              size="lg"
-            >
+              {/* No Change Words */}
+              <div className="space-y-2">
+                <Label htmlFor="noChangeWords" className="text-sm font-medium text-gray-700">
+                  Protected Words
+                </Label>
+                <div className="space-y-2">
+                  <div className="flex flex-wrap gap-1">
+                    {preConfiguredWords.map((word, index) => (
+                      <Button
+                        key={index}
+                        variant="outline"
+                        size="sm"
+                        onClick={() => addPreConfiguredWord(word)}
+                        className="text-xs h-6 px-2 text-gray-600 border-gray-200 hover:bg-gray-50"
+                      >
+                        <Plus className="w-3 h-3 mr-1" />
+                        {word}
+                      </Button>
+                    ))}
+                  </div>
+                  <Input
+                    id="noChangeWords"
+                    value={noChangeWords}
+                    onChange={(e) => setNoChangeWords(e.target.value)}
+                    placeholder="Enter words that should not be changed (comma-separated)"
+                    className="border-gray-200 focus:border-blue-500 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+
+              {/* Settings Row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">AI Model</Label>
+                  <Select value={llmModel} onValueChange={setLlmModel}>
+                    <SelectTrigger className="border-gray-200 focus:border-blue-500 focus:ring-blue-500">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableModels.map((model) => (
+                        <SelectItem key={model.value} value={model.value}>
+                          {model.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="showDiff" className="text-sm font-medium text-gray-700">Show Differences</Label>
+                  <Switch
+                    id="showDiff"
+                    checked={showDifference}
+                    onCheckedChange={setShowDifference}
+                  />
+                </div>
+              </div>
+
+              {/* Selected Text Preview */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium text-gray-700">Selected Text Preview</Label>
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg max-h-32 overflow-y-auto">
+                  <div className="space-y-1">
+                    {textBlocks.map((block, index) => (
+                      <p key={index} className="text-xs text-gray-600 border-l-2 border-blue-300 pl-2 py-1">
+                        {block}
+                      </p>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Rephrase Button */}
+              <Button
+                onClick={handleRephrase}
+                disabled={isLoading || !selectedText}
+                className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Rephrasing...
+                  </>
+                ) : (
+                  <>
+                    <Wand2 className="w-5 h-5 mr-2" />
+                    Rephrase Text
+                  </>
+                )}
+              </Button>
+            </div>
+          )}
+
+          {step === 'results' && (
+            <div className="flex flex-col h-full animate-fade-in">
               {isLoading ? (
-                <>
-                  <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  Rephrasing...
-                </>
+                <div className="flex-1 flex flex-col items-center justify-center py-16 space-y-4">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse"></div>
+                    <Loader2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-spin" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Processing Differences</h3>
+                    <p className="text-slate-500">Analyzing and comparing text variations...</p>
+                  </div>
+                </div>
               ) : (
                 <>
-                  <Wand2 className="w-5 h-5 mr-2" />
-                  Rephrase Text
-                </>
-              )}
-            </Button>
-          </div>
-        )}
-
-        {step === 'results' && (
-          <div className="space-y-6 overflow-hidden animate-fade-in">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-16 space-y-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 animate-pulse"></div>
-                  <Loader2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-spin" />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Processing Differences</h3>
-                  <p className="text-slate-500">Analyzing and comparing text variations...</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Modern Status Header */}
-                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50 border border-slate-200/50">
-                  <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-purple-500/5"></div>
-                  <div className="relative flex items-center justify-between p-6">
-                    <div className="flex items-center space-x-4">
+                  {/* Modern Status Header */}
+                  <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 mb-6 flex-shrink-0">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5"></div>
+                    <div className="relative flex items-center justify-between p-4">
                       <div className="flex items-center space-x-3">
                         <div className="relative">
-                          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center shadow-lg">
-                            <span className="text-lg font-bold text-white">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-indigo-500 flex items-center justify-center shadow-md">
+                            <span className="text-sm font-bold text-white">
                               {diffResults.filter(r => r.selected).length}
                             </span>
                           </div>
-                          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
-                            <Check className="w-2.5 h-2.5 text-white" />
+                          <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center">
+                            <Check className="w-2 h-2 text-white" />
                           </div>
                         </div>
                         <div>
-                          <div className="text-lg font-semibold text-slate-800">
+                          <div className="text-base font-semibold text-slate-800">
                             {diffResults.filter(r => r.selected).length} of {diffResults.length} Selected
                           </div>
-                          <div className="text-sm text-slate-500">Ready to apply changes</div>
+                          <div className="text-xs text-slate-500">
+                            {diffStreamingComplete ? 'Analysis complete' : 'Processing...'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <Button 
+                        onClick={handleApplyChanges} 
+                        disabled={!diffStreamingComplete || diffResults.filter(r => r.selected).length === 0}
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:cursor-not-allowed"
+                        size="sm"
+                      >
+                        {!diffStreamingComplete ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <Check className="w-4 h-4 mr-2" />
+                            Apply Changes
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Diff Results Grid */}
+                  <div className="flex-1 overflow-y-auto space-y-3 pr-2">
+                    {diffResults.map((result, index) => (
+                      <div key={index} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
+                        <ModernDiffCard
+                          result={result}
+                          index={index}
+                          onToggleSelection={(index) => {
+                            setDiffResults(prev => 
+                              prev.map((item, i) => 
+                                i === index ? { ...item, selected: !item.selected } : item
+                              )
+                            );
+                          }}
+                          onEditParagraph={(index, newText) => {
+                            setDiffResults(prev => 
+                              prev.map((item, i) => 
+                                i === index 
+                                  ? { ...item, rephrasedParagraph: newText, edited: true, selected: true }
+                                  : item
+                              )
+                            );
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {step === 'comparison' && (
+            <div className="flex flex-col h-full animate-fade-in">
+              {isLoading ? (
+                <div className="flex-1 flex flex-col items-center justify-center py-16 space-y-4">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse"></div>
+                    <Loader2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-spin" />
+                  </div>
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-slate-700 mb-2">Rephrasing Content</h3>
+                    <p className="text-slate-500">AI is working on your text...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Comparison Header */}
+                  <div className="text-center py-4 flex-shrink-0">
+                    <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-1">
+                      Text Comparison
+                    </h3>
+                    <p className="text-slate-600 text-sm">Review the changes and decide what to keep</p>
+                  </div>
+
+                  {/* Comparison Grid */}
+                  <div className="flex-1 grid grid-cols-2 gap-4 overflow-hidden">
+                    {/* Original Text Panel */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                      <div className="bg-red-50 px-4 py-3 border-b border-red-100">
+                        <h4 className="font-medium text-red-700 flex items-center gap-2 text-sm">
+                          <div className="w-2 h-2 rounded-full bg-red-500"></div>
+                          Original Text
+                        </h4>
+                      </div>
+                      <div className="flex-1 p-4 overflow-y-auto">
+                        <div className="prose prose-sm max-w-none">
+                          <pre className="text-sm leading-relaxed text-red-700 whitespace-pre-wrap font-sans">
+                            {rephrasedResults.originalParagraph.join('\n')}
+                          </pre>
                         </div>
                       </div>
                     </div>
 
-                    <Button 
-                      onClick={handleApplyChanges} 
-                      className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-semibold px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200"
-                      size="lg"
+                    {/* Rephrased Text Panel */}
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+                      <div className="bg-green-50 px-4 py-3 border-b border-green-100">
+                        <h4 className="font-medium text-green-700 flex items-center gap-2 text-sm">
+                          <div className="w-2 h-2 rounded-full bg-green-500"></div>
+                          Rephrased Text
+                        </h4>
+                      </div>
+                      <div className="flex-1 p-4 overflow-y-auto">
+                        <div className="prose prose-sm max-w-none">
+                          <pre className="text-sm leading-relaxed text-green-700 whitespace-pre-wrap font-sans">
+                            {rephrasedResults.rephrasedParagraph}
+                          </pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex justify-end gap-3 pt-4 border-t border-slate-200 flex-shrink-0">
+                    <Button
+                      variant="outline"
+                      onClick={handleDiffChecker}
+                      disabled={isLoading}
+                      className="border-slate-300 hover:bg-slate-50 transition-all duration-200"
                     >
-                      <Check className="w-5 h-5 mr-2" />
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Loading Diff...
+                        </>
+                      ) : (
+                        <>
+                          <Search className="w-4 h-4 mr-2" />
+                          Show Detailed Diff
+                        </>
+                      )}
+                    </Button>
+
+                    <Button
+                      onClick={handleApplyChanges}
+                      className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-medium px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+                    >
+                      <Check className="w-4 h-4 mr-2" />
                       Apply Changes
                     </Button>
                   </div>
-                </div>
-
-                {/* Diff Results Grid */}
-                <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
-                  {diffResults.map((result, index) => (
-                    <div key={index} className="animate-fade-in" style={{ animationDelay: `${index * 100}ms` }}>
-                      <ModernDiffCard
-                        result={result}
-                        index={index}
-                        onToggleSelection={(index) => {
-                          setDiffResults(prev => 
-                            prev.map((item, i) => 
-                              i === index ? { ...item, selected: !item.selected } : item
-                            )
-                          );
-                        }}
-                        onEditParagraph={(index, newText) => {
-                          setDiffResults(prev => 
-                            prev.map((item, i) => 
-                              i === index 
-                                ? { ...item, newParagraph: newText, edited: true, selected: true }
-                                : item
-                            )
-                          );
-                        }}
-                      />
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {step === 'comparison' && (
-          <div className="space-y-6 max-h-[calc(90vh-120px)] overflow-hidden animate-fade-in">
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center py-16 space-y-4">
-                <div className="relative">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-r from-blue-500 to-indigo-500 animate-pulse"></div>
-                  <Loader2 className="w-8 h-8 text-white absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 animate-spin" />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-lg font-semibold text-slate-700 mb-2">Rephrasing Content</h3>
-                  <p className="text-slate-500">AI is working on your text...</p>
-                </div>
-              </div>
-            ) : (
-              <>
-                {/* Comparison Header */}
-                <div className="text-center py-6">
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-2">
-                    Text Comparison
-                  </h3>
-                  <p className="text-slate-600">Review the changes and decide what to keep</p>
-                </div>
-
-                {/* Comparison Grid */}
-                <div className="grid grid-cols-2 gap-6 h-[50vh]">
-                  {/* Original Text Panel */}
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
-                    <div className="bg-gradient-to-r from-red-50 to-pink-50 px-6 py-4 border-b border-slate-200">
-                      <h4 className="font-semibold text-red-700 flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
-                        Original Text
-                      </h4>
-                    </div>
-                    <div className="p-6 h-full overflow-y-auto">
-                      <div className="prose prose-sm max-w-none">
-                        <pre className="text-sm leading-relaxed text-red-700 whitespace-pre-wrap font-sans">
-                          {rephrasedResults.originalParagraph.join('\n')}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Rephrased Text Panel */}
-                  <div className="bg-white rounded-2xl border border-slate-200 shadow-lg overflow-hidden">
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 px-6 py-4 border-b border-slate-200">
-                      <h4 className="font-semibold text-green-700 flex items-center gap-2">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
-                        Rephrased Text
-                      </h4>
-                    </div>
-                    <div className="p-6 h-full overflow-y-auto">
-                      <div className="prose prose-sm max-w-none">
-                        <pre className="text-sm leading-relaxed text-green-700 whitespace-pre-wrap font-sans">
-                          {rephrasedResults.rephrasedParagraph}
-                        </pre>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Action Buttons */}
-                <div className="flex justify-end gap-3 pt-4 border-t border-slate-200">
-                  <Button
-                    variant="outline"
-                    onClick={handleDiffChecker}
-                    disabled={isLoading}
-                    className="border-slate-300 hover:bg-slate-50 transition-all duration-200"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Loading Diff...
-                      </>
-                    ) : (
-                      <>
-                        <Search className="w-4 h-4 mr-2" />
-                        Show Detailed Diff
-                      </>
-                    )}
-                  </Button>
-
-                  <Button
-                    onClick={handleApplyChanges}
-                    className="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white font-semibold px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                  >
-                    <Check className="w-4 h-4 mr-2" />
-                    Apply Changes
-                  </Button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
@@ -920,40 +960,40 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
 
   return (
     <div className={cn(
-      "group relative bg-white rounded-2xl border-2 transition-all duration-300 hover:shadow-lg",
+      "group relative bg-white rounded-lg border transition-all duration-200 hover:shadow-sm",
       result.selected 
-        ? "border-green-200 shadow-md bg-gradient-to-r from-green-50/30 to-emerald-50/30" 
-        : "border-slate-200 hover:border-slate-300"
+        ? "border-green-200 bg-green-50/20" 
+        : "border-gray-200 hover:border-gray-300"
     )}>
-      <div className="flex items-start gap-4 p-6">
+      <div className="flex items-start gap-3 p-4">
         {/* Original Text Column */}
         <div className="flex-1 space-y-2">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-red-500"></div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-red-500"></div>
             <span className="text-xs font-medium text-red-600 uppercase tracking-wide">Original</span>
           </div>
           
           {isEditingOriginal ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Textarea
                 value={editTextOriginal}
                 onChange={(e) => setEditTextOriginal(e.target.value)}
-                className="min-h-[80px] resize-none text-sm border-red-200 focus:border-red-400 rounded-xl"
+                className="min-h-[60px] resize-none text-sm border-red-200 focus:border-red-400 rounded-lg"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveOriginal} className="h-7 px-3 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg">
+                <Button size="sm" onClick={handleSaveOriginal} className="h-6 px-2 text-xs bg-green-500 hover:bg-green-600 text-white rounded">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-7 px-3 text-xs text-slate-600 rounded-lg">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingOriginal(false)} className="h-6 px-2 text-xs text-slate-600 rounded">
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
             <div 
-              className="p-4 bg-red-50/50 border border-red-100 rounded-xl cursor-pointer hover:bg-red-50 transition-all duration-200 group-hover:shadow-sm"
+              className="p-3 bg-gray-50 border border-gray-100 rounded-lg cursor-pointer hover:bg-gray-100 transition-colors"
               onClick={() => setIsEditingOriginal(true)}
             >
               <p className="text-sm leading-relaxed text-red-700">
@@ -964,55 +1004,55 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
         </div>
 
         {/* Selection Control */}
-        <div className="flex flex-col items-center gap-3 px-2 py-4">
+        <div className="flex flex-col items-center gap-2 px-1 py-2">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => onToggleSelection(index)}
             className={cn(
-              "h-10 w-10 p-0 rounded-full transition-all duration-200 shadow-lg",
+              "h-8 w-8 p-0 rounded-full transition-all duration-200",
               result.selected 
-                ? "bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white shadow-green-200" 
-                : "bg-gradient-to-r from-slate-200 to-slate-300 hover:from-red-200 hover:to-red-300 text-slate-600 hover:text-red-700"
+                ? "bg-green-500 hover:bg-green-600 text-white" 
+                : "bg-gray-200 hover:bg-red-200 text-gray-600 hover:text-red-700"
             )}
           >
             {result.selected ? (
-              <Check className="w-5 h-5" />
+              <Check className="w-4 h-4" />
             ) : (
-              <X className="w-5 h-5" />
+              <X className="w-4 h-4" />
             )}
           </Button>
           
           <ArrowRight className={cn(
-            "w-5 h-5 transition-all duration-200",
-            result.selected ? "text-green-500" : "text-slate-400"
+            "w-4 h-4 transition-colors",
+            result.selected ? "text-green-500" : "text-gray-400"
           )} />
         </div>
 
         {/* Rephrased Text Column */}
         <div className="flex-1 space-y-2">
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-1.5 h-1.5 rounded-full bg-green-500"></div>
             <span className="text-xs font-medium text-green-600 uppercase tracking-wide">Rephrased</span>
             {result.edited && (
-              <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+              <div className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
             )}
           </div>
           
           {isEditingRephrased ? (
-            <div className="space-y-3">
+            <div className="space-y-2">
               <Textarea
                 value={editTextRephrased}
                 onChange={(e) => setEditTextRephrased(e.target.value)}
-                className="min-h-[80px] resize-none text-sm border-green-200 focus:border-green-400 rounded-xl"
+                className="min-h-[60px] resize-none text-sm border-green-200 focus:border-green-400 rounded-lg"
                 autoFocus
               />
               <div className="flex gap-2">
-                <Button size="sm" onClick={handleSaveRephrased} className="h-7 px-3 text-xs bg-green-500 hover:bg-green-600 text-white rounded-lg">
+                <Button size="sm" onClick={handleSaveRephrased} className="h-6 px-2 text-xs bg-green-500 hover:bg-green-600 text-white rounded">
                   <Check className="w-3 h-3 mr-1" />
                   Save
                 </Button>
-                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-7 px-3 text-xs text-slate-600 rounded-lg">
+                <Button size="sm" variant="ghost" onClick={() => setIsEditingRephrased(false)} className="h-6 px-2 text-xs text-slate-600 rounded">
                   Cancel
                 </Button>
               </div>
@@ -1020,10 +1060,10 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
           ) : (
             <div 
               className={cn(
-                "p-4 border rounded-xl cursor-pointer transition-all duration-200 group-hover:shadow-sm",
+                "p-3 border rounded-lg cursor-pointer transition-colors",
                 result.selected 
-                  ? "bg-green-50/50 border-green-100 hover:bg-green-50"
-                  : "bg-slate-50/50 border-slate-100 hover:bg-slate-50"
+                  ? "bg-gray-50 border-gray-100 hover:bg-gray-100"
+                  : "bg-gray-50 border-gray-100 hover:bg-gray-100"
               )}
               onClick={() => setIsEditingRephrased(true)}
             >
@@ -1031,7 +1071,7 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
                 "text-sm leading-relaxed",
                 result.selected 
                   ? "text-green-700" 
-                  : "text-slate-600"
+                  : "text-gray-600"
               )}>
                 {displayRephrasedText}
               </p>
