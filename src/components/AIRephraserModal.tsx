@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import {
   Dialog,
@@ -22,7 +21,7 @@ import { useBookContext } from '@/lib/BookContextProvider';
 
 interface RephrasedParagraph {
   rephrasedParagraph: string;
-  originalParagraph: string;
+  originalParagraph: string[];
   selected: boolean;
   edited?: boolean;
   customText?: string;
@@ -120,13 +119,18 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   editor,
 }) => {
   const { state, updateChapterContent } = useBookContext();
-  const [step, setStep] = useState<'setup' | 'results'>('setup');
+  const [step, setStep] = useState<'setup' | 'results' | 'comparison'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('Make the tone more engaging and vivid.');
   const [llmModel, setLlmModel] = useState('default');
   const [showDifference, setShowDifference] = useState(true);
   const [noChangeWords, setNoChangeWords] = useState('');
-  const [rephrasedResults, setRephrasedResults] = useState<RephrasedParagraph[]>([]);
+  const [rephrasedResults, setRephrasedResults] = useState<RephrasedParagraph>({
+    rephrasedParagraph: '',
+    originalParagraph: [],
+    selected: false,
+  });
+  const [diffResults, setDiffResults] = useState<RephrasedParagraph[]>([]);
   
   // Context selection state
   const [selectedPlotNodes, setSelectedPlotNodes] = useState<ContextItem[]>([]);
@@ -228,15 +232,21 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
 
       console.log('Rephrase payload:', payload);
       const response = await apiClient.post('/ai/rephrase', payload);
-      
-      const results: RephrasedParagraph[] = response.data.rephrasedText.map((item: any) => ({
-        ...item,
+
+      console.log('Rephrase response:', response.data);
+      if (!response.data || !response.data.rephrasedText) {
+        console.error('Invalid response from rephrase API:', response.data);
+        return;
+      }
+      const results: RephrasedParagraph = {
+        originalParagraph: textToRephrase,
+        rephrasedParagraph: response.data.rephrasedText,
         selected: true,
         edited: false,
-      }));
+      };
 
       setRephrasedResults(results);
-      setStep('results');
+      setStep('comparison');
     } catch (error) {
       console.error('Failed to rephrase text:', error);
     } finally {
@@ -244,22 +254,70 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     }
   };
 
-  const handleToggleSelection = (index: number) => {
-    setRephrasedResults(prev => 
-      prev.map((item, i) => 
-        i === index ? { ...item, selected: !item.selected } : item
-      )
-    );
+  const handleDiffChecker = async () => {
+    setIsLoading(true);
+    setStep('results');
+    try {
+      const payload = {
+        originalText: rephrasedResults.originalParagraph.join('\n'),
+        newText: rephrasedResults.rephrasedParagraph,
+      };
+      console.log('Diff checker payload:', payload);
+       const token = localStorage.getItem('token');
+      
+
+      const response = await fetch('http://localhost:4000/api/ai/diffChecker', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Connection': 'keep-alive',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const parsedChunk = JSON.parse(chunk);
+        console.log('Parsed diff chunk:', parsedChunk);
+        if (parsedChunk.done) break;
+
+        setDiffResults((prev) => [
+          ...prev,
+          {
+            rephrasedParagraph: parsedChunk.newParagraph,
+            originalParagraph: [parsedChunk.originalParagraph],
+            selected: false,
+            diff: parsedChunk.diff,
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch diff:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleEditParagraph = (index: number, newText: string) => {
-    setRephrasedResults(prev =>
-      prev.map((item, i) =>
-        i === index 
-          ? { ...item, customText: newText, edited: true, selected: true }
-          : item
-      )
-    );
+  const handleToggleSelection = () => {
+    setRephrasedResults(prev => ({
+      ...prev,
+      selected: !prev.selected,
+    }));
+  };
+
+  const handleEditParagraph = (newText: string) => {
+    setRephrasedResults(prev => ({
+      ...prev,
+      customText: newText,
+      edited: true,
+    }));
   };
 
   const debounceSave = React.useMemo(() => {
@@ -279,49 +337,23 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     };
   }, [bookId, versionId, chapterId, editor, updateChapterContent]);
 
+  // Fixing map operation on rephrasedResults
   const handleApplyChanges = () => {
-    const finalText = rephrasedResults
-      .map(item => {
-        if (item.selected) {
-          return item.customText || item.rephrasedParagraph;
-        }
-        return item.originalParagraph;
-      })
+    const finalText = diffResults
+      .filter(item => item.selected)
+      .map(item => item.customText || item.rephrasedParagraph)
       .join('\n\n');
 
     if (editor) {
       const { from, to } = editor.state.selection;
-      
-      // Replace the selected text with the rephrased text
+
       editor.chain()
         .focus()
         .deleteRange({ from, to })
         .insertContent(finalText)
         .run();
 
-      // Add highlighting and trigger debounced save
-      setTimeout(() => {
-        const newContent = editor.getJSON();
-        const { from: newFrom } = editor.state.selection;
-        const newTo = newFrom + finalText.length;
-        
-        // Apply temporary highlight with yellow background
-        editor.chain()
-          .setTextSelection({ from: newFrom - finalText.length, to: newFrom })
-          .setMark('textStyle', { backgroundColor: '#fef3c7' })
-          .run();
-
-        // Trigger debounced save
-        debounceSave(newContent);
-
-        // Remove highlight after 3 seconds
-        setTimeout(() => {
-          editor.chain()
-            .setTextSelection({ from: newFrom - finalText.length, to: newFrom })
-            .unsetMark('textStyle')
-            .run();
-        }, 3000);
-      }, 100);
+      debounceSave(editor.getJSON());
     }
 
     onApplyChanges(finalText);
@@ -332,7 +364,11 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   const handleClose = () => {
     onClose();
     setStep('setup');
-    setRephrasedResults([]);
+    setRephrasedResults({
+      rephrasedParagraph: '',
+      originalParagraph: [],
+      selected: false,
+    });
   };
 
   const addPreConfiguredWord = (word: string) => {
@@ -366,7 +402,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => setStep('setup')}
+                onClick={() => setStep('comparison')}
                 className="ml-auto text-gray-600 hover:text-gray-900 hover:bg-gray-100"
               >
                 <ChevronLeft className="w-4 h-4 mr-1" />
@@ -661,11 +697,11 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
                   <span className="text-sm font-semibold text-white">
-                    {rephrasedResults.filter(r => r.selected).length}
+                    {diffResults.filter(r => r.selected).length}
                   </span>
                 </div>
                 <div className="text-sm text-gray-700">
-                  of {rephrasedResults.length} paragraphs selected
+                  of {diffResults.length} paragraphs selected
                 </div>
               </div>
 
@@ -680,15 +716,67 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
             </div>
 
             <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-1">
-              {rephrasedResults.map((result, index) => (
+              {diffResults.map((result, index) => (
                 <CompactDiffCard
                   key={index}
                   result={result}
                   index={index}
-                  onToggleSelection={handleToggleSelection}
-                  onEditParagraph={handleEditParagraph}
+                  onToggleSelection={(index) => {
+                    setDiffResults(prev => 
+                      prev.map((item, i) => 
+                        i === index ? { ...item, selected: !item.selected } : item
+                      )
+                    );
+                  }}
+                  onEditParagraph={(index, newText) => {
+                    setDiffResults(prev => 
+                      prev.map((item, i) => 
+                        i === index 
+                          ? { ...item, newParagraph: newText, edited: true, selected: true }
+                          : item
+                      )
+                    );
+                  }}
                 />
               ))}
+            </div>
+          </div>
+        )}
+
+        {step === 'comparison' && (
+          <div className="comparison-step grid grid-cols-2 gap-4 max-h-[calc(90vh-120px)] overflow-y-auto">
+            {/* Left Pane: Original Paragraph */}
+            <div className="original-pane p-4 bg-gray-50 border rounded overflow-y-auto">
+              <h3 className="text-lg font-semibold">Original Text</h3>
+              <pre className="text-sm whitespace-pre-wrap">
+                {rephrasedResults.originalParagraph.join('\n')}
+              </pre>
+            </div>
+
+            {/* Right Pane: Rephrased Paragraph */}
+            <div className="rephrased-pane p-4 bg-gray-50 border rounded overflow-y-auto">
+              <h3 className="text-lg font-semibold">Rephrased Text</h3>
+              <pre className="text-sm whitespace-pre-wrap">
+                {rephrasedResults.rephrasedParagraph}
+              </pre>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="col-span-2 flex justify-end gap-2 mt-4 sticky bottom-0 bg-white py-2">
+              <button
+                className="btn btn-secondary"
+                onClick={handleDiffChecker}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Loading Diff...' : 'Show Diff'}
+              </button>
+
+              <button
+                className="btn btn-primary"
+                onClick={handleApplyChanges}
+              >
+                Apply Changes
+              </button>
             </div>
           </div>
         )}
@@ -712,7 +800,7 @@ const CompactDiffCard: React.FC<CompactDiffCardProps> = ({
 }) => {
   const [isEditingOriginal, setIsEditingOriginal] = useState(false);
   const [isEditingRephrased, setIsEditingRephrased] = useState(false);
-  const [editTextOriginal, setEditTextOriginal] = useState(result.originalParagraph);
+  const [editTextOriginal, setEditTextOriginal] = useState<string>('');
   const [editTextRephrased, setEditTextRephrased] = useState(result.customText || result.rephrasedParagraph);
 
   const handleSaveOriginal = () => {

@@ -54,7 +54,7 @@ export const ChapterLinkModal: React.FC<ChapterLinkModalProps> = ({
       const nodes = response.data?.nodes || [];
       // Filter for Chapter and Act nodes that can be linked to chapters
       const linkableNodes = nodes.filter((node: CanvasNode) => 
-        node.type === 'Chapter' || node.type === 'Act' || node.type === 'Outline'
+        node.type === 'Chapter'
       );
       setPlotCanvasNodes(linkableNodes);
     } catch (error) {

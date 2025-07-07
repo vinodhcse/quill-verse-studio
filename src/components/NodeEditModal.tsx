@@ -10,6 +10,7 @@ import { PlotNodeData } from '@/types/plotCanvas';
 import { TimelineEvent } from '@/types/canvas';
 import { apiClient } from '@/lib/api';
 import { X } from 'lucide-react';
+import { stat } from 'fs';
 
 interface NodeEditModalProps {
   isOpen: boolean;
@@ -178,6 +179,10 @@ export const NodeEditModal: React.FC<NodeEditModalProps> = ({
     console.log('Saving node data:', formData);
     const updatedNodeData = {
         ...node,
+        name: formData.name,
+        detail: formData.detail,
+        goal: formData.goal || '',  
+        status: formData.status || 'Not Completed',
         characters: formData.characters?.map(character => ({
             id: character.id,
             name: character.name,
