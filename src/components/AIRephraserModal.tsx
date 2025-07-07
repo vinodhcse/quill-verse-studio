@@ -293,7 +293,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
           {
             rephrasedParagraph: parsedChunk.newParagraph,
             originalParagraph: [parsedChunk.originalParagraph],
-            selected: false,
+            selected: true,
             diff: parsedChunk.diff,
           },
         ]);
