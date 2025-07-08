@@ -10,12 +10,16 @@ import {
   Bold, 
   Italic, 
   Underline, 
+  Strikethrough,
+  List,
+  ListOrdered,
+  Quote,
   Copy, 
   Scissors, 
   Clipboard,
   RefreshCw,
   Expand,
-  Minimize2,
+  Minimize,
   CheckCircle,
   Settings,
   Loader2
@@ -135,16 +139,6 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({
     }
 
     // Call the rephraser with default settings for the quick action
-    // This will skip the setup step and go directly to processing
-    const quickActionData = {
-      action,
-      selectedText,
-      textBlocks,
-      editor,
-      isQuickAction: true
-    };
-    
-    // Simulate the API call and show comparison step
     try {
       onRephraseClick(selectedText, textBlocks, editor);
       setIsLoading(null);
@@ -177,169 +171,181 @@ export const TextContextMenu: React.FC<TextContextMenuProps> = ({
       <ContextMenuTrigger asChild>
         {children}
       </ContextMenuTrigger>
-      <ContextMenuContent className="w-80 bg-background/95 backdrop-blur-sm border border-border/50 shadow-lg p-3">
-        <div className="flex flex-col gap-3">
-          {/* First Row - Basic Editing Tools */}
-          <div className="flex items-center justify-center gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(selectedText);
-              }}
-              disabled={!isTextSelected}
-              className="flex items-center gap-1 h-8 px-2 text-xs"
-            >
-              <Copy className="w-3 h-3" />
-              Copy
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => {
-                navigator.clipboard.writeText(selectedText);
-                editor?.commands.deleteSelection();
-              }}
-              disabled={!isTextSelected}
-              className="flex items-center gap-1 h-8 px-2 text-xs"
-            >
-              <Scissors className="w-3 h-3" />
-              Cut
-            </Button>
-            
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={async () => {
-                try {
-                  const text = await navigator.clipboard.readText();
-                  editor?.commands.insertContent(text);
-                } catch (err) {
-                  console.error('Failed to paste:', err);
-                }
-              }}
-              className="flex items-center gap-1 h-8 px-2 text-xs"
-            >
-              <Clipboard className="w-3 h-3" />
-              Paste
-            </Button>
-
-            {isTextSelected && (
-              <>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().toggleBold().run()}
-                  className="flex items-center gap-1 h-8 px-2 text-xs"
-                >
-                  <Bold className="w-3 h-3" />
-                  Bold
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().toggleItalic().run()}
-                  className="flex items-center gap-1 h-8 px-2 text-xs"
-                >
-                  <Italic className="w-3 h-3" />
-                  Italic
-                </Button>
-                
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => editor?.chain().focus().toggleUnderline().run()}
-                  className="flex items-center gap-1 h-8 px-2 text-xs"
-                >
-                  <Underline className="w-3 h-3" />
-                  Underline
-                </Button>
-              </>
-            )}
-          </div>
-
-          {/* Separator */}
+      <ContextMenuContent className="w-auto min-w-0 p-2">
+        {/* First row - Basic formatting tools (icons only) */}
+        <div className="flex items-center gap-1 mb-2">
+          <button
+            onClick={async () => {
+              navigator.clipboard.writeText(selectedText);
+            }}
+            disabled={!isTextSelected}
+            className="p-2 rounded hover:bg-accent transition-colors disabled:opacity-50"
+            title="Copy"
+          >
+            <Copy size={16} />
+          </button>
+          <button
+            onClick={async () => {
+              navigator.clipboard.writeText(selectedText);
+              editor?.commands.deleteSelection();
+            }}
+            disabled={!isTextSelected}
+            className="p-2 rounded hover:bg-accent transition-colors disabled:opacity-50"
+            title="Cut"
+          >
+            <Scissors size={16} />
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const text = await navigator.clipboard.readText();
+                editor?.commands.insertContent(text);
+              } catch (err) {
+                console.error('Failed to paste:', err);
+              }
+            }}
+            className="p-2 rounded hover:bg-accent transition-colors"
+            title="Paste"
+          >
+            <Clipboard size={16} />
+          </button>
+          
           {isTextSelected && (
-            <div className="h-px bg-border/50" />
-          )}
-
-          {/* Second Row - AI Features */}
-          {isTextSelected && (
-            <div className="flex items-center justify-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleQuickAction('rephrase')}
-                disabled={isLoading === 'rephrase'}
-                className="flex items-center gap-1 h-8 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+            <>
+              <div className="w-px h-6 bg-border mx-1" />
+              <button
+                onClick={() => editor?.chain().focus().toggleBold().run()}
+                className={`p-2 rounded hover:bg-accent transition-colors ${
+                  editor?.isActive('bold') ? 'bg-accent' : ''
+                }`}
+                title="Bold"
               >
-                {isLoading === 'rephrase' ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <RefreshCw className="w-3 h-3" />
-                )}
-                Rephrase
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleQuickAction('expand')}
-                disabled={isLoading === 'expand'}
-                className="flex items-center gap-1 h-8 px-2 text-xs text-green-600 hover:text-green-700 hover:bg-green-50"
+                <Bold size={16} />
+              </button>
+              <button
+                onClick={() => editor?.chain().focus().toggleItalic().run()}
+                className={`p-2 rounded hover:bg-accent transition-colors ${
+                  editor?.isActive('italic') ? 'bg-accent' : ''
+                }`}
+                title="Italic"
               >
-                {isLoading === 'expand' ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Expand className="w-3 h-3" />
-                )}
-                Expand
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleQuickAction('shorten')}
-                disabled={isLoading === 'shorten'}
-                className="flex items-center gap-1 h-8 px-2 text-xs text-orange-600 hover:text-orange-700 hover:bg-orange-50"
+                <Italic size={16} />
+              </button>
+              <button
+                onClick={() => editor?.chain().focus().toggleUnderline().run()}
+                className={`p-2 rounded hover:bg-accent transition-colors ${
+                  editor?.isActive('underline') ? 'bg-accent' : ''
+                }`}
+                title="Underline"
               >
-                {isLoading === 'shorten' ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <Minimize2 className="w-3 h-3" />
-                )}
-                Shorten
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => handleQuickAction('validate')}
-                disabled={isLoading === 'validate'}
-                className="flex items-center gap-1 h-8 px-2 text-xs text-purple-600 hover:text-purple-700 hover:bg-purple-50"
+                <Underline size={16} />
+              </button>
+              <button
+                onClick={() => editor?.chain().focus().toggleStrike().run()}
+                className={`p-2 rounded hover:bg-accent transition-colors ${
+                  editor?.isActive('strike') ? 'bg-accent' : ''
+                }`}
+                title="Strikethrough"
               >
-                {isLoading === 'validate' ? (
-                  <Loader2 className="w-3 h-3 animate-spin" />
-                ) : (
-                  <CheckCircle className="w-3 h-3" />
-                )}
-                Validate
-              </Button>
-              
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleRephrase}
-                className="flex items-center gap-1 h-8 px-2 text-xs text-gray-600 hover:text-gray-700 hover:bg-gray-50"
+                <Strikethrough size={16} />
+              </button>
+              <div className="w-px h-6 bg-border mx-1" />
+              <button
+                onClick={() => editor?.chain().focus().toggleBulletList().run()}
+                className={`p-2 rounded hover:bg-accent transition-colors ${
+                  editor?.isActive('bulletList') ? 'bg-accent' : ''
+                }`}
+                title="Bullet List"
               >
-                <Settings className="w-3 h-3" />
-                Settings
-              </Button>
-            </div>
+                <List size={16} />
+              </button>
+              <button
+                onClick={() => editor?.chain().focus().toggleOrderedList().run()}
+                className={`p-2 rounded hover:bg-accent transition-colors ${
+                  editor?.isActive('orderedList') ? 'bg-accent' : ''
+                }`}
+                title="Numbered List"
+              >
+                <ListOrdered size={16} />
+              </button>
+              <button
+                onClick={() => editor?.chain().focus().toggleBlockquote().run()}
+                className={`p-2 rounded hover:bg-accent transition-colors ${
+                  editor?.isActive('blockquote') ? 'bg-accent' : ''
+                }`}
+                title="Quote"
+              >
+                <Quote size={16} />
+              </button>
+            </>
           )}
         </div>
+
+        {/* Second row - AI features (icons + text) */}
+        {isTextSelected && (
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => handleQuickAction('rephrase')}
+              disabled={isLoading === 'rephrase'}
+              className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+              title="Rephrase text"
+            >
+              {isLoading === 'rephrase' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <RefreshCw size={14} />
+              )}
+              Rephrase
+            </button>
+            <button
+              onClick={() => handleQuickAction('expand')}
+              disabled={isLoading === 'expand'}
+              className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+              title="Expand text"
+            >
+              {isLoading === 'expand' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Expand size={14} />
+              )}
+              Expand
+            </button>
+            <button
+              onClick={() => handleQuickAction('shorten')}
+              disabled={isLoading === 'shorten'}
+              className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+              title="Shorten text"
+            >
+              {isLoading === 'shorten' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <Minimize size={14} />
+              )}
+              Shorten
+            </button>
+            <button
+              onClick={() => handleQuickAction('validate')}
+              disabled={isLoading === 'validate'}
+              className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+              title="Validate text"
+            >
+              {isLoading === 'validate' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <CheckCircle size={14} />
+              )}
+              Validate
+            </button>
+            <button
+              onClick={handleRephrase}
+              className="px-3 py-2 rounded bg-muted hover:bg-muted/80 transition-colors text-sm flex items-center gap-1.5"
+              title="Open AI Settings"
+            >
+              <Settings size={14} />
+              Settings
+            </button>
+          </div>
+        )}
       </ContextMenuContent>
     </ContextMenu>
   );
