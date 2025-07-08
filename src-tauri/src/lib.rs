@@ -1,7 +1,9 @@
-
-use tauri::{State, Emitter};
+use tauri::{State, Emitter, Manager};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+
+mod llm;
+use llm::{LocalLLM, LLM_INSTANCE};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserRole {
@@ -10,9 +12,97 @@ pub struct UserRole {
     role: String, // "AUTHOR", "CO_WRITER", "EDITOR", "REVIEWER"
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RephraseRequest {
+    text_to_rephrase: Vec<String>,
+    custom_instructions: String,
+    llm_model: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RephraseResponse {
+    rephrased_text: String,
+    success: bool,
+    error: Option<String>,
+}
+
 #[derive(Default)]
 pub struct AppState {
     current_user_role: Mutex<Option<UserRole>>,
+    llm_ready: Mutex<bool>,
+}
+
+#[tauri::command]
+async fn initialize_llm() -> Result<bool, String> {
+    println!("Starting LLM initialization...");
+    
+    match LLM_INSTANCE.lock() {
+        Ok(mut llm) => {
+            match llm.initialize().await {
+                Ok(_) => {
+                    println!("LLM initialized successfully");
+                    Ok(true)
+                },
+                Err(e) => {
+                    eprintln!("Failed to initialize LLM: {}", e);
+                    Err(format!("Failed to initialize LLM: {}", e))
+                }
+            }
+        },
+        Err(e) => {
+            eprintln!("Failed to acquire LLM lock: {}", e);
+            Err(format!("Failed to acquire LLM lock: {}", e))
+        }
+    }
+}
+
+#[tauri::command]
+async fn rephrase_text_local(request: RephraseRequest) -> Result<RephraseResponse, String> {
+    println!("Processing rephrase request: {:?}", request);
+    
+    match LLM_INSTANCE.lock() {
+        Ok(llm) => {
+            if !llm.is_ready() {
+                return Ok(RephraseResponse {
+                    rephrased_text: String::new(),
+                    success: false,
+                    error: Some("LLM model not initialized".to_string()),
+                });
+            }
+
+            let combined_text = request.text_to_rephrase.join("\n\n");
+            
+            match llm.rephrase_text(&combined_text, &request.custom_instructions).await {
+                Ok(rephrased) => {
+                    Ok(RephraseResponse {
+                        rephrased_text: rephrased,
+                        success: true,
+                        error: None,
+                    })
+                },
+                Err(e) => {
+                    eprintln!("Rephrase error: {}", e);
+                    Ok(RephraseResponse {
+                        rephrased_text: String::new(),
+                        success: false,
+                        error: Some(format!("Rephrase failed: {}", e)),
+                    })
+                }
+            }
+        },
+        Err(e) => {
+            eprintln!("Failed to acquire LLM lock: {}", e);
+            Err(format!("Failed to acquire LLM lock: {}", e))
+        }
+    }
+}
+
+#[tauri::command]
+async fn check_llm_status() -> Result<bool, String> {
+    match LLM_INSTANCE.lock() {
+        Ok(llm) => Ok(llm.is_ready()),
+        Err(_) => Ok(false),
+    }
 }
 
 #[tauri::command]
@@ -87,7 +177,10 @@ pub fn run() {
             set_user_role,
             can_access_clipboard,
             controlled_copy_to_clipboard,
-            get_current_user_role
+            get_current_user_role,
+            initialize_llm,
+            rephrase_text_local,
+            check_llm_status
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {
@@ -97,6 +190,16 @@ pub fn run() {
                         .build(),
                 )?;
             }
+
+            // Initialize LLM on app startup
+            let app_handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                match app_handle.invoke("initialize_llm", ()).await {
+                    Ok(_) => println!("LLM initialization started"),
+                    Err(e) => eprintln!("Failed to start LLM initialization: {}", e),
+                }
+            });
+
             Ok(())
         })
         .run(tauri::generate_context!())

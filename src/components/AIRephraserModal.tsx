@@ -15,9 +15,9 @@ import { Badge } from '@/components/ui/badge';
 import { Command, CommandInput, CommandItem, CommandList, CommandEmpty, CommandGroup } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Loader2, RefreshCw, Check, X, ChevronLeft, ChevronRight, Sparkles, Plus, Search, Palette, Wand2, ArrowRight, Edit3 } from 'lucide-react';
-import { apiClient } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useBookContext } from '@/lib/BookContextProvider';
+import { TauriLLMService, RephraseRequest } from '@/lib/tauriService';
 
 interface RephrasedParagraph {
   rephrasedParagraph: string;
@@ -25,6 +25,7 @@ interface RephrasedParagraph {
   selected: boolean;
   edited?: boolean;
   customText?: string;
+  diff?: string;
 }
 
 interface ContextItem {
@@ -122,7 +123,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   const [step, setStep] = useState<'setup' | 'results' | 'comparison'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('Make the tone more engaging and vivid.');
-  const [llmModel, setLlmModel] = useState('default');
+  const [llmModel, setLlmModel] = useState('local-gemma');
   const [showDifference, setShowDifference] = useState(true);
   const [noChangeWords, setNoChangeWords] = useState('');
   const [rephrasedResults, setRephrasedResults] = useState<RephrasedParagraph>({
@@ -132,6 +133,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   });
   const [diffResults, setDiffResults] = useState<RephrasedParagraph[]>([]);
   const [diffStreamingComplete, setDiffStreamingComplete] = useState(false);
+  const [llmReady, setLlmReady] = useState(false);
   
   // Context selection state
   const [selectedPlotNodes, setSelectedPlotNodes] = useState<ContextItem[]>([]);
@@ -168,10 +170,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
 
   // Available LLM models
   const availableModels = [
-    { value: 'default', label: 'Default Model' },
-    { value: 'gpt-4', label: 'GPT-4' },
-    { value: 'claude-3', label: 'Claude 3' },
-    { value: 'gemini-pro', label: 'Gemini Pro' },
+    { value: 'local-gemma', label: 'Local Gemma (Recommended)' },
+    { value: 'local-mistral', label: 'Local Mistral' },
   ];
 
   // Pre-configured no-change words
@@ -180,13 +180,36 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     'dates', 'numbers', 'proper nouns', 'dialogue tags'
   ];
 
+  // Check LLM status on mount
+  useEffect(() => {
+    const checkLLMStatus = async () => {
+      const status = await TauriLLMService.checkLLMStatus();
+      setLlmReady(status);
+      
+      if (!status) {
+        // Try to initialize if not ready
+        const initialized = await TauriLLMService.initializeLLM();
+        setLlmReady(initialized);
+      }
+    };
+    
+    if (isOpen) {
+      checkLLMStatus();
+    }
+  }, [isOpen]);
+
   const handleRephrase = async () => {
+    if (!llmReady) {
+      console.error('LLM not ready yet');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Process textBlocks to create textToRephrase array - remove duplicates and escape quotes
+      // Process textBlocks to create textToRephrase array - remove duplicates
       const seenTexts = new Set<string>();
       const textToRephrase = textBlocks
-        .map(block => escapeQuote(block.trim()))
+        .map(block => block.trim())
         .filter(text => {
           if (text.length > 0 && !seenTexts.has(text)) {
             seenTexts.add(text);
@@ -194,54 +217,48 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
           }
           return false;
         });
-      
-      // Get context from editor - extract unique lines
-      const currentSelection = editor?.state?.selection;
-      const textBefore = extractContextLines(editor, currentSelection, 10, 'before');
-      const textAfter = extractContextLines(editor, currentSelection, 10, 'after');
-      
-      // Build prompt contexts
-      const promptContexts = [
-        ...selectedPlotNodes.map(node => ({
-          contextType: 'PlotCanvas',
-          id: node.id,
-          prompt: node.prompt || ''
-        })),
-        ...selectedCharacters.map(char => ({
-          contextType: 'Character',
-          id: char.id,
-          prompt: char.prompt || ''
-        })),
-        ...selectedWorldObjects.map(obj => ({
-          contextType: 'WorldObject',
-          id: obj.id,
-          prompt: obj.prompt || ''
-        }))
-      ];
 
-      const payload = {
-        bookId,
-        versionId,
-        chapterId,
-        textToRephrase,
-        textBefore,
-        textAfter,
-        llmModel,
-        customInstructions,
-        promptContexts,
+      // Build instructions with context
+      let enhancedInstructions = customInstructions;
+      
+      // Add context from selected items
+      if (selectedPlotNodes.length > 0 || selectedCharacters.length > 0 || selectedWorldObjects.length > 0) {
+        enhancedInstructions += '\n\nContext for rephrasing:\n';
+        
+        selectedPlotNodes.forEach(node => {
+          enhancedInstructions += `Plot: ${node.prompt}\n`;
+        });
+        
+        selectedCharacters.forEach(char => {
+          enhancedInstructions += `Character: ${char.prompt}\n`;
+        });
+        
+        selectedWorldObjects.forEach(obj => {
+          enhancedInstructions += `World: ${obj.prompt}\n`;
+        });
+      }
+
+      if (noChangeWords) {
+        enhancedInstructions += `\n\nDo not change these words/phrases: ${noChangeWords}`;
+      }
+
+      const request: RephraseRequest = {
+        text_to_rephrase: textToRephrase,
+        custom_instructions: enhancedInstructions,
+        llm_model: llmModel,
       };
 
-      console.log('Rephrase payload:', payload);
-      const response = await apiClient.post('/ai/rephrase', payload);
+      console.log('Local rephrase request:', request);
+      const response = await TauriLLMService.rephraseText(request);
 
-      console.log('Rephrase response:', response.data);
-      if (!response.data || !response.data.rephrasedText) {
-        console.error('Invalid response from rephrase API:', response.data);
+      if (!response.success || !response.rephrased_text) {
+        console.error('Rephrase failed:', response.error);
         return;
       }
+
       const results: RephrasedParagraph = {
         originalParagraph: textToRephrase,
-        rephrasedParagraph: response.data.rephrasedText,
+        rephrasedParagraph: response.rephrased_text,
         selected: true,
         edited: false,
       };
@@ -369,7 +386,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         .insertContent(finalText)
         .run();
 
-      // Apply yellow highlighting that persists for 3 minutes
+      // Add temporary highlighting that fades after 3 minutes
       setTimeout(() => {
         const currentPos = editor.state.selection.from;
         const endPos = currentPos + finalText.length;
@@ -442,7 +459,13 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
             <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
               <Wand2 className="w-5 h-5 text-white" />
             </div>
-            AI Text Rephraser
+            AI Text Rephraser (Local)
+            {!llmReady && (
+              <div className="flex items-center gap-2 text-sm text-orange-600">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Loading Model...
+              </div>
+            )}
             {step !== 'setup' && (
               <Button
                 variant="ghost"
@@ -460,6 +483,19 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         <div className="flex-1 overflow-hidden">
           {step === 'setup' && (
             <div className="space-y-6 overflow-y-auto h-full pr-2">
+              {/* LLM Status Banner */}
+              {!llmReady && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
+                  <div className="flex items-center gap-2 text-orange-700">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span className="font-medium">Local AI model is loading...</span>
+                  </div>
+                  <p className="text-sm text-orange-600 mt-1">
+                    Please wait while the local language model initializes. This may take a few moments on first startup.
+                  </p>
+                </div>
+              )}
+
               {/* Custom Instructions */}
               <div className="space-y-2">
                 <Label htmlFor="instructions" className="text-sm font-medium text-gray-700">
@@ -672,7 +708,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                 </div>
               </div>
 
-              {/* Settings Row */}
+              {/* Settings Row - Updated model options */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-sm font-medium text-gray-700">AI Model</Label>
@@ -681,11 +717,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {availableModels.map((model) => (
-                        <SelectItem key={model.value} value={model.value}>
-                          {model.label}
-                        </SelectItem>
-                      ))}
+                      <SelectItem value="local-gemma">Local Gemma (Recommended)</SelectItem>
+                      <SelectItem value="local-mistral">Local Mistral</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -714,22 +747,27 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                 </div>
               </div>
 
-              {/* Rephrase Button */}
+              {/* Rephrase Button - Updated with LLM ready check */}
               <Button
                 onClick={handleRephrase}
-                disabled={isLoading || !selectedText}
-                className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                disabled={isLoading || !selectedText || !llmReady}
+                className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white disabled:bg-gray-400"
                 size="lg"
               >
                 {isLoading ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    Rephrasing...
+                    Processing with Local AI...
+                  </>
+                ) : !llmReady ? (
+                  <>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Loading AI Model...
                   </>
                 ) : (
                   <>
                     <Wand2 className="w-5 h-5 mr-2" />
-                    Rephrase Text
+                    Rephrase Text (Local AI)
                   </>
                 )}
               </Button>
