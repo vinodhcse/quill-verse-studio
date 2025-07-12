@@ -18,8 +18,6 @@ import { Loader2, RefreshCw, Check, X, ChevronLeft, ChevronRight, Sparkles, Plus
 import { apiClient } from '@/lib/api';
 import { cn } from '@/lib/utils';
 import { useBookContext } from '@/lib/BookContextProvider';
-import RephraseComparisonModal from '../pages/RephraseComparisonModal';
-import { set } from 'date-fns';
 
 interface RephrasedParagraph {
   rephrasedParagraph: string;
@@ -44,7 +42,7 @@ interface AIRephraserModalProps {
   bookId: string;
   versionId: string;
   chapterId: string;
-  onApplyChanges: (fromPos: any, toPos: any) => void;
+  onApplyChanges: (newText: string) => void;
   editor?: any;
 }
 
@@ -121,13 +119,12 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   editor,
 }) => {
   const { state, updateChapterContent } = useBookContext();
-  const [step, setStep] = useState<'setup' | 'results' | 'comparison' | 'localComparison'>('setup');
+  const [step, setStep] = useState<'setup' | 'results' | 'comparison'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('Make the tone more engaging and vivid.');
   const [llmModel, setLlmModel] = useState('default');
   const [showDifference, setShowDifference] = useState(true);
   const [noChangeWords, setNoChangeWords] = useState('');
-  const [textToRephrase, setTextToRephrase] = useState([] as string[]);
   const [rephrasedResults, setRephrasedResults] = useState<RephrasedParagraph>({
     rephrasedParagraph: '',
     originalParagraph: [],
@@ -135,7 +132,6 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   });
   const [diffResults, setDiffResults] = useState<RephrasedParagraph[]>([]);
   const [diffStreamingComplete, setDiffStreamingComplete] = useState(false);
-  const [isLocalRephraseModalOpen, setIsLocalRephraseModalOpen] = useState<boolean>(false);
   
   // Context selection state
   const [selectedPlotNodes, setSelectedPlotNodes] = useState<ContextItem[]>([]);
@@ -235,32 +231,23 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         promptContexts,
       };
 
-      if(false) { //Calling local llm
-          console.log('Rephrase payload:', payload);
-          const response = await apiClient.post('/ai/rephrase', payload);
+      console.log('Rephrase payload:', payload);
+      const response = await apiClient.post('/ai/rephrase', payload);
 
-          console.log('Rephrase response:', response.data);
-          if (!response.data || !response.data.rephrasedText) {
-            console.error('Invalid response from rephrase API:', response.data);
-            return;
-          }
-          const results: RephrasedParagraph = {
-            originalParagraph: textToRephrase,
-            rephrasedParagraph: response.data.rephrasedText,
-            selected: true,
-            edited: false,
-          };
-
-          setRephrasedResults(results);
-          setStep('comparison');
+      console.log('Rephrase response:', response.data);
+      if (!response.data || !response.data.rephrasedText) {
+        console.error('Invalid response from rephrase API:', response.data);
+        return;
       }
-      else {
-         setTextToRephrase(textToRephrase);
-         setIsLocalRephraseModalOpen(true);
-         setStep('localComparison');
-        // onClose();
-      }  
-     
+      const results: RephrasedParagraph = {
+        originalParagraph: textToRephrase,
+        rephrasedParagraph: response.data.rephrasedText,
+        selected: true,
+        edited: false,
+      };
+
+      setRephrasedResults(results);
+      setStep('comparison');
     } catch (error) {
       console.error('Failed to rephrase text:', error);
     } finally {
@@ -351,94 +338,11 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
           const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
           
           // Call the backend save API
-          //await onchange(content, totalCharacters, totalWords);
+          await updateChapterContent(bookId, versionId, chapterId, content, totalCharacters, totalWords);
         }
       }, 500);
     };
   }, [bookId, versionId, chapterId, editor, updateChapterContent]);
-
-  const handleCloseModal = () => {
-    setIsLocalRephraseModalOpen(false);
-    onClose();
-    setStep('setup');
-    setRephrasedResults({
-      rephrasedParagraph: '',
-      originalParagraph: [],
-      selected: false,
-    });
-    setDiffResults([]);
-    setDiffStreamingComplete(false);
-    
-  };
-
-   // Fixed apply changes function for results step
-  const handleCompleteRephrasing = (rephrasedContent: string[]) => {
-    console.log("Rephrasing complete! Final Text:", rephrasedContent);
-    // You would typically update your chat input or main text area here with the rephrasedContent
-    // For demonstration, update the text area with the rephrased text
-    
-    let finalText = rephrasedContent;
-    let fromPos, toPos;
-     const highlightMarkAttrs = {
-            color: '#FFFACD', // A light yellow/lemonchiffon for a subtle highlight
-            backgroundColor: '#FFFACD', // A light yellow/lemonchiffon for a subtle highlight};
-     }
-    if (editor && rephrasedContent) {
-      const { from, to } = editor.state.selection;
-      
-      const nodes = rephrasedContent.map(str => ({
-        type: 'paragraph',
-        content: [
-          {
-            type: 'text',
-            text: str,
-            marks: [
-              {
-                  type: 'highlight', // <-- CHANGE THIS TO 'highlight'
-                  attrs: highlightMarkAttrs,
-              },
-            ],
-          },
-        ],
-      }));
-
-      
-
-      editor
-        .chain()
-        .focus()
-        .deleteSelection()
-        .command(({ tr, state }) => {
-          // Start inserting at the current selection position
-          let pos = tr.selection.from;
-          fromPos = pos;
-
-          nodes.forEach(node => {
-            const nodeType = state.schema.nodes[node.type];
-            const content = node.content.map(c => {
-              const marks = c.marks?.map(m =>
-                state.schema.marks[m.type].create(m.attrs)
-              ) || [];
-              return state.schema.text(c.text, marks);
-            });
-            const paragraphNode = nodeType.create({}, content);
-            tr.insert(pos, paragraphNode);
-            pos += paragraphNode.nodeSize;
-          });
-
-          toPos = pos;
-
-          return true;
-        })
-        .run();
-    }
-
-     debounceSave(editor.getJSON());
-
-    onApplyChanges(fromPos, toPos);
-    onClose();
-    setStep('setup');
-};
 
   // Fixed apply changes function for results step
   const handleApplyChanges = () => {
@@ -493,7 +397,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
       }, 200);
     }
 
-    //onApplyChanges(f);
+    onApplyChanges(finalText);
     onClose();
     setStep('setup');
   };
@@ -531,9 +435,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   };
 
   return (
-    <div>
-       {!isLocalRephraseModalOpen && (
-       <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-6xl h-[90vh] flex flex-col overflow-hidden bg-gradient-to-br from-slate-50 to-white border-0 shadow-2xl">
         <DialogHeader className="pb-6 border-b border-slate-200/60 flex-shrink-0">
           <DialogTitle className="flex items-center gap-3 text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
@@ -831,12 +733,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                   </>
                 )}
               </Button>
-             
             </div>
           )}
-
-         
-
 
           {step === 'results' && (
             <div className="flex flex-col h-full animate-fade-in">
@@ -1027,19 +925,6 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         </div>
       </DialogContent>
     </Dialog>
-    )}
-       {step === 'localComparison' && isLocalRephraseModalOpen && (
-            <div className="flex flex-col h-full animate-fade-in">
-            
-                <RephraseComparisonModal
-                  textToRephrase={textToRephrase}
-                  onClose={handleCloseModal}
-                  onCompleteRephrasing={handleCompleteRephrasing}
-                />
-            </div>
-          )}
-    </div>
-    
   );
 };
 
@@ -1192,8 +1077,6 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
               </p>
             </div>
           )}
-
-           
         </div>
       </div>
     </div>

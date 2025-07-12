@@ -12,6 +12,7 @@ import Image from '@tiptap/extension-image';
 import FontFamily from '@tiptap/extension-font-family';
 import FontSize from '@tiptap/extension-font-size';
 import Color from '@tiptap/extension-color';
+import Highlight from '@tiptap/extension-highlight';
 import { CommentExtension } from '@/extensions/CommentExtension';
 import { TrackChangesExtension } from '@/extensions/TrackChangesExtension';
 import { EditorToolbar } from './EditorToolbar';
@@ -108,6 +109,12 @@ export const CollaborativeRichTextEditor: React.FC<CollaborativeRichTextEditorPr
         },
       }),
       TextStyle,
+       Highlight.configure({
+                  multicolor: true, // Allows multiple highlight colors
+                  // Default highlight color if not specified.
+                  // You can also specify an 'attr' if you want a custom attribute name for the color.
+                  // But usually, you pass 'color' directly as the attribute in the mark.
+            }),
       Underline,
       Link.configure({
         openOnClick: false,

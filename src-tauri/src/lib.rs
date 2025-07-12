@@ -2,6 +2,7 @@
 use tauri::{State, Emitter};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
+use sysinfo::{System};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserRole {
@@ -9,6 +10,14 @@ pub struct UserRole {
     book_id: String,
     role: String, // "AUTHOR", "CO_WRITER", "EDITOR", "REVIEWER"
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SystemSpecs {
+    cpu_brand: String,
+    cpu_cores: usize,
+    total_ram_mb: u64,
+}
+
 
 #[derive(Default)]
 pub struct AppState {
@@ -79,6 +88,26 @@ async fn get_current_user_role(state: State<'_, AppState>) -> Result<Option<User
     Ok(current_role.clone())
 }
 
+
+#[tauri::command]
+fn get_cpu_gpu_specs() -> SystemSpecs {
+    let mut sys = System::new_all();
+    sys.refresh_cpu(); // refresh only CPU data
+
+    let cpu_brand = sys.cpus().first()
+        .map(|cpu| cpu.brand().to_string())
+        .unwrap_or_else(|| "Unknown CPU".to_string());
+
+    let cpu_cores = sys.cpus().len();
+    let total_ram_mb = sys.total_memory() / 1024; // MB
+
+    SystemSpecs {
+        cpu_brand,
+        cpu_cores,
+        total_ram_mb,
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -87,7 +116,8 @@ pub fn run() {
             set_user_role,
             can_access_clipboard,
             controlled_copy_to_clipboard,
-            get_current_user_role
+            get_current_user_role,
+            get_cpu_gpu_specs 
         ])
         .setup(|app| {
             if cfg!(debug_assertions) {

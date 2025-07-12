@@ -12,6 +12,7 @@ import Image from '@tiptap/extension-image';
 import FontFamily from '@tiptap/extension-font-family';
 import FontSize from '@tiptap/extension-font-size';
 import Color from '@tiptap/extension-color';
+import Highlight from '@tiptap/extension-highlight';
 import { CommentExtension } from '@/extensions/CommentExtension';
 import { TrackChangesExtension } from '@/extensions/TrackChangesExtension';
 import { EditorToolbar } from './EditorToolbar';
@@ -30,6 +31,7 @@ import { consolidateTrackChanges, extractChangesFromContent } from '@/utils/trac
 import { useLocation } from 'react-router-dom';
 import { useClipboard } from '@/hooks/useClipboard';
 import { AIRephraserModal } from '@/components/AIRephraserModal';
+import { set } from 'date-fns';
 
 interface CollaborativeRichTextEditorProps {
   content: any;
@@ -144,38 +146,59 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
     setShowRephraserModal(true);
   };
 
-  const handleApplyRephrasedText = (newText: string) => {
-    if (editor) {
-      const { from, to } = editor.state.selection;
-      
-      // Replace the selected text with the rephrased text
-      editor.chain()
-        .focus()
-        .deleteRange({ from, to })
-        .insertContent(newText)
-        .run();
+  const handleApplyRephrasedText = (fromPos, toPos) => {
+    setShowRephraserModal(false);
+    console.log("Applying rephrased text from:", fromPos, "to:", toPos);
+     const highlightMarkAttrs = {
+            color: '#FFFACD', // A light yellow/lemonchiffon for a subtle highlight
+            backgroundColor: '#FFFACD', // A light yellow/lemonchiffon for a subtle highlight};
+     }
+    if (fromPos !== undefined && toPos !== undefined) {
+            setTimeout(() => {
+                if (editor && editor.isEditable) {
+                     editor
+                      .chain()
+                      .focus() // Keep focus for good measure
+                      .command(({ tr, state, commands }) => { // Use a custom command to access the transaction
+                          const { schema } = state;
+                          const highlightMarkType = schema.marks.highlight;
 
-      // Add temporary highlighting that fades after a minute
-      setTimeout(() => {
-        const { from: newFrom } = editor.state.selection;
-        const newTo = newFrom + newText.length;
-        
-        // Apply temporary highlight
-        editor.chain()
-          .setTextSelection({ from: newFrom - newText.length, to: newFrom })
-          .setMark('textStyle', { backgroundColor: '#fef3c7' }) // yellow highlight
-          .run();
+                          if (!highlightMarkType) {
+                              console.warn('Highlight mark type not found in schema.');
+                              return false; // Indicate failure
+                          }
 
-        // Remove highlight after 1 minute
-        setTimeout(() => {
-          editor.chain()
-            .setTextSelection({ from: newFrom - newText.length, to: newFrom })
-            .unsetMark('textStyle')
-            .run();
-        }, 60000);
-      }, 100);
+                          // Create a mark instance with the exact attributes that were applied
+                          const markToRemove = highlightMarkType.create(highlightMarkAttrs);
+
+                          // Iterate over the range and remove the specific mark
+                          // Prosemirror's removeMark method applies to the transaction
+                          // This is more robust than commands.unsetMark for explicit ranges
+                          tr.removeMark(fromPos, toPos, markToRemove);
+
+                          return true; // Indicate success
+                      })
+                      .run();
+                    console.log(`Highlight removed from range: ${fromPos} to ${toPos}`);
+                    const consolidatedContent = consolidateTrackChanges(editor.getJSON());
+                    console.log('Debounced saving consolidated content:', consolidatedContent);
+                    const plainText = editor.getText();
+                    const totalCharacters = plainText.length;
+                    const totalWords = plainText.trim().split(/\s+/).filter(word => word.length > 0).length;
+                    
+                    // Call the backend save API
+                    onChange(consolidatedContent, totalCharacters, totalWords);
+                     
+                }
+            }, 10000); // 2 minutes = 120 * 1000 milliseconds
     }
+
+
+  
+        
   };
+
+  
 
   const editor = useEditor({
     extensions: [
@@ -188,6 +211,12 @@ export const EditorRichTextEditor: React.FC<CollaborativeRichTextEditorProps> = 
         },
       }),
       TextStyle,
+      Highlight.configure({
+            multicolor: true, // Allows multiple highlight colors
+            // Default highlight color if not specified.
+            // You can also specify an 'attr' if you want a custom attribute name for the color.
+            // But usually, you pass 'color' directly as the attribute in the mark.
+      }),
       Underline,
       Link.configure({
         openOnClick: false,

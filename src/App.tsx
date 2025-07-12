@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -20,6 +19,10 @@ import Account from "./pages/Account";
 import { BookProvider } from '@/lib/BookContextProvider';
 import { UserContextProvider } from '@/lib/UserContextProvider';
 import EditPage from "./pages/EditPage";
+import ChatPage from "./pages/ChatPage";
+import React from 'react';
+import { LLMContextProvider } from './context/LLMContext';
+import AuthenticatedRoutes from './AuthenticatedRoutes';
 
 const queryClient = new QueryClient();
 
@@ -30,60 +33,66 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Home />} />
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route
-              path="/*"
-              element={
-                <UserContextProvider>
-                  <Routes>
-                    <Route path="/write" element={
-                      <BookProvider>
-                        <Index />
-                      </BookProvider>
-                    } />
-                    <Route path="/write/book/:bookId/version/:versionId" element={
-                      <BookProvider>
-                        <Index />
-                      </BookProvider>
-                    } />
-                    <Route path="/edit" element={
-                      <BookProvider>
-                        <EditPage />
-                      </BookProvider>
-                    } />
-                    <Route path="/edit/book/:bookId/version/:versionId" element={
-                      <BookProvider>
-                        <EditPage />
-                      </BookProvider>
-                    } />
-                    <Route path="/plan/book/:bookId/version/:versionId" element={
-                      <BookProvider>
-                        <PlanPage />
-                      </BookProvider>
-                    } />
-                    <Route path="/character-arcs/book/:bookId/version/:versionId" element={
-                      <BookProvider>
-                        <CharacterArcPage />
-                      </BookProvider>
-                    } />
-                    <Route path="/world-entity-arcs/book/:bookId/version/:versionId" element={
-                      <BookProvider>
-                        <WorldEntityArcsPage />
-                      </BookProvider>
-                    } />
-                    <Route path="/dashboard" element={<Dashboard />} />
-                    <Route path="/book/:bookId" element={<BookDetails />} />
-                    <Route path="/account" element={<Account />} />
-                    <Route path="*" element={<NotFound />} />
-                  </Routes>
-                </UserContextProvider>
-              }
-            />
-          </Routes>
+          <LLMContextProvider>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/chat" element={<ChatPage />} />
+              
+              <Route
+                path="/*"
+                element={
+                  <UserContextProvider>
+                    <Routes>
+                      <Route path="/write" element={
+                        <BookProvider>
+                          <Index />
+                        </BookProvider>
+                      } />
+                      <Route path="/write/book/:bookId/version/:versionId" element={
+                        <BookProvider>
+                          <Index />
+                        </BookProvider>
+                      } />
+                      <Route path="/edit" element={
+                        <BookProvider>
+                          <EditPage />
+                        </BookProvider>
+                      } />
+                      <Route path="/edit/book/:bookId/version/:versionId" element={
+                        <BookProvider>
+                          <EditPage />
+                        </BookProvider>
+                      } />
+                      <Route path="/plan/book/:bookId/version/:versionId" element={
+                        <BookProvider>
+                          <PlanPage />
+                        </BookProvider>
+                      } />
+                      <Route path="/character-arcs/book/:bookId/version/:versionId" element={
+                        <BookProvider>
+                          <CharacterArcPage />
+                        </BookProvider>
+                      } />
+                      <Route path="/world-entity-arcs/book/:bookId/version/:versionId" element={
+                        <BookProvider>
+                          <WorldEntityArcsPage />
+                        </BookProvider>
+                      } />
+                      <Route path="/dashboard" element={<Dashboard />} />
+                      <Route path="/book/:bookId" element={<BookDetails />} />
+                      <Route path="/account" element={<Account />} />
+                      {/* Sample route for LLM rephrasing/expansion test */}
+                      
+                      <Route path="*" element={<NotFound />} />
+                    </Routes>
+                  </UserContextProvider>
+                }
+              />
+            </Routes>
+          </LLMContextProvider>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>
