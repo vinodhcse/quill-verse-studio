@@ -255,9 +255,12 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
           setStep('comparison');
       }
       else {
-         setTextToRephrase(textToRephrase);
+        /* setTextToRephrase(textToRephrase);
          setIsLocalRephraseModalOpen(true);
-         setStep('localComparison');
+         setStep('localComparison');*/
+
+         handleRephraseDiffChecker(payload);
+
         // onClose();
       }  
      
@@ -311,8 +314,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         setDiffResults((prev) => [
           ...prev,
           {
-            rephrasedParagraph: parsedChunk.newParagraph,
-            originalParagraph: [parsedChunk.originalParagraph],
+            rephrasedParagraph: parsedChunk.rephrasedParagraphContent,
+            originalParagraph: parsedChunk.originalParagraphContents,
             selected: true,
             diff: parsedChunk.diff,
           },
@@ -324,6 +327,61 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
       setIsLoading(false);
     }
   };
+
+  const handleRephraseDiffChecker = async (payload) => {
+    setIsLoading(true);
+    setDiffStreamingComplete(false);
+    setDiffResults([]); // Clear previous results
+    setStep('results');
+    try {
+     
+      console.log('RephraseDiffChecker payload:', payload);
+       const token = localStorage.getItem('token');
+      
+
+      const response = await fetch('http://localhost:4000/api/ai/rephrase', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+          'Connection': 'keep-alive',
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder('utf-8');
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value, { stream: true });
+        const parsedChunk = JSON.parse(chunk);
+        console.log('Parsed diff chunk:', parsedChunk);
+        
+        if (parsedChunk.done) {
+          setDiffStreamingComplete(true);
+          break;
+        }
+
+        setDiffResults((prev) => [
+          ...prev,
+          {
+            rephrasedParagraph: parsedChunk.rephrasedParagraphContent,
+            originalParagraph: parsedChunk.originalParagraphContents,
+            selected: true,
+            diff: '',
+          },
+        ]);
+      }
+    } catch (error) {
+      console.error('Failed to fetch diff:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
 
   const handleToggleSelection = () => {
     setRephrasedResults(prev => ({
@@ -440,63 +498,83 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     setStep('setup');
 };
 
-  // Fixed apply changes function for results step
   const handleApplyChanges = () => {
-    let finalText = '';
-    
-    if (step === 'results') {
-      // Use diff results for results step
-      finalText = diffResults
-        .filter(item => item.selected)
-        .map(item => item.customText || item.rephrasedParagraph)
-        .join('\n\n');
-    } else {
-      // Use rephrased results for comparison step
-      finalText = rephrasedResults.customText || rephrasedResults.rephrasedParagraph;
-    }
+  let finalText = '';
+  let rephrasedContent = diffResults;
 
-    if (editor && finalText) {
-      const { from, to } = editor.state.selection;
+  if (step === 'results') {
+    finalText = diffResults
+      .filter(item => item.selected)
+      .map(item => item.customText || item.rephrasedParagraph)
+      .join('\n\n');
+  } else {
+    finalText = rephrasedResults.customText || rephrasedResults.rephrasedParagraph;
+    rephrasedContent = [rephrasedResults]; // wrap in array for consistent mapping
+  }
 
-      // Replace the selected text (not insert after)
-      editor.chain()
-        .focus()
-        .deleteRange({ from, to })
-        .insertContent(finalText)
-        .run();
-
-      // Apply yellow highlighting that persists for 3 minutes
-      setTimeout(() => {
-        const currentPos = editor.state.selection.from;
-        const endPos = currentPos + finalText.length;
-        
-        // Apply yellow highlight
-        editor.chain()
-          .setTextSelection({ from: currentPos - finalText.length, to: currentPos })
-          .setMark('textStyle', { backgroundColor: '#fef3c7', color: '#92400e' })
-          .run();
-        
-        // Remove highlight after 3 minutes
-        setTimeout(() => {
-          if (editor && !editor.isDestroyed) {
-            editor.chain()
-              .setTextSelection({ from: currentPos - finalText.length, to: currentPos })
-              .unsetMark('textStyle')
-              .run();
-          }
-        }, 180000); // 3 minutes
-      }, 100);
-
-      // Save changes to backend
-      setTimeout(() => {
-        debounceSave(editor.getJSON());
-      }, 200);
-    }
-
-    //onApplyChanges(f);
-    onClose();
-    setStep('setup');
+  let fromPos, toPos;
+  const highlightMarkAttrs = {
+    color: '#FFFACD',
+    backgroundColor: '#FFFACD',
   };
+
+  if (editor && rephrasedContent) {
+    const { from, to } = editor.state.selection;
+
+    const nodes = rephrasedContent.map(item => ({
+      type: 'paragraph',
+      content: [
+        {
+          type: 'text',
+          text: (item.customText || item.rephrasedParagraph || '').trim(),
+          marks: [
+            {
+              type: 'highlight',
+              attrs: highlightMarkAttrs,
+            },
+          ],
+        },
+      ],
+    }));
+
+    editor
+      .chain()
+      .focus()
+      .deleteSelection()
+      .command(({ tr, state }) => {
+        let pos = tr.selection.from;
+        fromPos = pos;
+
+        nodes.forEach(node => {
+          const nodeType = state.schema.nodes[node.type];
+          const content = node.content
+            .filter(c => !!c.text?.trim()) // 🧹 Prevent empty text nodes
+            .map(c => {
+              const marks = c.marks?.map(m =>
+                state.schema.marks[m.type].create(m.attrs)
+              ) || [];
+              return state.schema.text(c.text, marks);
+            });
+
+          if (content.length > 0) {
+            const paragraphNode = nodeType.create({}, content);
+            tr.insert(pos, paragraphNode);
+            pos += paragraphNode.nodeSize;
+          }
+        });
+
+        toPos = pos;
+        return true;
+      })
+      .run();
+  }
+
+  debounceSave(editor.getJSON());
+  onClose();
+  setStep('setup');
+  onApplyChanges(fromPos, toPos);
+};
+
 
   const handleClose = () => {
     onClose();
@@ -1060,7 +1138,7 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
   const [isEditingRephrased, setIsEditingRephrased] = useState(false);
   const [editTextOriginal, setEditTextOriginal] = useState<string>('');
   const [editTextRephrased, setEditTextRephrased] = useState(result.customText || result.rephrasedParagraph);
-
+  console.log("Initial Rephrased Text:", result);
   const handleSaveOriginal = () => {
     onEditParagraph(index, editTextOriginal);
     setIsEditingOriginal(false);
@@ -1072,7 +1150,7 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
   };
 
   const displayRephrasedText = result.customText || result.rephrasedParagraph;
-
+  console.log("Display Rephrased Text:", displayRephrasedText);
   return (
     <div className={cn(
       "group relative bg-white rounded-lg border transition-all duration-200 hover:shadow-sm",
