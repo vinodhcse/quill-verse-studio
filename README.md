@@ -1,6 +1,6 @@
 # Welcome to your Author Studio project
 
-## Project info
+## Project infos
 
 **URL**: https://lovable.dev/projects/a9b3545b-617d-42a2-b3a7-7ba158653c1f
 
