@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { Book, Calendar, User, FileText, Mail, Plus, Edit, UserPlus, Trash2, Building2, Link as LinkIcon, Star, Globe, Palette } from 'lucide-react';
+import { Book, Calendar, User, FileText, Mail, Plus, Edit, UserPlus, Trash2, Building2, Link as LinkIcon, Star, Globe, Palette, Sparkles } from 'lucide-react';
 import { apiClient } from '@/lib/api';
 import { BookDetails as BookDetailsType, User as UserType, Version } from '@/types/collaboration';
 import { useForm } from 'react-hook-form';
@@ -17,7 +18,6 @@ import { useToast } from '@/hooks/use-toast';
 import { getLoggedInUserId } from '../lib/authService';
 import { useUserContext } from '../lib/UserContextProvider';
 import AppHeader from '@/components/AppHeader';
-
 
 interface InviteFormData {
   email: string;
@@ -279,8 +279,6 @@ const BookDetails = () => {
 
       await apiClient.delete(`/books/${bookId}/versions/${versionId}`);
 
-     
-
       toast({
         title: 'Success',
         description: 'Version removed successfully',
@@ -413,129 +411,308 @@ const BookDetails = () => {
       <AppHeader />
       
       <div className="container mx-auto px-6 py-8 max-w-7xl">
-        {/* Modern Book Header */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/5 via-background to-accent/5 border shadow-sm mb-8">
-          <div className="absolute inset-0 bg-grid-pattern opacity-[0.02]"></div>
-          <div className="relative p-8">
-            <div className="flex items-start gap-8">
-              {/* Book Cover */}
-              <div className="flex-shrink-0">
-                <div className="w-48 h-64 rounded-xl overflow-hidden shadow-2xl border-2 border-white/10">
-                  {bookDetails.bookImage ? (
-                    <img
-                      src={bookDetails.bookImage}
-                      alt={bookDetails.title}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-accent/20 flex items-center justify-center">
-                      <Book size={48} className="text-primary/60" />
-                    </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Book Info */}
-              <div className="flex-1 space-y-6">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
-                    <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-muted-foreground bg-clip-text text-transparent">
-                      {bookDetails.title}
-                    </h1>
+        {/* Enhanced Modern Book Header with Framer Motion */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-slate-50/80 via-white to-blue-50/30 border border-slate-200/60 shadow-xl backdrop-blur-sm mb-8"
+        >
+          {/* Animated Background Elements */}
+          <motion.div 
+            className="absolute inset-0 bg-gradient-to-r from-blue-600/5 via-purple-600/5 to-pink-600/5"
+            animate={{ 
+              background: [
+                "linear-gradient(45deg, rgb(59 130 246 / 0.05), rgb(147 51 234 / 0.05), rgb(236 72 153 / 0.05))",
+                "linear-gradient(90deg, rgb(147 51 234 / 0.05), rgb(236 72 153 / 0.05), rgb(59 130 246 / 0.05))",
+                "linear-gradient(135deg, rgb(236 72 153 / 0.05), rgb(59 130 246 / 0.05), rgb(147 51 234 / 0.05))"
+              ]
+            }}
+            transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+          />
+          
+          {/* Floating Particles */}
+          <div className="absolute inset-0 overflow-hidden">
+            {[...Array(6)].map((_, i) => (
+              <motion.div
+                key={i}
+                className="absolute w-2 h-2 bg-gradient-to-r from-blue-400/20 to-purple-400/20 rounded-full"
+                animate={{
+                  x: [0, 100, 0],
+                  y: [0, -50, 0],
+                  opacity: [0.3, 0.8, 0.3],
+                }}
+                transition={{
+                  duration: 4 + i,
+                  repeat: Infinity,
+                  delay: i * 0.8,
+                  ease: "easeInOut"
+                }}
+                style={{
+                  left: `${20 + i * 15}%`,
+                  top: `${30 + i * 10}%`,
+                }}
+              />
+            ))}
+          </div>
+
+          <div className="relative p-10">
+            <div className="flex items-start gap-10">
+              {/* Enhanced Book Cover */}
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="flex-shrink-0"
+              >
+                <div className="relative group">
+                  <motion.div 
+                    className="w-56 h-80 rounded-2xl overflow-hidden shadow-2xl border-4 border-white/80 backdrop-blur-sm"
+                    whileHover={{ scale: 1.02, rotateY: 5 }}
+                    transition={{ duration: 0.3 }}
+                  >
+                    {bookDetails.bookImage ? (
+                      <motion.img
+                        src={bookDetails.bookImage}
+                        alt={bookDetails.title}
+                        className="w-full h-full object-cover"
+                        initial={{ scale: 1.1 }}
+                        animate={{ scale: 1 }}
+                        transition={{ duration: 0.8 }}
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-blue-500/20 via-purple-500/20 to-pink-500/20 flex items-center justify-center backdrop-blur-sm">
+                        <motion.div
+                          animate={{ rotateY: [0, 360] }}
+                          transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                        >
+                          <Book size={64} className="text-blue-600/70" />
+                        </motion.div>
+                      </div>
+                    )}
+                  </motion.div>
+                  
+                  {/* Floating Edit Button */}
+                  <motion.div
+                    className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100"
+                    initial={{ scale: 0 }}
+                    whileInView={{ scale: 1 }}
+                    whileHover={{ scale: 1.1 }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <Button 
                       onClick={() => setIsEditModalOpen(true)} 
-                      className="bg-primary hover:bg-primary/90 text-primary-foreground"
                       size="sm"
+                      className="bg-white/90 hover:bg-white text-slate-700 shadow-lg border border-slate-200/50 backdrop-blur-sm"
                     >
-                      <Edit size={16} className="mr-2" />
-                      Edit Book
+                      <Edit size={14} className="mr-1" />
+                      Edit
                     </Button>
+                  </motion.div>
+                </div>
+              </motion.div>
+              
+              {/* Enhanced Book Info */}
+              <motion.div 
+                initial={{ opacity: 0, x: 30 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.8, delay: 0.4 }}
+                className="flex-1 space-y-8"
+              >
+                <div className="space-y-4">
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-3">
+                      <motion.h1 
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.6, delay: 0.6 }}
+                        className="text-5xl font-bold bg-gradient-to-r from-slate-800 via-blue-800 to-purple-800 bg-clip-text text-transparent leading-tight"
+                      >
+                        {bookDetails.title}
+                      </motion.h1>
+                      
+                      {bookDetails.subtitle && (
+                        <motion.p 
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          transition={{ duration: 0.6, delay: 0.8 }}
+                          className="text-xl text-slate-600 font-medium"
+                        >
+                          {bookDetails.subtitle}
+                        </motion.p>
+                      )}
+                      
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ duration: 0.6, delay: 1 }}
+                        className="flex items-center space-x-3"
+                      >
+                        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 flex items-center justify-center">
+                          <User size={16} className="text-white" />
+                        </div>
+                        <p className="text-lg font-semibold text-slate-700">
+                          by {(bookDetails as any).authorName || bookDetails.authorname}
+                        </p>
+                      </motion.div>
+                    </div>
+
+                    <motion.div
+                      initial={{ scale: 0, rotate: -180 }}
+                      animate={{ scale: 1, rotate: 0 }}
+                      transition={{ duration: 0.6, delay: 0.8, type: "spring", stiffness: 200 }}
+                    >
+                      <Button 
+                        onClick={() => setIsEditModalOpen(true)} 
+                        className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-lg border-0"
+                        size="lg"
+                      >
+                        <Edit size={18} className="mr-2" />
+                        Edit Book
+                      </Button>
+                    </motion.div>
                   </div>
-                  
-                  {bookDetails.subtitle && (
-                    <p className="text-xl text-muted-foreground">{bookDetails.subtitle}</p>
-                  )}
-                  
-                  <p className="text-lg font-medium text-muted-foreground">
-                    by {(bookDetails as any).authorName || bookDetails.authorname}
-                  </p>
                 </div>
 
-                {/* Book Details Grid */}
-                <div className="grid grid-cols-2 gap-x-8 gap-y-3">
+                {/* Enhanced Details Grid */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 1.2 }}
+                  className="grid grid-cols-2 gap-x-12 gap-y-4"
+                >
                   {(bookDetails as any).bookType && (
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Type:</span>
-                      <Badge variant="secondary" className="bg-primary/10 text-primary border-primary/20">
+                    <motion.div 
+                      className="flex items-center space-x-4"
+                      whileHover={{ x: 5 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-500 to-purple-500"></div>
+                      <span className="text-sm font-medium text-slate-600 min-w-[80px]">Type:</span>
+                      <Badge variant="secondary" className="bg-blue-100/80 text-blue-700 border-blue-200/50 backdrop-blur-sm">
+                        <Sparkles size={12} className="mr-1" />
                         {(bookDetails as any).bookType}
                       </Badge>
-                    </div>
+                    </motion.div>
                   )}
                   {(bookDetails as any).genre && (
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Genre:</span>
-                      <Badge variant="secondary" className="bg-accent/10 text-accent-foreground border-accent/20">
+                    <motion.div 
+                      className="flex items-center space-x-4"
+                      whileHover={{ x: 5 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-gradient-to-r from-purple-500 to-pink-500"></div>
+                      <span className="text-sm font-medium text-slate-600 min-w-[80px]">Genre:</span>
+                      <Badge variant="secondary" className="bg-purple-100/80 text-purple-700 border-purple-200/50 backdrop-blur-sm">
+                        <Star size={12} className="mr-1" />
                         {(bookDetails as any).genre}
                       </Badge>
-                    </div>
+                    </motion.div>
                   )}
                   {(bookDetails as any).subGenre && (
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Sub-Genre:</span>
-                      <Badge variant="outline" className="border-muted-foreground/30">
+                    <motion.div 
+                      className="flex items-center space-x-4"
+                      whileHover={{ x: 5 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-gradient-to-r from-pink-500 to-orange-500"></div>
+                      <span className="text-sm font-medium text-slate-600 min-w-[80px]">Sub-Genre:</span>
+                      <Badge variant="outline" className="border-slate-300/50 bg-white/50 backdrop-blur-sm">
                         {(bookDetails as any).subGenre}
                       </Badge>
-                    </div>
+                    </motion.div>
                   )}
                   {(bookDetails as any).bookProse && (
-                    <div className="flex items-center space-x-3">
-                      <span className="text-sm font-medium text-muted-foreground min-w-[80px]">Prose:</span>
-                      <Badge variant="outline" className="border-muted-foreground/30">
+                    <motion.div 
+                      className="flex items-center space-x-4"
+                      whileHover={{ x: 5 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <div className="w-2 h-2 rounded-full bg-gradient-to-r from-orange-500 to-red-500"></div>
+                      <span className="text-sm font-medium text-slate-600 min-w-[80px]">Prose:</span>
+                      <Badge variant="outline" className="border-slate-300/50 bg-white/50 backdrop-blur-sm">
                         {(bookDetails as any).bookProse}
                       </Badge>
-                    </div>
+                    </motion.div>
                   )}
-                </div>
+                </motion.div>
 
-                {/* Synopsis */}
+                {/* Enhanced Synopsis */}
                 {(bookDetails as any).synopsis && (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">Synopsis</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {(bookDetails as any).synopsis}
-                    </p>
-                  </div>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 1.4 }}
+                    className="space-y-3"
+                  >
+                    <h3 className="font-semibold text-slate-800 flex items-center space-x-2">
+                      <div className="w-1 h-4 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full"></div>
+                      <span>Synopsis</span>
+                    </h3>
+                    <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50">
+                      <p className="text-slate-700 text-sm leading-relaxed">
+                        {(bookDetails as any).synopsis}
+                      </p>
+                    </div>
+                  </motion.div>
                 )}
 
-                {/* Description */}
+                {/* Enhanced Description */}
                 {bookDetails.description && (
-                  <div className="space-y-2">
-                    <h3 className="font-semibold text-foreground">Description</h3>
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {bookDetails.description}
-                    </p>
-                  </div>
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.6, delay: 1.6 }}
+                    className="space-y-3"
+                  >
+                    <h3 className="font-semibold text-slate-800 flex items-center space-x-2">
+                      <div className="w-1 h-4 bg-gradient-to-b from-purple-500 to-pink-500 rounded-full"></div>
+                      <span>Description</span>
+                    </h3>
+                    <div className="bg-white/60 backdrop-blur-sm rounded-xl p-4 border border-slate-200/50">
+                      <p className="text-slate-700 text-sm leading-relaxed">
+                        {bookDetails.description}
+                      </p>
+                    </div>
+                  </motion.div>
                 )}
 
-                {/* Stats */}
-                <div className="flex items-center gap-6 pt-4 border-t border-border/50">
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <Calendar size={16} />
+                {/* Enhanced Stats */}
+                <motion.div 
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 1.8 }}
+                  className="flex items-center gap-8 pt-6 border-t border-slate-200/50"
+                >
+                  <motion.div 
+                    className="flex items-center space-x-3 text-sm text-slate-600 bg-white/50 rounded-lg px-3 py-2 backdrop-blur-sm"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Calendar size={16} className="text-blue-500" />
                     <span>Created {formatDate(bookDetails.createdAt)}</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <FileText size={16} />
+                  </motion.div>
+                  <motion.div 
+                    className="flex items-center space-x-3 text-sm text-slate-600 bg-white/50 rounded-lg px-3 py-2 backdrop-blur-sm"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <FileText size={16} className="text-purple-500" />
                     <span>{(bookDetails.wordCount || 0).toLocaleString()} words</span>
-                  </div>
-                  <div className="flex items-center space-x-2 text-sm text-muted-foreground">
-                    <User size={16} />
+                  </motion.div>
+                  <motion.div 
+                    className="flex items-center space-x-3 text-sm text-slate-600 bg-white/50 rounded-lg px-3 py-2 backdrop-blur-sm"
+                    whileHover={{ scale: 1.05 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <User size={16} className="text-pink-500" />
                     <span>{bookDetails.collaborators?.length || 0} collaborators</span>
-                  </div>
-                </div>
-              </div>
+                  </motion.div>
+                </motion.div>
+              </motion.div>
             </div>
           </div>
-        </div>
+        </motion.div>
 
         {/* Modern Tabs */}
         <Tabs defaultValue="versions" className="w-full">
