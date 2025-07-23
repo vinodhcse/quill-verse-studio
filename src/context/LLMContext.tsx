@@ -1,3 +1,4 @@
+/*
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { FilesetResolver, LlmInference } from '@mediapipe/tasks-genai';
@@ -195,7 +196,7 @@ export const LLMContextProvider = ({ children }: { children: React.ReactNode }) 
         try {
           // Initialize FilesetResolver for MediaPipe WASM assets
           const genai = await FilesetResolver.forGenAiTasks(
-            'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai@latest/wasm'
+            //'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-genai@latest/wasm'
           );
 
           // Attempt to create the LlmInference instance
@@ -289,3 +290,4 @@ export const useLLM = () => {
   }
   return context;
 };
+*/

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, act, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -20,8 +20,6 @@ import { cn } from '@/lib/utils';
 import { useBookContext } from '@/lib/BookContextProvider';
 import RephraseComparisonModal from '../pages/RephraseComparisonModal';
 import { set } from 'date-fns';
-import { processAIRequest } from '@/ai/aiTool';
-import { useUserContext } from '@/lib/UserContextProvider';
 
 interface RephrasedParagraph {
   rephrasedParagraph: string;
@@ -48,27 +46,11 @@ interface AIRephraserModalProps {
   chapterId: string;
   onApplyChanges: (fromPos: any, toPos: any) => void;
   editor?: any;
-  action: string;
 }
 
 const escapeQuote = (text: string): string => {
   return text.replace(/"/g, '\\"').replace(/'/g, "\\'");
 };
-
-
-
-const retrieveActionTitle = (action: string): string => {
-  switch (action) {
-    case 'rephrase':
-      return 'AI Text Rephraser';
-    case 'summarize':
-      return 'AI Text Summarizer';
-    case 'expand':
-      return 'AI Text Expander';
-    default:
-      return 'AI Text Tool';
-  }
-} 
 
 const extractContextLines = (editor: any, currentSelection: any, lineCount: number, direction: 'before' | 'after'): string => {
   if (!editor) return '';
@@ -137,11 +119,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   chapterId,
   onApplyChanges,
   editor,
-  action
 }) => {
-  const { state, updateChapterContent, dispatch } = useBookContext();
-  const { getUser } = useUserContext();
-  const user = getUser();
+  const { state, updateChapterContent } = useBookContext();
   const [step, setStep] = useState<'setup' | 'results' | 'comparison' | 'localComparison'>('setup');
   const [isLoading, setIsLoading] = useState(false);
   const [customInstructions, setCustomInstructions] = useState('Make the tone more engaging and vivid.');
@@ -155,7 +134,6 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     selected: false,
   });
   const [diffResults, setDiffResults] = useState<RephrasedParagraph[]>([]);
-  const [aiResults, setAiResults] = useState<RephrasedParagraph[]>([]);
   const [diffStreamingComplete, setDiffStreamingComplete] = useState(false);
   const [isLocalRephraseModalOpen, setIsLocalRephraseModalOpen] = useState<boolean>(false);
   
@@ -169,57 +147,28 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
   const [showPlotSearch, setShowPlotSearch] = useState(false);
   const [showCharacterSearch, setShowCharacterSearch] = useState(false);
   const [showWorldSearch, setShowWorldSearch] = useState(false);
-  const [aiFeatureLoading, setAiFeatureLoading] = useState(false);
-  const [aiStreaming, setAiStreaming] = useState(false);
-  const aiRunningRef = useRef(false);
 
   // Mock data - in real implementation, these would come from the book context
-  const plotNodes: ContextItem[] = state.plotCanvas?.nodes?.map(node => ({
+  const plotNodes: ContextItem[] = state.currentBook?.plotCanvasNodes?.map(node => ({
     id: node.id,
     name: node.name,
     type: node.type,
-    prompt: `${node.type}: ${node.name} - ${node.detail || ''}\n Goal: ${node.goal || 'N/A'}`
+    prompt: `${node.type}: ${node.name} - ${node.detail || ''} Goal: ${node.goal || 'N/A'}`
   })) || [];
 
-  const characters: ContextItem[] = state.characters?.map(char => ({
+  const characters: ContextItem[] = state.currentBook?.characters?.map(char => ({
     id: char.id,
     name: char.name,
     type: 'Character',
-    prompt: `Name: ${char.name}\n` +
-            `Summary: ${char.summary || ''}\n` + 
-            `Goals: ${char.goals?.join(', ') || 'N/A'}\n` +
-            `Traits: ${char.traits?.join(', ') || 'N/A'}\n` +
-            `Age: ${char.age || 'Unknown'}\n` +
-            `Gender: ${char.gender || 'Unknown'}\n` +
-            `Description: ${char.description || 'No description available'}\n` +
-            `Backstory: ${char.backstory || 'No backstory available'}\n` +
-            `Beliefs: ${char.beliefs?.join(', ') || 'N/A'}\n` +
-            `Motivations: ${char.motivations?.join(', ') || 'N/A'}\n` +
-            `Internal Conflicts: ${char.internalConflicts?.join(', ') || 'N/A'}\n` +
-            `External Conflicts: ${char.externalConflicts?.join(', ') || 'N/A'}`
+    prompt: `Character: ${char.name} - ${char.summary || ''} Goals: ${char.goals?.join(', ') || 'N/A'}`
   })) || [];
 
- const worldObjects: ContextItem[] = state.worlds?.flatMap(world => [
-  // Map objects
-  ...(world.world.objects?.map(obj => ({
+  const worldObjects: ContextItem[] = state.currentBook?.worldObjects?.map(obj => ({
     id: obj.id,
-    name: `${world.name}-${obj.name}`,
-    type: 'Object',
-    prompt: `Object: ${obj.name} - ${obj.description || ''}\nHistory: ${
-      obj.history?.map(history => history.event || history.eventNote).join(', ') || 'No history available'
-    }`
-  })) || []),
-
-  // Map locations
-  ...(world.world.locations?.map(location => ({
-    id: location.id,
-    name: `${world.name}-${location.name}`,
-    type: 'Location',
-    prompt: `Location: ${location.name} - ${location.description || ''}\nHistory: ${
-      location.history?.map(history => history.event || history.eventNote).join(', ') || 'No history available'
-    }`
-  })) || [])
-]) || [];
+    name: obj.name,
+    type: obj.type || 'Object',
+    prompt: `${obj.type || 'Object'}: ${obj.name} - ${obj.description || ''}`
+  })) || [];
 
   // Available LLM models
   const availableModels = [
@@ -235,185 +184,6 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     'dates', 'numbers', 'proper nouns', 'dialogue tags'
   ];
 
-  console.log("PlotNodes", plotNodes);
-  console.log("Characters", characters);
-  console.log("WorldObjects", worldObjects);
-
-
-  const handleInlineUpdate = (newText: string) => {
-    if (!editor) return;
-
-    const highlightMarkAttrs = {
-      color: '#FFFACD',
-      backgroundColor: '#FFFACD',
-    };
-
-    editor.chain().focus().command(({ tr, state }) => {
-      const { from, to } = tr.selection;
-
-      // Start a single transaction for deletion and insertion
-      tr.deleteRange(from, to);
-
-      const nodeType = state.schema.nodes.paragraph;
-      const content = [
-        state.schema.text(newText.trim(), [
-          state.schema.marks.highlight.create(highlightMarkAttrs),
-        ]),
-      ];
-
-      const paragraphNode = nodeType.create({}, content);
-      tr.insert(from, paragraphNode);
-
-      return true;
-    }).run();
-
-    // Show context menu above the updated text
-    const popupPosition = editor.view.coordsAtPos(editor.state.selection.from);
-    dispatch({
-      type: 'SHOW_CONTEXT_MENU',
-      payload: {
-        position: popupPosition,
-        message: 'Accept, reject, or retry the change?',
-        actions: [
-          { label: 'Accept', onClick: () => console.log('Accepted') },
-          { label: 'Reject', onClick: () => console.log('Rejected') },
-          { label: 'Retry', onClick: () => console.log('Retrying') },
-        ],
-      },
-    });
-  };
-
-  const handleAIFeature = async (feature: string) => {
-    console.log("Feature selected for AI feature:", feature);
-    if (aiRunningRef.current) {
-      console.info("AI is already processing...");
-      return;
-    }
-    aiRunningRef.current = true;
-    setAiFeatureLoading(true);
-    try {
-      const seenTexts = new Set<string>();
-      const textToRephrase = textBlocks
-        .map(block => escapeQuote(block.trim()))
-        .filter(text => {
-          if (text.length > 0 && !seenTexts.has(text)) {
-            seenTexts.add(text);
-            return true;
-          }
-          return false;
-        });
-
-      const currentSelection = editor?.state?.selection;
-      const textBefore = extractContextLines(editor, currentSelection, 10, 'before');
-      const textAfter = extractContextLines(editor, currentSelection, 10, 'after');
-
-      const promptContexts = [
-        ...selectedPlotNodes.map(node => ({
-          contextType: 'PlotCanvas',
-          id: node.id,
-          prompt: node.prompt || ''
-        })),
-        ...selectedCharacters.map(char => ({
-          contextType: 'Character',
-          id: char.id,
-          prompt: char.prompt || ''
-        })),
-        ...selectedWorldObjects.map(obj => ({
-          contextType: 'WorldObject',
-          id: obj.id,
-          prompt: obj.prompt || ''
-        }))
-      ];
-
-      const payload = {
-        feature,
-        text: textToRephrase,
-        textBefore: [textBefore],
-        textAfter: [textAfter],
-        promptContexts,
-        customInstructions,
-        userId: user.userId // Pass userId from UserContext
-      };
-
-      //editor changes
-
-      const { from, to } = editor.state.selection;
-      const originalContent = editor.state.doc.textBetween(from, to, '\n\n');
-
-      let insertedPos = from;
-      let accumulatedText = '';
-      let tr = editor.state.tr;
-      let transactionStarted = false;
-      
-
-      // Step 1: Start transaction & delete selection
-      tr = tr.delete(from, to);
-      transactionStarted = true;
-      editor.view.dispatch(tr);
-
-      try {
-       
-
-        const finalOutputResponse = await processAIRequest(payload, async (data) => {
-        console.log("Streaming data:", data);
-        //setAiResults(prev => [...prev, data]);
-        //handleInlineUpdate(data.rephrasedParagraphContent || data.text || '');
-
-        if (data?.done === true) {
-          return;
-        }
-        accumulatedText += data.rephrasedParagraphContent || data.text || '';
-        const value = data.rephrasedParagraphContent || data.text || '';
-          // Step 3: Append as it streams
-          editor.view.dispatch(
-            editor.state.tr.insertText(value, insertedPos)
-          );
-
-          insertedPos += value.length;
-      }, (error) => {
-        console.error("AI processing error:", error);
-         // Revert if any error occurs
-        if (transactionStarted) {
-          editor.view.dispatch(
-            editor.state.tr
-              .delete(from, from + accumulatedText.length)
-              .insertText(originalContent, from)
-          );
-        }
-
-      });
-
-     // Show context menu above the updated text
-      const popupPosition = editor.view.coordsAtPos(from);
-      dispatch({
-        type: 'SHOW_CONTEXT_MENU',
-        payload: {
-          position: popupPosition,
-          message: 'Accept, reject, or retry the change?',
-          actions: [
-            { label: 'Accept', onClick: () => console.log('Accepted') },
-            { label: 'Reject', onClick: () => console.log('Rejected') },
-            { label: 'Retry', onClick: () => console.log('Retrying') },
-          ],
-        },
-      });
-      
-
-      
-
-      setStep('comparison');
-    } catch (error) {
-      console.error('Failed to process AI feature:', error);
-    } finally {
-      setAiFeatureLoading(false);
-    }
-  } catch (error) {
-      console.error('Failed to process AI feature:', error);
-    } finally {
-      setAiFeatureLoading(false);
-    } 
-
-  }  
   const handleRephrase = async () => {
     setIsLoading(true);
     try {
@@ -457,13 +227,12 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         bookId,
         versionId,
         chapterId,
-        text: textToRephrase,
+        textToRephrase,
         textBefore,
         textAfter,
         llmModel,
         customInstructions,
         promptContexts,
-        feature : 'rephrase',
       };
 
       if(false) { //Calling local llm
@@ -486,12 +255,9 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
           setStep('comparison');
       }
       else {
-        /* setTextToRephrase(textToRephrase);
+         setTextToRephrase(textToRephrase);
          setIsLocalRephraseModalOpen(true);
-         setStep('localComparison');*/
-
-         handleRephraseDiffChecker(payload);
-
+         setStep('localComparison');
         // onClose();
       }  
      
@@ -545,8 +311,8 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
         setDiffResults((prev) => [
           ...prev,
           {
-            rephrasedParagraph: parsedChunk.rephrasedParagraphContent,
-            originalParagraph: parsedChunk.originalParagraphContents,
+            rephrasedParagraph: parsedChunk.newParagraph,
+            originalParagraph: [parsedChunk.originalParagraph],
             selected: true,
             diff: parsedChunk.diff,
           },
@@ -558,124 +324,6 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
       setIsLoading(false);
     }
   };
-
-  const handleAiFeatureResponse = async (payload) => {
-    setAiFeatureLoading(true);
-    setAiStreaming(true)
-    setStep('comparison');
-    try {
-     
-      console.log('RephraseDiffChecker payload:', payload);
-       const token = localStorage.getItem('token');
-      
-
-      const response = await fetch('http://localhost:4000/api/ai/process', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Connection': 'keep-alive',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let accumulatedTextBlocks = [];
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const parsedChunk = JSON.parse(chunk);
-        console.log('Parsed diff chunk:', parsedChunk);
-        
-        if (parsedChunk.done) {
-          setAiStreaming(true);
-          break;
-        }
-
-         const results: RephrasedParagraph = {
-            originalParagraph: textToRephrase,
-            rephrasedParagraph: response.data.rephrasedText,
-            selected: true,
-            edited: false,
-          };
-
-          setRephrasedResults(results);
-          setStep('comparison');
-
-        setDiffResults((prev) => [
-          ...prev,
-          {
-            rephrasedParagraph: parsedChunk.rephrasedParagraphContent,
-            originalParagraph: parsedChunk.originalParagraphContents,
-            selected: true,
-            diff: '',
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch diff:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleRephraseDiffChecker = async (payload) => {
-    setIsLoading(true);
-    setDiffStreamingComplete(false);
-    setDiffResults([]); // Clear previous results
-    setStep('results');
-    try {
-     
-      console.log('RephraseDiffChecker payload:', payload);
-       const token = localStorage.getItem('token');
-      
-
-      const response = await fetch('http://localhost:4000/api/ai/process', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-          'Connection': 'keep-alive',
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder('utf-8');
-
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value, { stream: true });
-        const parsedChunk = JSON.parse(chunk);
-        console.log('Parsed diff chunk:', parsedChunk);
-        
-        if (parsedChunk.done) {
-          setDiffStreamingComplete(true);
-          break;
-        }
-
-        setDiffResults((prev) => [
-          ...prev,
-          {
-            rephrasedParagraph: parsedChunk.rephrasedParagraphContent,
-            originalParagraph: parsedChunk.originalParagraphContents,
-            selected: true,
-            diff: '',
-          },
-        ]);
-      }
-    } catch (error) {
-      console.error('Failed to fetch diff:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
 
   const handleToggleSelection = () => {
     setRephrasedResults(prev => ({
@@ -792,83 +440,135 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
     setStep('setup');
 };
 
-  const handleApplyChanges = () => {
-  let finalText = '';
-  let rephrasedContent = diffResults;
+const handleRephraserApplyChanges = () => {
+    let fullRephrasedText = [];
+    
+    fullRephrasedText = diffResults
+      .filter((chunk) => chunk.rephrasedParagraph)
+      .map((chunk) => chunk.rephrasedParagraph);
 
-  if (step === 'results') {
-    finalText = diffResults
-      .filter(item => item.selected)
-      .map(item => item.customText || item.rephrasedParagraph)
-      .join('\n\n');
-  } else {
-    finalText = rephrasedResults.customText || rephrasedResults.rephrasedParagraph;
-    rephrasedContent = [rephrasedResults]; // wrap in array for consistent mapping
-  }
+    let fromPos, toPos;
+    const highlightMarkAttrs = {
+            color: '#FFFACD', // A light yellow/lemonchiffon for a subtle highlight
+            backgroundColor: '#FFFACD', // A light yellow/lemonchiffon for a subtle highlight};
+     }
 
-  let fromPos, toPos;
-  const highlightMarkAttrs = {
-    color: '#FFFACD',
-    backgroundColor: '#FFFACD',
-  };
+     if (editor && fullRephrasedText) {
+      const { from, to } = editor.state.selection;
+      
+      const nodes = fullRephrasedText.map(str => ({
+        type: 'paragraph',
+        content: [
+          {
+            type: 'text',
+            text: str,
+            marks: [
+              {
+                  type: 'highlight', // <-- CHANGE THIS TO 'highlight'
+                  attrs: highlightMarkAttrs,
+              },
+            ],
+          },
+        ],
+      }));
 
-  if (editor && rephrasedContent) {
-    const { from, to } = editor.state.selection;
+      
 
-    const nodes = rephrasedContent.map(item => ({
-      type: 'paragraph',
-      content: [
-        {
-          type: 'text',
-          text: (item.customText || item.rephrasedParagraph || '').trim(),
-          marks: [
-            {
-              type: 'highlight',
-              attrs: highlightMarkAttrs,
-            },
-          ],
-        },
-      ],
-    }));
+      editor
+        .chain()
+        .focus()
+        .deleteSelection()
+        .command(({ tr, state }) => {
+          // Start inserting at the current selection position
+          let pos = tr.selection.from;
+          fromPos = pos;
 
-    editor
-      .chain()
-      .focus()
-      .deleteSelection()
-      .command(({ tr, state }) => {
-        let pos = tr.selection.from;
-        fromPos = pos;
-
-        nodes.forEach(node => {
-          const nodeType = state.schema.nodes[node.type];
-          const content = node.content
-            .filter(c => !!c.text?.trim()) // 🧹 Prevent empty text nodes
-            .map(c => {
+          nodes.forEach(node => {
+            const nodeType = state.schema.nodes[node.type];
+            const content = node.content.map(c => {
               const marks = c.marks?.map(m =>
                 state.schema.marks[m.type].create(m.attrs)
               ) || [];
               return state.schema.text(c.text, marks);
             });
-
-          if (content.length > 0) {
             const paragraphNode = nodeType.create({}, content);
             tr.insert(pos, paragraphNode);
             pos += paragraphNode.nodeSize;
+          });
+
+          toPos = pos;
+
+          return true;
+        })
+        .run();
+    }
+
+     debounceSave(editor.getJSON());
+
+    onApplyChanges(fromPos, toPos);
+    onClose();
+    setStep('setup');
+
+      
+  };
+
+  // Fixed apply changes function for results step
+  const handleApplyChanges = () => {
+    let finalText = '';
+    
+    if (step === 'results') {
+      // Use diff results for results step
+      finalText = diffResults
+        .filter(item => item.selected)
+        .map(item => item.customText || item.rephrasedParagraph)
+        .join('\n\n');
+    } else {
+      // Use rephrased results for comparison step
+      finalText = rephrasedResults.customText || rephrasedResults.rephrasedParagraph;
+    }
+
+    if (editor && finalText) {
+      const { from, to } = editor.state.selection;
+
+      // Replace the selected text (not insert after)
+      editor.chain()
+        .focus()
+        .deleteRange({ from, to })
+        .insertContent(finalText)
+        .run();
+
+      // Apply yellow highlighting that persists for 3 minutes
+      setTimeout(() => {
+        const currentPos = editor.state.selection.from;
+        const endPos = currentPos + finalText.length;
+        
+        // Apply yellow highlight
+        editor.chain()
+          .setTextSelection({ from: currentPos - finalText.length, to: currentPos })
+          .setMark('textStyle', { backgroundColor: '#fef3c7', color: '#92400e' })
+          .run();
+        
+        // Remove highlight after 3 minutes
+        setTimeout(() => {
+          if (editor && !editor.isDestroyed) {
+            editor.chain()
+              .setTextSelection({ from: currentPos - finalText.length, to: currentPos })
+              .unsetMark('textStyle')
+              .run();
           }
-        });
+        }, 180000); // 3 minutes
+      }, 100);
 
-        toPos = pos;
-        return true;
-      })
-      .run();
-  }
+      // Save changes to backend
+      setTimeout(() => {
+        debounceSave(editor.getJSON());
+      }, 200);
+    }
 
-  debounceSave(editor.getJSON());
-  onClose();
-  setStep('setup');
-  onApplyChanges(fromPos, toPos);
-};
-
+    //onApplyChanges(f);
+    onClose();
+    setStep('setup');
+  };
 
   const handleClose = () => {
     onClose();
@@ -912,7 +612,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
             <div className="w-8 h-8 rounded-xl bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center">
               <Wand2 className="w-5 h-5 text-white" />
             </div>
-           {retrieveActionTitle(action)}
+            AI Text Rephraser
             {step !== 'setup' && (
               <Button
                 variant="ghost"
@@ -1183,54 +883,26 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                   </div>
                 </div>
               </div>
-              {/* Action Buttons */}
-              
-              {(action === 'expand' || action === 'shorten' || action === 'summarize')  ? (
+
+              {/* Rephrase Button */}
+              <Button
+                onClick={handleRephrase}
+                disabled={isLoading || !selectedText}
+                className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
+                size="lg"
+              >
+                {isLoading ? (
                   <>
-                    <Button
-                      onClick={() => handleAIFeature(action)}
-                      disabled={aiFeatureLoading || !selectedText}
-                      className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-                      size="lg"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          Rephrasing...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-5 h-5 mr-2" />
-                          Rephrase Text
-                        </>
-                      )}
-                    </Button>
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                    Rephrasing...
                   </>
                 ) : (
                   <>
-                    {/* Rephrase Button */}
-                    <Button
-                      onClick={handleRephrase}
-                      disabled={isLoading || !selectedText}
-                      className="w-full h-12 text-lg font-semibold bg-blue-600 hover:bg-blue-700 text-white"
-                      size="lg"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          Rephrasing...
-                        </>
-                      ) : (
-                        <>
-                          <Wand2 className="w-5 h-5 mr-2" />
-                          Rephrase Text
-                        </>
-                      )}
-                    </Button>
+                    <Wand2 className="w-5 h-5 mr-2" />
+                    Rephrase Text
                   </>
                 )}
-
-              
+              </Button>
              
             </div>
           )}
@@ -1279,7 +951,7 @@ export const AIRephraserModal: React.FC<AIRephraserModalProps> = ({
                       </div>
 
                       <Button 
-                        onClick={handleApplyChanges} 
+                        onClick={handleRephraserApplyChanges} 
                         disabled={!diffStreamingComplete || diffResults.filter(r => r.selected).length === 0}
                         className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 disabled:from-gray-400 disabled:to-gray-500 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 disabled:cursor-not-allowed"
                         size="sm"
@@ -1458,9 +1130,9 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
 }) => {
   const [isEditingOriginal, setIsEditingOriginal] = useState(false);
   const [isEditingRephrased, setIsEditingRephrased] = useState(false);
-  const [editTextOriginal, setEditTextOriginal] = useState<string>(result.customText || result.originalParagraph?.join('\n\n') || '');
+  const [editTextOriginal, setEditTextOriginal] = useState<string>('');
   const [editTextRephrased, setEditTextRephrased] = useState(result.customText || result.rephrasedParagraph);
-  console.log("Initial Rephrased Text:", result);
+
   const handleSaveOriginal = () => {
     onEditParagraph(index, editTextOriginal);
     setIsEditingOriginal(false);
@@ -1472,7 +1144,7 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
   };
 
   const displayRephrasedText = result.customText || result.rephrasedParagraph;
-  console.log("Display Rephrased Text:", displayRephrasedText);
+
   return (
     <div className={cn(
       "group relative bg-white rounded-lg border transition-all duration-200 hover:shadow-sm",
@@ -1493,7 +1165,7 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
               <Textarea
                 value={editTextOriginal}
                 onChange={(e) => setEditTextOriginal(e.target.value)}
-                className="min-h-[2px] resize-none text-sm border-red-200 focus:border-red-400 rounded-lg"
+                className="min-h-[60px] resize-none text-sm border-red-200 focus:border-red-400 rounded-lg"
                 autoFocus
               />
               <div className="flex gap-2">
@@ -1512,7 +1184,7 @@ const ModernDiffCard: React.FC<ModernDiffCardProps> = ({
               onClick={() => setIsEditingOriginal(true)}
             >
               <p className="text-sm leading-relaxed text-red-700">
-                {result.originalParagraph?.join('\n\n')}
+                {result.originalParagraph}
               </p>
             </div>
           )}

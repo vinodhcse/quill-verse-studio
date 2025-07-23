@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { useLLM } from "../context/LLMContext";
 import Header from "../components/Header";
 
 interface ChatMessage {
@@ -21,7 +20,6 @@ const formatContentForHTML = (text: string): string => {
 };
 
 const ChatPage: React.FC = () => {
-  const { llm, isReady } = useLLM();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -34,7 +32,6 @@ const ChatPage: React.FC = () => {
   const handleSend = async () => {
     if (!input.trim()) return;
     console.log("Sending message:", input);
-    console.log("LLM is ready:", isReady, llm.options);
 
     const userMessage: ChatMessage = { role: "user", content: input };
     setMessages((prev) => [...prev, userMessage]);
@@ -48,19 +45,16 @@ const ChatPage: React.FC = () => {
     let currentOutputTokens = 0; // To accumulate output tokens during streaming
 
     try {
-      if (!isReady) {
-        throw new Error("LLM is not ready yet!");
-      }
-
       // Insert initial empty assistant message for streaming
       setMessages((prev) => [
         ...prev,
         { role: "assistant", content: "", new: true },
       ]);
 
-      llm.generateResponse(input, (partialResult, done) => {
-        // Accumulate output tokens
-        currentOutputTokens += estimateTokens(partialResult);
+      // Simulate the response generation (replace this with the actual API call)
+      setTimeout(() => {
+        const simulatedResponse = "This is a simulated response."; // Replace with actual response
+        currentOutputTokens = estimateTokens(simulatedResponse);
 
         setMessages((prev) => {
           const assistantMessageIndex = prev.findIndex(
@@ -69,38 +63,36 @@ const ChatPage: React.FC = () => {
 
           if (assistantMessageIndex !== -1) {
             const updatedMessages = [...prev];
-            updatedMessages[assistantMessageIndex].content += partialResult;
+            updatedMessages[assistantMessageIndex].content += simulatedResponse;
             return updatedMessages;
           }
           return prev;
         });
 
-        if (done) {
-          setMessages((prev) => {
-            const assistantMessageIndex = prev.findIndex(
-              (msg) => msg.new === true
-            );
+        setMessages((prev) => {
+          const assistantMessageIndex = prev.findIndex(
+            (msg) => msg.new === true
+          );
 
-            if (assistantMessageIndex !== -1) {
-              const updatedMessages = [...prev];
-              updatedMessages[assistantMessageIndex].new = false;
-              return updatedMessages;
-            }
-            return prev;
-          });
+          if (assistantMessageIndex !== -1) {
+            const updatedMessages = [...prev];
+            updatedMessages[assistantMessageIndex].new = false;
+            return updatedMessages;
+          }
+          return prev;
+        });
 
-          const endTime = performance.now(); // End timer
-          const timeTaken = endTime - startTime; // Calculate time taken
+        const endTime = performance.now(); // End timer
+        const timeTaken = endTime - startTime; // Calculate time taken
 
-          setLastRequestInfo({
-            inputTokens: inputTokens,
-            outputTokens: currentOutputTokens,
-            timeTaken: parseFloat((timeTaken/1000).toFixed(2)), // Round to 2 decimal places
-          });
+        setLastRequestInfo({
+          inputTokens: inputTokens,
+          outputTokens: currentOutputTokens,
+          timeTaken: parseFloat((timeTaken/1000).toFixed(2)), // Round to 2 decimal places
+        });
 
-          setLoading(false);
-        }
-      });
+        setLoading(false);
+      }, 2000); // Simulate a 2-second response time
     } catch (error) {
       console.error("Chat error:", error);
       setMessages((prev) => [
@@ -160,7 +152,7 @@ const ChatPage: React.FC = () => {
           <button
             onClick={handleSend}
             className="bg-blue-500 text-white px-4 py-2 rounded"
-            disabled={!isReady || loading} // Disable if not ready or loading
+            disabled={loading} // Disable if loading
           >
             Send
           </button>

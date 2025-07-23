@@ -192,30 +192,30 @@ export const extractChangesFromContent = (content: any): Change[] => {
   let contentArray: any[] = [];
   if (content.blocks && Array.isArray(content.blocks)) {
     contentArray = content.blocks;
-    console.log('extractChangesFromContent: Using content.blocks structure');
+    //console.log('extractChangesFromContent: Using content.blocks structure');
   } else if (content.content && Array.isArray(content.content)) {
     contentArray = content.content;
-    console.log('extractChangesFromContent: Using content.content structure');
+    //console.log('extractChangesFromContent: Using content.content structure');
   } else if (Array.isArray(content)) {
     contentArray = content;
-    console.log('extractChangesFromContent: Using direct array structure');
+    //console.log('extractChangesFromContent: Using direct array structure');
   } else {
-    console.log('extractChangesFromContent: Unrecognized content structure, attempting to process as single node');
+    //console.log('extractChangesFromContent: Unrecognized content structure, attempting to process as single node');
     contentArray = [content];
   }
 
   const extractFromNode = (node: any, path: string = '') => {
-    console.log(`extractFromNode: Processing node at path ${path}:`, node);
+    //console.log(`extractFromNode: Processing node at path ${path}:`, node);
     
     if (node.marks && Array.isArray(node.marks)) {
-      console.log(`extractFromNode: Found ${node.marks.length} marks`);
+      //console.log(`extractFromNode: Found ${node.marks.length} marks`);
       
       node.marks.forEach((mark: any, markIndex: number) => {
-        console.log(`extractFromNode: Processing mark ${markIndex}:`, mark);
+      //  console.log(`extractFromNode: Processing mark ${markIndex}:`, mark);
         
         if (mark.type === 'textStyle' && mark.attrs) {
           const attrs = mark.attrs;
-          console.log('extractFromNode: Found textStyle mark with attrs:', attrs);
+        //  console.log('extractFromNode: Found textStyle mark with attrs:', attrs);
           
           // Extract changeId
           let changeId = attrs.changeId;
@@ -233,13 +233,13 @@ export const extractChangesFromContent = (content: any): Change[] => {
             if (typeof attrs.insertion === 'string') {
               try {
                 const insertionData = JSON.parse(attrs.insertion);
-                console.log('extractFromNode: Parsed insertion data:', insertionData);
+             //   console.log('extractFromNode: Parsed insertion data:', insertionData);
                 insertion = insertionData;
                 userId = insertionData.userId || 'unknown';
                 userName = insertionData.userName || 'Unknown User';
                 timestamp = insertionData.timestamp || Date.now();
               } catch (e) {
-                console.log('extractFromNode: Failed to parse insertion data:', e);
+               // console.log('extractFromNode: Failed to parse insertion data:', e);
                 insertion = true;
               }
             } else {
@@ -253,13 +253,13 @@ export const extractChangesFromContent = (content: any): Change[] => {
             if (typeof attrs.deletion === 'string') {
               try {
                 const deletionData = JSON.parse(attrs.deletion);
-                console.log('extractFromNode: Parsed deletion data:', deletionData);
+              //  console.log('extractFromNode: Parsed deletion data:', deletionData);
                 deletion = deletionData;
                 userId = deletionData.userId || userId;
                 userName = deletionData.userName || userName;
                 timestamp = deletionData.timestamp || timestamp;
               } catch (e) {
-                console.log('extractFromNode: Failed to parse deletion data:', e);
+                //console.log('extractFromNode: Failed to parse deletion data:', e);
                 deletion = true;
               }
             } else {
@@ -287,12 +287,12 @@ export const extractChangesFromContent = (content: any): Change[] => {
                 }
               };
               
-              console.log('extractFromNode: Created new change:', change);
+              //console.log('extractFromNode: Created new change:', change);
               changes.push(change);
             } else {
               // Append text to existing change
               existingChange.text += node.text || '';
-              console.log('extractFromNode: Appended text to existing change:', existingChange);
+              //console.log('extractFromNode: Appended text to existing change:', existingChange);
             }
           }
         }
@@ -301,7 +301,7 @@ export const extractChangesFromContent = (content: any): Change[] => {
 
     // Process nested content recursively
     if (node.content && Array.isArray(node.content)) {
-      console.log(`extractFromNode: Processing ${node.content.length} child nodes`);
+      //console.log(`extractFromNode: Processing ${node.content.length} child nodes`);
       node.content.forEach((child: any, index: number) => {
         extractFromNode(child, `${path}.content.${index}`);
       });
@@ -313,8 +313,8 @@ export const extractChangesFromContent = (content: any): Change[] => {
     extractFromNode(node, `root.${index}`);
   });
   
-  console.log('extractChangesFromContent: Final extracted changes:', changes);
-  console.log('extractChangesFromContent: Total changes found:', changes.length);
+  //console.log('extractChangesFromContent: Final extracted changes:', changes);
+  //console.log('extractChangesFromContent: Total changes found:', changes.length);
   
   return changes;
 };

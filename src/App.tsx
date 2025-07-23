@@ -21,8 +21,6 @@ import { UserContextProvider } from '@/lib/UserContextProvider';
 import EditPage from "./pages/EditPage";
 import ChatPage from "./pages/ChatPage";
 import React from 'react';
-import { LLMContextProvider } from './context/LLMContext';
-import AuthenticatedRoutes from './AuthenticatedRoutes';
 
 const queryClient = new QueryClient();
 
@@ -33,7 +31,6 @@ const App = () => (
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          <LLMContextProvider>
             <Routes>
               <Route path="/" element={<Home />} />
               <Route path="/login" element={<Login />} />
@@ -92,7 +89,6 @@ const App = () => (
                 }
               />
             </Routes>
-          </LLMContextProvider>
         </BrowserRouter>
       </TooltipProvider>
     </ThemeProvider>

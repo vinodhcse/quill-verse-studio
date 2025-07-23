@@ -2,8 +2,6 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, RefreshCw, ArrowRight } from 'lucide-react';
 
-import { useLLM } from '../context/LLMContext';
-
 // --- Constant Function for Prompt Definition ---
 const getRephrasePrompt = (originalText: string): string => {
   return `#Task: Rephrase
@@ -88,8 +86,6 @@ const RephraseComparisonModal: React.FC<RephraseComparisonModalProps> = ({
   onClose,
   onCompleteRephrasing,
 }) => {
-  const { llm, isReady } = useLLM();
-
   const [comparisonChunks, setComparisonChunks] = useState<ComparisonChunk[]>([]);
   const [isRephrasing, setIsRephrasing] = useState(false); // Overall rephrasing process
   const [currentProcessingChunkIndex, setCurrentProcessingChunkIndex] = useState(-1);
@@ -102,12 +98,6 @@ const RephraseComparisonModal: React.FC<RephraseComparisonModalProps> = ({
   const isAnyChunkProcessing = comparisonChunks.some(chunk => chunk.isProcessing);
 
   const startRephrasing = useCallback(async () => {
-    if (!llm || !isReady) {
-      console.error("LLM not ready or available to start rephrasing.");
-      setIsRephrasing(false);
-      return;
-    }
-
     setIsRephrasing(true); // Indicate overall rephrasing started
 
     for (let i = 0; i < comparisonChunks.length; i++) {
@@ -184,20 +174,20 @@ const RephraseComparisonModal: React.FC<RephraseComparisonModalProps> = ({
       setOverallProgress(100);
     }
     setCurrentProcessingChunkIndex(-1);
-  }, [comparisonChunks, llm, isReady]);
+  }, [comparisonChunks]);
 
 
   useEffect(() => {
     // This effect handles the initial rephrasing of all chunks.
     // It should only run if `isRephrasing` is true (set from `textToRephrase` effect)
     // and no chunk is currently marked as processing, preventing re-triggering mid-process.
-    if (isRephrasing && comparisonChunks.length > 0 && currentProcessingChunkIndex === -1 && isReady) {
+    if (isRephrasing && comparisonChunks.length > 0 && currentProcessingChunkIndex === -1) {
       const anyChunkIsCurrentlyProcessing = comparisonChunks.some(chunk => chunk.isProcessing);
       if (!anyChunkIsCurrentlyProcessing) {
         startRephrasing();
       }
     }
-  }, [isRephrasing, comparisonChunks.length, currentProcessingChunkIndex, isReady, startRephrasing]);
+  }, [isRephrasing, comparisonChunks.length, currentProcessingChunkIndex, startRephrasing]);
 
   useEffect(() => {
     cancelRephrasingRef.current = false;
@@ -241,12 +231,12 @@ const RephraseComparisonModal: React.FC<RephraseComparisonModalProps> = ({
       setOverallProgress(0);
       setComparisonChunks([]);
     };
-  }, [textToRephrase, isReady]);
+  }, [textToRephrase]);
 
 
   const handleReRephrase = useCallback(async (chunkId: string) => {
-    if (!llm || !isReady || isAnyChunkProcessing) { // Disable if LLM not ready or another chunk is processing
-      console.warn("Cannot re-rephrase: LLM not ready or another chunk is already processing.");
+    if (isAnyChunkProcessing) { // Disable if another chunk is processing
+      console.warn("Cannot re-rephrase: Another chunk is already processing.");
       return;
     }
 
@@ -332,7 +322,7 @@ const RephraseComparisonModal: React.FC<RephraseComparisonModalProps> = ({
         setCurrentProcessingChunkIndex(-1); // Reset current index after this specific chunk is done
         setIsRephrasing(false); // Reset overall rephrasing state
     }
-  }, [comparisonChunks, llm, isReady, isAnyChunkProcessing]); // Added isAnyChunkProcessing to dependency array
+  }, [comparisonChunks, isAnyChunkProcessing]); // Removed llm and isReady
 
 
   const handleRetainOriginal = useCallback((chunkId: string) => {
@@ -399,17 +389,8 @@ const RephraseComparisonModal: React.FC<RephraseComparisonModalProps> = ({
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 space-y-6 bg-gray-50">
           {comparisonChunks.length === 0 && textToRephrase && (
             <div className="flex flex-col items-center justify-center h-full text-gray-500">
-              {!isReady ? (
-                <>
-                  <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" />
-                  <p className="text-xl">Initializing LLM...</p>
-                </>
-              ) : (
-                <>
-                  <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" />
-                  <p className="text-xl">Preparing text for rephrasing...</p>
-                </>
-              )}
+              <Loader2 className="w-10 h-10 animate-spin mb-4 text-blue-500" />
+              <p className="text-xl">Preparing text for rephrasing...</p>
             </div>
           )}
 
@@ -525,9 +506,9 @@ const RephraseComparisonModal: React.FC<RephraseComparisonModalProps> = ({
             onClick={handleApplyRephrasing}
             // Disable "Apply" if any chunk is still processing (overall or single re-rephrase)
             // or if LLM not ready, or if not all chunks have reached a final state.
-            disabled={isAnyChunkProcessing || !isReady || !allChunksInitiallyProcessed || comparisonChunks.length === 0}
+            disabled={isAnyChunkProcessing || comparisonChunks.length === 0}
             className={`px-8 py-3 rounded-lg font-semibold text-white transition-all duration-300 ease-in-out shadow-lg
-              ${(isAnyChunkProcessing || !isReady || !allChunksInitiallyProcessed || comparisonChunks.length === 0) ? 'bg-blue-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105'}
+              ${(isAnyChunkProcessing || comparisonChunks.length === 0) ? 'bg-blue-400 cursor-not-allowed opacity-70' : 'bg-blue-600 hover:bg-blue-700 hover:scale-105'}
               flex items-center justify-center
             `}
           >

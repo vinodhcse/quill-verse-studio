@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { useParams, useLocation } from 'react-router-dom';
 import { fetchChapters, fetchSelectedChapter } from './bookService';
@@ -13,6 +12,9 @@ const initialState = {
   selectedChapter: null,
   bookDetails: null,
   collaborators: [],
+  plotCanvas: null,
+  worlds: null,
+  characters: [] 
 };
 
 const BookContext = createContext(null);
@@ -35,6 +37,12 @@ const bookReducer = (state, action) => {
       return { ...state, bookDetails: action.payload };
     case 'SET_COLLABORATORS':
       return { ...state, collaborators: action.payload };
+    case 'SET_PLOTCANVAS':
+      return { ...state, plotCanvas: action.payload };
+    case 'SET_WORLDS':
+      return { ...state, worlds: action.payload };
+    case 'SET_CHARACTERS':
+      return { ...state, characters: action.payload };
     default:
       return state;
   }
@@ -45,6 +53,9 @@ export const BookProvider = ({ children }) => {
   const location = useLocation();
   const [state, dispatch] = useReducer(bookReducer, initialState);
   const [loading, setLoading] = useState(false);
+  const [plotCanvas, setPlotCanvas] = useState(null);
+  const [worlds, setWorlds] = useState(null);
+  const [characters, setCharacters] = useState([]);
 
   const refetchChapters = async () => {
     if (state.bookId && state.versionId) {
@@ -71,6 +82,45 @@ export const BookProvider = ({ children }) => {
     }
   };
 
+  const fetchAllCharacters = async () => {
+    if (state.bookId && state.versionId) {
+      try {
+        const response = await apiClient.get(`/books/${state.bookId}/versions/${state.versionId}/characters/all`);
+        console.log('fetchAll characters', response);
+        dispatch({ type: 'SET_CHARACTERS', payload: response.data || [] });
+      } catch (error) {
+        console.error('Failed to fetch characters:', error);
+        setCharacters([]);
+      }
+    }
+  };
+
+  const fetchPlotCanvas = async () => {
+    if (state.bookId && state.versionId) {
+      try {
+        const response = await apiClient.get(`/books/${state.bookId}/versions/${state.versionId}/plotCanvas`);
+        console.log('fetchPlotCanvas response:', response);
+        dispatch({ type: 'SET_PLOTCANVAS', payload: response.data || [] });
+      } catch (error) {
+        console.error('Failed to fetch PlotCanvas:', error);
+        setPlotCanvas(null);
+      }
+    }
+  };
+
+  const fetchWorlds = async () => {
+    if (state.bookId && state.versionId) {
+      try {
+        const response = await apiClient.get(`/books/${state.bookId}/versions/${state.versionId}/world/all`);
+        console.log('fetchWorlds response:', response);
+        dispatch({ type: 'SET_WORLDS', payload: response.data || [] });
+      } catch (error) {
+        console.error('Failed to fetch WorldBuilding:', error);
+        setWorlds(null);
+      }
+    }
+  };
+
   useEffect(() => {
     const queryParams = new URLSearchParams(location.search);
     const chapterIdFromQuery = queryParams.get('chapterId');
@@ -83,7 +133,31 @@ export const BookProvider = ({ children }) => {
     if (bookId) dispatch({ type: 'SET_BOOK', payload: bookId });
     if (versionId) dispatch({ type: 'SET_VERSION', payload: versionId });
     if (chapterIdFromQuery) dispatch({ type: 'SET_CHAPTER', payload: chapterIdFromQuery });
+
+    fetchBookDetails();
+    fetchPlotCanvas();
+    fetchWorlds();
+    fetchAllCharacters();
+      
   }, [bookId, versionId, location.search]);
+
+
+  useEffect(() => {
+    console.log('Fetching book Details for bookId:', bookId, " versionId:", versionId);
+    
+    
+    
+    // Fetch book details including collaborators
+    fetchBookDetails();
+    fetchPlotCanvas();
+    fetchWorlds();
+    fetchAllCharacters();
+
+    
+      
+  }, [bookId, versionId]);
+
+  
 
   useEffect(() => {
     const fetchData = async () => {
@@ -91,6 +165,7 @@ export const BookProvider = ({ children }) => {
         try {
           const chapters = await fetchChapters(state.bookId, state.versionId);
           const sortedChapters = chapters.sort((a, b) => a.position - b.position); // Sort by position (asc)
+
           dispatch({ type: 'SET_CHAPTERS', payload: sortedChapters || [] });
           if (!state.chapterId && sortedChapters.length > 0) {
             dispatch({ type: 'SET_SELECTED_CHAPTER', payload: sortedChapters[0] });
@@ -114,15 +189,18 @@ export const BookProvider = ({ children }) => {
         }
       }
 
-      // Fetch book details including collaborators
-      await fetchBookDetails();
+    
     };
 
     fetchData();
+    fetchBookDetails();
+    fetchPlotCanvas();
+    fetchWorlds();
+    fetchAllCharacters();
   }, [state.bookId, state.versionId, state.chapterId]);
 
   return (
-    <BookContext.Provider value={{ state, dispatch, refetchChapters, fetchBookDetails, loading }}>
+    <BookContext.Provider value={{ state, dispatch, refetchChapters, fetchBookDetails, plotCanvas, worlds, characters, loading }}>
       {children}
     </BookContext.Provider>
   );
